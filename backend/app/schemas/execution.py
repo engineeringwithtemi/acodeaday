@@ -1,0 +1,60 @@
+"""Pydantic schemas for code execution."""
+
+from pydantic import BaseModel, Field
+
+from app.db.tables import Language
+
+
+class RunCodeRequest(BaseModel):
+    """Request to run code against example test cases."""
+
+    problem_slug: str = Field(..., description="Problem slug identifier")
+    code: str = Field(..., description="User's code to execute")
+    language: Language = Field(..., description="Programming language")
+
+
+class TestResult(BaseModel):
+    """Result from a single test case."""
+
+    test_number: int
+    passed: bool
+    output: dict | list | str | int | float | bool | None = None
+    expected: dict | list | str | int | float | bool | None = None
+    error: str | None = None
+    error_type: str | None = None
+    is_hidden: bool = False
+
+
+class RunCodeResponse(BaseModel):
+    """Response from running code."""
+
+    success: bool = Field(..., description="Whether execution succeeded")
+    results: list[TestResult] = Field(..., description="Test case results")
+    summary: dict = Field(..., description="Summary stats (total, passed, failed)")
+    stdout: str | None = Field(None, description="Raw stdout from Judge0")
+    stderr: str | None = Field(None, description="Raw stderr from Judge0")
+    compile_error: str | None = Field(None, description="Compilation errors if any")
+    runtime_error: str | None = Field(None, description="Runtime errors if any")
+
+
+class SubmitCodeRequest(BaseModel):
+    """Request to submit code (runs all test cases including hidden)."""
+
+    problem_slug: str = Field(..., description="Problem slug identifier")
+    code: str = Field(..., description="User's code to execute")
+    language: Language = Field(..., description="Programming language")
+
+
+class SubmitCodeResponse(BaseModel):
+    """Response from code submission."""
+
+    success: bool = Field(..., description="Whether all tests passed")
+    results: list[TestResult] = Field(..., description="All test results (including hidden)")
+    summary: dict = Field(..., description="Summary stats")
+    submission_id: str = Field(..., description="Submission record ID")
+    runtime_ms: int | None = Field(None, description="Execution time in milliseconds")
+
+    # Progress update (if submission passed)
+    times_solved: int | None = Field(None, description="Number of times solved")
+    is_mastered: bool | None = Field(None, description="Whether problem is now mastered")
+    next_review_date: str | None = Field(None, description="Next review date (ISO format)")

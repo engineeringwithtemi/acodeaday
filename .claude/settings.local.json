@@ -4,7 +4,8 @@
       "WebSearch",
       "Bash(cat:*)",
       "Bash(docker logs:*)",
-      "Bash(supabase status:*)"
+      "Bash(supabase status:*)",
+      "WebFetch(domain:python.docs.judge0.com)"
     ],
     "deny": [],
     "ask": []

@@ -5,7 +5,7 @@ services:
   # Judge0 requires: server, workers, redis, and its own postgres database
 
   judge0-server:
-    image: judge0/judge0:1.13.0
+    image: judge0/judge0:1.13.1
     container_name: acodeaday-judge0-server
     volumes:
       - ./judge0-data:/data
@@ -52,7 +52,7 @@ services:
       - acodeaday-network
 
   judge0-workers:
-    image: judge0/judge0:1.13.0
+    image: judge0/judge0:1.13.1
     container_name: acodeaday-judge0-workers
     command: ["./scripts/workers"]
     volumes:
@@ -84,6 +84,10 @@ services:
       - ENABLE_CALLBACKS=false
       - CALLBACKS_MAX_TRIES=3
       - CALLBACKS_TIMEOUT=5
+
+      # macOS Docker workaround - disable sandboxing (DEV ONLY)
+      - ENABLE_PER_PROCESS_AND_THREAD_MEMORY_LIMIT=false
+      - ENABLE_PER_PROCESS_AND_THREAD_TIME_LIMIT=false
 
     depends_on:
       judge0-db:

@@ -15,6 +15,7 @@ dependencies = [
     "python-multipart>=0.0.21",
     "python-dotenv>=1.2.1",
     "supabase>=2.0.0",
+    "judge0>=0.0.7",
 ]
 
 [project.optional-dependencies]
