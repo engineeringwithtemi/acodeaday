@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../judge0"
+		},
+		{
+			"path": "../judge0-python"
+		}
+	],
+	"settings": {}
+}

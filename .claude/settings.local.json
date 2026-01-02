@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(cat:*)",
+      "Bash(docker logs:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
