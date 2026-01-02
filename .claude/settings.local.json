@@ -3,7 +3,8 @@
     "allow": [
       "WebSearch",
       "Bash(cat:*)",
-      "Bash(docker logs:*)"
+      "Bash(docker logs:*)",
+      "Bash(supabase status:*)"
     ],
     "deny": [],
     "ask": []

@@ -13,9 +13,18 @@ class Settings(BaseSettings):
         description="PostgreSQL connection URL (asyncpg driver required)",
     )
 
-    # HTTP Basic Auth (simple username/password)
-    auth_username: str = Field("admin", description="Basic auth username")
-    auth_password: str = Field("changeme", description="Basic auth password")
+    # Supabase Auth
+    supabase_url: str = Field(
+        "http://localhost:54321", description="Supabase project URL"
+    )
+    supabase_key: str = Field(
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0",
+        description="Supabase anon/service role key for JWT validation"
+    )
+    supabase_jwt_secret: str = Field(
+        "super-secret-jwt-token-with-at-least-32-characters-long",
+        description="Supabase JWT secret for token validation"
+    )
 
     # Judge0
     judge0_url: str = Field("http://localhost:2358", description="Judge0 API URL")

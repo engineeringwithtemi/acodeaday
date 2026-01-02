@@ -23,6 +23,17 @@ class Difficulty(enum.StrEnum):
     HARD = "hard"
 
 
+class Language(enum.StrEnum):
+    """Supported programming languages."""
+
+    PYTHON = "python"
+    JAVASCRIPT = "javascript"
+    # Future languages can be added here:
+    # JAVA = "java"
+    # CPP = "cpp"
+    # GO = "go"
+
+
 class Problem(Base):
     """Core problem data from Blind 75."""
 
@@ -77,9 +88,9 @@ class ProblemLanguage(Base):
     problem_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("problems.id", ondelete="CASCADE"), nullable=False
     )
-    language: Mapped[str] = mapped_column(
-        String(50), nullable=False
-    )  # "python", "javascript", etc.
+    language: Mapped[Language] = mapped_column(
+        Enum(Language), nullable=False
+    )  # Python, JavaScript, etc.
     starter_code: Mapped[str] = mapped_column(Text, nullable=False)
     reference_solution: Mapped[str] = mapped_column(Text, nullable=False)
 
@@ -179,7 +190,7 @@ class Submission(Base):
     )
 
     code: Mapped[str] = mapped_column(Text, nullable=False)
-    language: Mapped[str] = mapped_column(String(50), nullable=False)
+    language: Mapped[Language] = mapped_column(Enum(Language), nullable=False)
     passed: Mapped[bool] = mapped_column(Boolean, nullable=False)
     runtime_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
 

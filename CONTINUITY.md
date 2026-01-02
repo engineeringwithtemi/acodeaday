@@ -17,10 +17,12 @@ Success criteria: Users can solve problems daily, get spaced repetition reviews,
 ## Key Decisions
 
 ### 1. Authentication
-- **HTTP Basic Auth** with username/password from settings
-- Default: username=admin, password=changeme (overridable in .env)
-- No Supabase Auth, no JWT tokens
-- Username becomes user_id in database
+- **Supabase Auth** with JWT tokens
+- Frontend authenticates with Supabase (email/password, OAuth, etc.)
+- Supabase returns JWT token
+- Backend validates token using Supabase client
+- User ID from Supabase used in database (user_progress, submissions)
+- Token sent in Authorization header: "Bearer <token>"
 
 ### 2. Database
 - **Supabase PostgreSQL** (hosted or local Supabase)

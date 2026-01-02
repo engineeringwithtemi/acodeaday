@@ -1,8 +1,8 @@
-"""initial schema
+"""initial schema with supabase auth and language enum
 
-Revision ID: 29b5df298b0d
+Revision ID: 40b1440b17d7
 Revises: 
-Create Date: 2026-01-02 19:57:22.495842
+Create Date: 2026-01-02 21:04:02.316258
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = '29b5df298b0d'
+revision: str = '40b1440b17d7'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -39,7 +39,7 @@ def upgrade() -> None:
     op.create_table('problem_languages',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('problem_id', sa.UUID(), nullable=False),
-    sa.Column('language', sa.String(length=50), nullable=False),
+    sa.Column('language', sa.Enum('PYTHON', 'JAVASCRIPT', name='language'), nullable=False),
     sa.Column('starter_code', sa.Text(), nullable=False),
     sa.Column('reference_solution', sa.Text(), nullable=False),
     sa.Column('function_signature', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
@@ -54,7 +54,7 @@ def upgrade() -> None:
     sa.Column('user_id', sa.String(length=255), nullable=False),
     sa.Column('problem_id', sa.UUID(), nullable=False),
     sa.Column('code', sa.Text(), nullable=False),
-    sa.Column('language', sa.String(length=50), nullable=False),
+    sa.Column('language', sa.Enum('PYTHON', 'JAVASCRIPT', name='language'), nullable=False),
     sa.Column('passed', sa.Boolean(), nullable=False),
     sa.Column('runtime_ms', sa.Integer(), nullable=True),
     sa.Column('submitted_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
