@@ -26,9 +26,13 @@ class Settings(BaseSettings):
         description="Supabase JWT secret for token validation"
     )
 
-    # HTTP Basic Auth (simple username/password)
-    auth_username: str = Field("admin", description="Basic auth username")
-    auth_password: str = Field("changeme", description="Basic auth password")
+    # Default user credentials (created on startup)
+    default_user_email: str = Field(
+        "admin@acodeaday.local", description="Default user email"
+    )
+    default_user_password: str = Field(
+        "changeme123", description="Default user password (min 6 chars)"
+    )
 
     # Judge0
     judge0_url: str = Field("http://localhost:2358", description="Judge0 API URL")

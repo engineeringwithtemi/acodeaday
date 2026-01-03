@@ -39,12 +39,13 @@ Users solve one new problem daily. Problems they've solved before resurface at o
 
 | Component | Technology |
 |-----------|------------|
+| Backend | FastAPI (Python) with async SQLAlchemy |
 | Frontend | TanStack (React) |
 | Code Editor | Monaco Editor |
-| Code Execution | Judge0 (self-hosted) |
-| Database | Supabase (local) |
-| Auth | Supabase Auth |
-| Infrastructure | Docker (everything containerized) |
+| Code Execution | Judge0 CE (self-hosted) |
+| Database | Supabase PostgreSQL (local or hosted) |
+| Auth | Supabase Auth (JWT tokens) |
+| Infrastructure | Docker (Judge0), local dev for backend/frontend |
 | Language Support | Python only (MVP) |
 
 ---
@@ -181,7 +182,7 @@ CREATE INDEX idx_test_cases_problem_id ON test_cases(problem_id);
 ```sql
 CREATE TABLE user_progress (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id          UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id          VARCHAR(255) NOT NULL,  -- Supabase Auth user ID (string)
   problem_id       UUID REFERENCES problems(id) ON DELETE CASCADE,
   times_solved     INTEGER DEFAULT 0,
   last_solved_at   TIMESTAMP,
@@ -189,7 +190,7 @@ CREATE TABLE user_progress (
   is_mastered      BOOLEAN DEFAULT FALSE,
   show_again       BOOLEAN DEFAULT FALSE,
   created_at       TIMESTAMP DEFAULT NOW(),
-  
+
   UNIQUE(user_id, problem_id)
 );
 
@@ -202,7 +203,7 @@ CREATE INDEX idx_user_progress_next_review ON user_progress(next_review_date);
 ```sql
 CREATE TABLE submissions (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id      UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id      VARCHAR(255) NOT NULL,  -- Supabase Auth user ID (string)
   problem_id   UUID REFERENCES problems(id) ON DELETE CASCADE,
   code         TEXT NOT NULL,
   language     TEXT NOT NULL,
@@ -286,13 +287,19 @@ Problems are stored across normalized tables. Here's an example of how Two Sum w
 
 ### Architecture
 
-Everything runs in Docker containers. User never interacts with Judge0 directly — all code execution goes through our API.
+Judge0 runs in Docker. Backend (FastAPI) can run locally or in Docker. User never interacts with Judge0 directly — all code execution goes through our API.
 
 ```
 ┌──────────┐       ┌─────────────────┐       ┌─────────────────┐
-│  Client  │──────▶│  API Layer      │──────▶│ Judge0 (Docker) │
-│          │       │  (Docker)       │       │                 │
+│  Client  │──────▶│  FastAPI        │──────▶│ Judge0 (Docker) │
+│ (React)  │       │  Backend        │       │                 │
 └──────────┘       └─────────────────┘       └─────────────────┘
+                           │
+                           ▼
+                   ┌─────────────────┐
+                   │ Supabase        │
+                   │ PostgreSQL      │
+                   └─────────────────┘
 ```
 
 ### Execution Modes
@@ -303,15 +310,15 @@ Everything runs in Docker containers. User never interacts with Judge0 directly 
 | Run Code (custom input) | User's custom input | Yes — to generate expected output |
 | Submit | ALL test cases from DB (including hidden) | No |
 
-### API Endpoints
+### API Request/Response Examples
 
 **Run Code**
 ```typescript
 POST /api/run
 {
-  "problem_id": "two-sum",
+  "problem_slug": "two-sum",  // uses slug, not id
   "language": "python",
-  "code": "def twoSum(nums, target): ..."
+  "code": "class Solution:\n    def twoSum(self, nums, target): ..."
 }
 
 // Response
@@ -319,49 +326,46 @@ POST /api/run
   "success": true,
   "results": [
     {
-      "test": 1,
+      "test_number": 1,
       "passed": true,
-      "input": "[2,7,11,15], 9",
-      "stdout": "Debug: checking values",
-      "output": "[0,1]",
-      "expected": "[0,1]"
+      "output": [0, 1],
+      "expected": [0, 1],
+      "error": null,
+      "is_hidden": false
     }
   ],
-  "runtime_ms": 42
+  "summary": {
+    "total": 3,
+    "passed": 3,
+    "failed": 0
+  }
 }
-```
-
-**Run Code with Custom Input**
-```typescript
-POST /api/run
-{
-  "problem_id": "two-sum",
-  "language": "python",
-  "code": "def twoSum(nums, target): ...",
-  "custom_input": [[1,5,3,7], 8]  // user-provided
-}
-
-// Server runs BOTH user code and reference solution
-// Compares outputs
 ```
 
 **Submit Solution**
 ```typescript
 POST /api/submit
 {
-  "problem_id": "two-sum",
+  "problem_slug": "two-sum",
   "language": "python",
-  "code": "def twoSum(nums, target): ..."
+  "code": "class Solution:\n    def twoSum(self, nums, target): ..."
 }
+// Requires Authorization: Bearer <token>
 
 // Runs against ALL test cases (including hidden)
 // Response
 {
   "success": true,
-  "all_passed": true,
-  "passed_count": 15,
-  "total_count": 15,
-  "runtime_ms": 128
+  "results": [...],
+  "summary": {
+    "total": 5,
+    "passed": 5,
+    "failed": 0
+  },
+  "submission_id": "uuid",
+  "times_solved": 1,
+  "is_mastered": false,
+  "next_review_date": "2024-01-15"
 }
 ```
 
@@ -602,56 +606,71 @@ The problem-solving UI is a **LeetCode clone**. No reinventing — same layout, 
 
 ## API Endpoints
 
+### Authentication
+
+**No auth routes in the backend.** Authentication is handled entirely by Supabase:
+
+1. A default user is created on backend startup using `DEFAULT_USER_EMAIL` and `DEFAULT_USER_PASSWORD` environment variables
+2. Frontend uses Supabase JS client directly to authenticate: `supabase.auth.signInWithPassword()`
+3. Frontend includes the JWT in requests: `Authorization: Bearer <access_token>`
+4. Backend validates the token on protected routes using `supabase.auth.get_user(token)`
+
 ### Problems
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/problems` | List all problems |
-| GET | `/api/problems/:slug` | Get single problem with language config |
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/api/problems` | List all problems | No |
+| GET | `/api/problems/:slug` | Get single problem with language config | No |
 
 ### Code Execution
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/run` | Run code against example test cases |
-| POST | `/api/submit` | Submit solution against all test cases |
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| POST | `/api/run` | Run code against example test cases | No |
+| POST | `/api/submit` | Submit solution against all test cases | Yes |
 
 ### User Progress
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/today` | Get today's session (reviews + new) |
-| GET | `/api/progress` | Get user's overall progress |
-| GET | `/api/mastered` | Get mastered problems |
-| POST | `/api/mastered/:id/show-again` | Add problem back to rotation |
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/api/today` | Get today's session (reviews + new) | Yes |
+| GET | `/api/progress` | Get user's overall progress | Yes |
+| GET | `/api/mastered` | Get mastered problems | Yes |
+| POST | `/api/mastered/:id/show-again` | Add problem back to rotation | Yes |
 
 ### Submissions
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/submissions/:problem_id` | Get past submissions for a problem |
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/api/submissions/:problem_id` | Get past submissions for a problem | Yes |
 
 ---
 
 ## MVP Scope
 
-### Phase 1 (MVP)
-- [ ] Docker setup (API, Judge0, Supabase)
-- [ ] 15 Blind 75 problems with test cases
-- [ ] LeetCode-clone problem view UI
-- [ ] Code execution (Run Code, Submit)
-- [ ] Custom test case support
-- [ ] Daily session logic (2 reviews + 1 new)
-- [ ] Basic spaced repetition (7 day interval, 2x mastery)
-- [ ] Python only
+### Phase 1 - Backend (COMPLETE ✅)
+- [x] Docker setup (Judge0 CE with workers, redis, postgres)
+- [x] FastAPI backend with async SQLAlchemy
+- [x] Supabase Auth integration (JWT validation, default user on startup)
+- [x] 16 Blind 75 problems with test cases (YAML seed files)
+- [x] Code execution (Run Code, Submit via Judge0)
+- [x] Daily session logic (2 reviews + 1 new)
+- [x] Basic spaced repetition (7 day interval, 2x mastery)
+- [x] Python only
+- [x] 15 backend tests passing
 
-### Phase 2
-- [ ] Full Blind 75 (all 75 problems)
+### Phase 2 - Frontend (IN PROGRESS)
+- [ ] TanStack (React) setup
+- [ ] LeetCode-clone problem view UI
+- [ ] Monaco Editor integration
+- [ ] Dashboard page with daily problems
 - [ ] Progress visualization
 - [ ] Mastered problems page with "Show Again"
 - [ ] Submission history
 
 ### Phase 3
+- [ ] Full Blind 75 (all 75 problems)
+- [ ] Custom test case support
 - [ ] JavaScript support
 - [ ] Additional languages
 - [ ] Multiple problem sets (NeetCode 150, company-specific)
@@ -668,11 +687,13 @@ The problem-solving UI is a **LeetCode clone**. No reinventing — same layout, 
 
 ## Next Steps
 
-1. Set up project structure with TanStack + Supabase
-2. Self-host Judge0 instance
-3. Create first 15 problems in JSON format
-4. Build core UI components
-5. Implement daily session logic
+Backend is complete. Next:
+
+1. Initialize TanStack (React) frontend project
+2. Set up Supabase JS client for auth
+3. Build Dashboard page with daily problems
+4. Build Problem View page with Monaco Editor
+5. Build Progress and Mastered pages
 6. Test end-to-end flow
 
 ---

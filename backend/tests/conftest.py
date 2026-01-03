@@ -15,7 +15,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
-from supabase import create_client
+from supabase import acreate_client, create_client
 
 from app.config.settings import settings
 from app.db.connection import get_db
@@ -108,6 +108,9 @@ async def client(test_db: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 
     app.dependency_overrides[get_db] = override_get_db
 
+    # Initialize async app.state.supabase for tests (normally done in lifespan)
+    app.state.supabase = await acreate_client(settings.supabase_url, settings.supabase_key)
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
@@ -120,15 +123,15 @@ def test_user_session() -> dict:
     """
     Login with Supabase Auth and return session info.
 
-    Uses auth_username and auth_password from settings to authenticate
+    Uses default_user_email and default_user_password from settings to authenticate
     with Supabase and retrieve a valid JWT token and user ID.
     """
     # Create Supabase client
     supabase = create_client(settings.supabase_url, settings.supabase_key)
 
-    # Login with email/password (username is used as email for Supabase)
-    email = f"{settings.auth_username}@test.local"
-    password = settings.auth_password
+    # Login with email/password
+    email = settings.default_user_email
+    password = settings.default_user_password
 
     try:
         # Try to sign in first

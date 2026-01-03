@@ -8,7 +8,7 @@ Success criteria: Users can solve problems daily, get spaced repetition reviews,
 ## Constraints/Assumptions
 - **Backend**: FastAPI (Python) with Judge0 Python SDK
 - **Frontend**: TanStack (React) with Monaco Editor
-- **Auth**: Supabase Auth (email/password, JWT validation)
+- **Auth**: Supabase Auth (JWT validation, default user created on startup)
 - **Database**: Supabase (local instance)
 - **Execution**: Judge0 CE (self-hosted, Community Edition)
 - **Docker**: All services containerized
@@ -18,9 +18,10 @@ Success criteria: Users can solve problems daily, get spaced repetition reviews,
 
 ### 1. Authentication
 - **Supabase Auth** with JWT tokens
-- Frontend authenticates with Supabase (email/password, OAuth, etc.)
+- **No signup route** - default user created on backend startup from env vars
+- Frontend authenticates directly with Supabase JS client (email/password)
 - Supabase returns JWT token
-- Backend validates token using Supabase client
+- Backend validates token using Supabase client on protected routes
 - User ID from Supabase used in database (user_progress, submissions)
 - Token sent in Authorization header: "Bearer <token>"
 
@@ -67,77 +68,78 @@ Success criteria: Users can solve problems daily, get spaced repetition reviews,
 ## State
 
 ### Done
+
+#### Phase 1: Infrastructure ✅
 - Spec reviewed and clarified
 - Tech stack decisions finalized
 - Reviewed aide backend structure for async SQLAlchemy + Alembic patterns
-- Updated TASKS.md with:
-  - Async SQLAlchemy configuration (asyncpg, sqlalchemy[asyncio])
-  - SQLAlchemy 2.0 style with Mapped[] and mapped_column()
-  - Async Alembic migrations configuration
-  - FastAPI app structure following aide backend pattern
-  - HTTP Basic Auth (replaced Supabase Auth)
-  - Structlog logging setup
-  - Complete async patterns reference guide
-  - All 5 database models with relationships and indexes
-  - Seed data examples (Two Sum problem)
-  - Judge0 wrapper code generator
-  - Spaced repetition logic implementation
 - Initialized Supabase (local instance ready)
-- Created environment files:
-  - `.env.example` (template with all variables)
-  - `.env` (development defaults)
-  - `.gitignore` (comprehensive exclusions for Python, Node, Docker, etc.)
-- Created documentation:
-  - `README.md` - Setup instructions and quick start
-  - `DOCKER.md` - Docker commands, troubleshooting, and configuration
-- Created `docker-compose.yml` with:
-  - Judge0 CE (server, workers, redis, postgres)
-  - Optional backend/frontend services (commented out)
-  - Proper networking and volume management
-  - Production-ready configuration
-- Fixed Judge0 Docker startup issues:
-  - Added health checks to PostgreSQL and Redis
-  - Fixed port conflict (5433 → 5434)
-  - Created SETUP_NOTES.md documenting the fix
-- Verified Judge0 running successfully:
-  - All containers healthy
-  - API responding at http://localhost:2358
-  - Python 3.8.1 (Language ID 71) available
-- Initialized backend/ directory with uv:
-  - Created pyproject.toml with all dependencies (FastAPI, SQLAlchemy, Alembic, asyncpg, etc.)
-  - Installed dependencies with uv sync
-  - Created app/ directory structure (config, db, routes, services, middleware, schemas)
+- Created environment files (.env.example, .env, .gitignore)
+- Created documentation (README.md, DOCKER.md)
+- Created docker-compose.yml with Judge0 CE (server, workers, redis, postgres)
+- Fixed Judge0 Docker startup issues (health checks, port conflicts)
+- Verified Judge0 running at http://localhost:2358
+
+#### Phase 2: Database & ORM ✅
+- Initialized backend/ with uv and all dependencies
 - Implemented database layer:
-  - app/db/connection.py - Async database connection with session factory
+  - app/db/connection.py - Async database connection
   - app/db/tables.py - All 5 models (Problem, ProblemLanguage, TestCase, UserProgress, Submission)
-  - All models use SQLAlchemy 2.0 style (Mapped[], mapped_column())
-  - Proper indexes and foreign key constraints
-- Configured application settings:
-  - app/config/settings.py - Pydantic settings with .env support
-  - app/config/logging.py - Structlog configuration (JSON for prod, console for dev)
-- Set up Alembic migrations:
-  - Configured alembic.ini and migrations/env.py for async
-  - Created initial migration with all 5 tables
-  - Applied migration successfully to Supabase PostgreSQL
-- Created FastAPI application:
-  - app/main.py - FastAPI app with lifespan management, CORS, health checks
-  - app/middleware/auth.py - HTTP Basic Auth (username/password)
-  - Verified server starts and endpoints respond correctly
+  - SQLAlchemy 2.0 style (Mapped[], mapped_column())
+- Configured settings (pydantic-settings) and logging (structlog)
+- Set up Alembic async migrations
+- Created Pydantic schemas (problem.py, execution.py, progress.py)
+
+#### Phase 3: Backend Implementation ✅
+- Created FastAPI app with lifespan, CORS, health checks
+- Implemented auth middleware (Supabase JWT validation)
+- Implemented all API routes:
+  - GET /api/problems - List all problems
+  - GET /api/problems/{slug} - Get problem details
+  - POST /api/run - Run code against visible test cases
+  - POST /api/submit - Submit against all test cases + update progress
+  - GET /api/today - Get today's session (2 reviews + 1 new)
+  - GET /api/progress - Get overall progress stats
+  - GET /api/mastered - Get mastered problems list
+  - POST /api/mastered/{id}/show-again - Re-add to rotation
+  - GET /api/submissions/{problem_id} - Get submission history
+- Implemented services:
+  - services/judge0.py - Judge0 integration (direct HTTP, no SDK)
+  - services/wrapper.py - Python code wrapper generator
+  - services/progress.py - Spaced repetition logic
+  - services/seeder.py - CLI seeder from YAML files
+- Created seed data:
+  - 16 Blind 75 problems as YAML files in data/problems/
+  - CLI tool: `uv run python -m app.services.seeder seed`
+
+#### Phase 5.1: Backend Tests ✅
+- 15 tests passing (problems, progress, submissions)
+- Fixed test database isolation:
+  - Added postgres-test container on port 54325
+  - Tests use TRUNCATE instead of DROP (preserves schema)
+  - Dev database data persists after running tests
+
+#### Auth Simplification ✅
+- No auth routes in backend (frontend uses Supabase JS client directly)
+- Added `ensure_default_user_exists()` in main.py lifespan
+- Default user created from `DEFAULT_USER_EMAIL` and `DEFAULT_USER_PASSWORD` env vars
+- Backend only validates JWT tokens on protected routes
 
 ### Now
-- Backend foundation complete and verified
-- All database tables created in Supabase PostgreSQL
-- FastAPI server running successfully with health checks
-- Ready to implement API routes and business logic
+- **Backend is COMPLETE** - all Phase 2 & 3 requirements implemented
+- Ready to begin Phase 4: Frontend Implementation
 
 ### Next
-- Implement API routes (problems, execution, progress, submissions)
-- Create Pydantic schemas for request/response models
-- Implement Judge0 wrapper generator (services/wrapper.py)
-- Implement Judge0 client (services/judge0.py)
-- Implement spaced repetition logic (services/progress.py)
-- Create seed script for first 15 Blind 75 problems
-- Test end-to-end code submission flow
+- Phase 4: Frontend Implementation (TanStack/React + Monaco Editor)
+  - Initialize TanStack project
+  - Create API client with Supabase auth
+  - Build Dashboard page (/)
+  - Build Problem View page (/problem/:slug) with Monaco Editor
+  - Build Progress page (/progress)
+  - Build Mastered page (/mastered)
+- Phase 5.2-5.5: Frontend tests, error handling, documentation
+- Phase 6: Deployment preparation
+- (Deferred) GitHub Actions CI workflow
 
 ## Open Questions
 None (all clarified)

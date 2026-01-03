@@ -15,7 +15,10 @@
       "Bash(npm install:*)",
       "Bash(nvm install:*)",
       "Bash(nvm use:*)",
-      "Bash(uv sync:*)"
+      "Bash(uv sync:*)",
+      "WebFetch(domain:tanstack.com)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run build:*)"
     ],
     "deny": [],
     "ask": []

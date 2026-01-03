@@ -13,49 +13,49 @@ acodeaday/
 
 ---
 
-## Phase 1: Project Setup & Infrastructure
+## Phase 1: Project Setup & Infrastructure ✅ COMPLETE
 
 ### 1.1 Initialize Project Structure
-- [ ] Create directory structure (backend/, frontend/, supabase/)
-- [ ] Initialize git repository with .gitignore
-- [ ] Create .env.example with all required environment variables
+- [x] Create directory structure (backend/, frontend/, supabase/)
+- [x] Initialize git repository with .gitignore
+- [x] Create .env.example with all required environment variables
 
 ### 1.2 Supabase Setup (Database Only)
-- [ ] Option A: Use hosted Supabase (supabase.com)
+- [x] Option A: Use hosted Supabase (supabase.com)
   - Create project and get DATABASE_URL, SUPABASE_URL, SUPABASE_KEY
-- [ ] Option B: Use local Supabase
+- [x] Option B: Use local Supabase
   - Run `supabase init` to initialize
   - Run `supabase start` to start local instance
   - Get connection details from output
-- [ ] Note: We only use Supabase for its PostgreSQL database
-- [ ] No auth service needed - using HTTP Basic Auth
-- [ ] Database schema is managed by SQLAlchemy + Alembic in backend
+- [x] Note: We only use Supabase for its PostgreSQL database
+- [x] Using Supabase Auth (JWT validation) instead of HTTP Basic Auth
+- [x] Database schema is managed by SQLAlchemy + Alembic in backend
 
 ### 1.3 Backend Setup (FastAPI + uv)
-- [ ] Initialize Python project with `uv init` in backend/
-- [ ] Create `pyproject.toml` with dependencies (based on aide backend):
+- [x] Initialize Python project with `uv init` in backend/
+- [x] Create `pyproject.toml` with dependencies (based on aide backend):
   - `fastapi[standard]>=0.125.0`
   - `sqlalchemy[asyncio]>=2.0.45` (note: [asyncio] extra required)
   - `asyncpg>=0.31.0` (PostgreSQL async driver, NOT psycopg2)
   - `alembic>=1.17.2`
   - `pydantic-settings>=2.12.0`
-  - `judge0` (Python SDK) or `httpx` if using Judge0 REST API directly
+  - `httpx` for Judge0 REST API directly (removed SDK dependency)
   - `structlog>=25.5.0` (structured logging)
   - `httpx>=0.28.1` (async HTTP client)
   - `python-multipart>=0.0.21` (for form data)
-- [ ] Add dev dependencies:
+- [x] Add dev dependencies:
   - `pytest>=9.0.2`
   - `pytest-asyncio>=1.3.0`
   - `pytest-cov>=7.0.0`
   - `python-dotenv>=1.2.1`
   - `ruff>=0.14.9` (linting)
-- [ ] Configure pytest for async in pyproject.toml:
+- [x] Configure pytest for async in pyproject.toml:
   ```toml
   [tool.pytest.ini_options]
   asyncio_mode = "auto"
   testpaths = ["tests"]
   ```
-- [ ] Create backend directory structure (following aide backend pattern):
+- [x] Create backend directory structure (following aide backend pattern):
   ```
   backend/
   ├── alembic.ini                    # Alembic config
@@ -104,9 +104,9 @@ acodeaday/
   ├── .python-version              # Python version for uv
   └── pyproject.toml
   ```
-- [ ] Set up uv virtual environment: `uv venv`
-- [ ] Install dependencies: `uv sync`
-- [ ] Initialize Alembic: `alembic init migrations` (creates migrations/ directory)
+- [x] Set up uv virtual environment: `uv venv`
+- [x] Install dependencies: `uv sync`
+- [x] Initialize Alembic: `alembic init migrations` (creates migrations/ directory)
 
 ### 1.4 Frontend Setup (TanStack/React)
 - [ ] Initialize TanStack project in frontend/
@@ -148,27 +148,28 @@ acodeaday/
   ```
 
 ### 1.5 Docker Setup
-- [ ] Create `docker-compose.yml` with services:
-  - [ ] Judge0 CE (judge0-server, judge0-workers, redis, postgres for judge0)
-  - [ ] Backend (FastAPI) - optional, can run locally with `uv run uvicorn app.main:app --reload`
-  - [ ] Frontend (Vite dev server) - optional, can run locally with `npm run dev`
+- [x] Create `docker-compose.yml` with services:
+  - [x] Judge0 CE (judge0-server, judge0-workers, redis, postgres for judge0)
+  - [x] Backend (FastAPI) - optional, can run locally with `uv run uvicorn app.main:app --reload`
+  - [x] Frontend (Vite dev server) - optional, can run locally with `npm run dev`
+  - [x] postgres-test (isolated test database on port 54325)
 - [ ] Create backend Dockerfile (optional, for production deployment)
 - [ ] Create frontend Dockerfile (optional, for production deployment)
-- [ ] Configure networking between services
-- [ ] Set up health checks for Judge0
-- [ ] Create start script: `docker-compose up`
-- [ ] **Important notes**:
+- [x] Configure networking between services
+- [x] Set up health checks for Judge0
+- [x] Create start script: `docker-compose up`
+- [x] **Important notes**:
   - **No PostgreSQL container**: Database comes from Supabase (hosted or local Supabase instance)
-  - **No Supabase GoTrue**: Using HTTP Basic Auth instead of Supabase Auth
+  - Using Supabase Auth (JWT validation)
   - Backend connects to Supabase PostgreSQL via DATABASE_URL in .env
   - For local dev: Backend and Frontend can run outside Docker, only Judge0 in Docker
 
 ---
 
-## Phase 2: Database & ORM Setup
+## Phase 2: Database & ORM Setup ✅ COMPLETE
 
 ### 2.1 Settings Configuration (app/config/settings.py)
-- [ ] Create Pydantic settings class using `pydantic-settings`:
+- [x] Create Pydantic settings class using `pydantic-settings`:
   ```python
   from pydantic import Field
   from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -199,9 +200,9 @@ acodeaday/
 
   settings = Settings()
   ```
-- [ ] Database URL format: `postgresql+asyncpg://user:password@host:port/database`
+- [x] Database URL format: `postgresql+asyncpg://user:password@host:port/database`
   - Example from Supabase: `postgresql+asyncpg://postgres:password@db.xxx.supabase.co:5432/postgres`
-- [ ] Create `.env` file with all required variables:
+- [x] Create `.env` file with all required variables:
   ```bash
   DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:54322/postgres
   AUTH_USERNAME=admin
@@ -210,10 +211,10 @@ acodeaday/
   ENVIRONMENT=development
   DEBUG=true
   ```
-- [ ] Default credentials (admin/changeme) should work if .env not provided
+- [x] Default credentials (admin/changeme) should work if .env not provided
 
 ### 2.2 Async Database Connection (app/db/connection.py)
-- [ ] Create async engine using `create_async_engine()`:
+- [x] Create async engine using `create_async_engine()`:
   ```python
   from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
@@ -231,7 +232,7 @@ acodeaday/
       class_=AsyncSession
   )
   ```
-- [ ] Create async `get_db()` dependency:
+- [x] Create async `get_db()` dependency:
   ```python
   async def get_db() -> AsyncGenerator[AsyncSession, None]:
       async with AsyncSessionLocal() as session:
@@ -241,14 +242,14 @@ acodeaday/
               await session.rollback()
               raise
   ```
-- [ ] Key points:
+- [x] Key points:
   - Use `asyncpg` driver (already installed)
   - Use `create_async_engine()` NOT `create_engine()`
   - Use `async_sessionmaker()` NOT `sessionmaker()`
   - Use `AsyncSession` type hint
 
 ### 2.3 SQLAlchemy Models (app/db/tables.py)
-- [ ] Create Base class and enums:
+- [x] Create Base class and enums:
   ```python
   import uuid
   import enum
@@ -268,7 +269,7 @@ acodeaday/
       HARD = "hard"
   ```
 
-- [ ] Define models using SQLAlchemy 2.0 style:
+- [x] Define models using SQLAlchemy 2.0 style:
   - Use `Mapped[type]` for type hints
   - Use `mapped_column()` for all columns
   - Use `UUID(as_uuid=True)` for UUID columns
@@ -278,7 +279,7 @@ acodeaday/
   - Use `server_default=func.now()` for timestamps
   - Use `ForeignKey(..., ondelete="CASCADE")` for foreign keys
 
-- [ ] **Model 1: Problem** (core problem data)
+- [x] **Model 1: Problem** (core problem data)
   ```python
   class Problem(Base):
       __tablename__ = "problems"
@@ -317,7 +318,7 @@ acodeaday/
       )
   ```
 
-- [ ] **Model 2: ProblemLanguage** (language-specific code & solutions)
+- [x] **Model 2: ProblemLanguage** (language-specific code & solutions)
   ```python
   class ProblemLanguage(Base):
       __tablename__ = "problem_languages"
@@ -344,7 +345,7 @@ acodeaday/
       )
   ```
 
-- [ ] **Model 3: TestCase** (test inputs and expected outputs)
+- [x] **Model 3: TestCase** (test inputs and expected outputs)
   ```python
   class TestCase(Base):
       __tablename__ = "test_cases"
@@ -376,7 +377,7 @@ acodeaday/
       )
   ```
 
-- [ ] **Model 4: UserProgress** (tracks user's progress and spaced repetition)
+- [x] **Model 4: UserProgress** (tracks user's progress and spaced repetition)
   ```python
   class UserProgress(Base):
       __tablename__ = "user_progress"
@@ -410,7 +411,7 @@ acodeaday/
       )
   ```
 
-- [ ] **Model 5: Submission** (history of all code submissions)
+- [x] **Model 5: Submission** (history of all code submissions)
   ```python
   class Submission(Base):
       __tablename__ = "submissions"
@@ -436,7 +437,7 @@ acodeaday/
       )
   ```
 
-- [ ] **Key Schema Decisions Explained**:
+- [x] **Key Schema Decisions Explained**:
   - `difficulty`: Enum (easy/medium/hard) for type safety
   - `sequence_number`: Order in Blind 75 (1-75), used to find "next problem"
   - `constraints`: ARRAY(Text) because it's just a list of strings
@@ -446,7 +447,7 @@ acodeaday/
   - Indexes on all frequently-queried columns
 
 ### 2.4 Alembic Async Migrations (migrations/env.py)
-- [ ] Configure migrations/env.py for async (following aide backend pattern):
+- [x] Configure migrations/env.py for async (following aide backend pattern):
   ```python
   import asyncio
   from logging.config import fileConfig
@@ -476,50 +477,50 @@ acodeaday/
   def run_migrations_online() -> None:
       asyncio.run(run_async_migrations())
   ```
-- [ ] Key points:
+- [x] Key points:
   - Import `Base` from app/db/tables.py
   - Import `settings` to get database URL
   - Override `sqlalchemy.url` from settings
   - Use `async_engine_from_config()` for async engine
   - Use `asyncio.run()` to run async migrations
-- [ ] Configure alembic.ini:
+- [x] Configure alembic.ini:
   - Set `script_location = %(here)s/migrations`
   - Set `prepend_sys_path = .` (allows importing from app/)
-- [ ] Create initial migration: `alembic revision --autogenerate -m "initial schema"`
-- [ ] Review generated migration file
-- [ ] Run migration: `alembic upgrade head`
-- [ ] Verify tables created in PostgreSQL
+- [x] Create initial migration: `alembic revision --autogenerate -m "initial schema"`
+- [x] Review generated migration file
+- [x] Run migration: `alembic upgrade head`
+- [x] Verify tables created in PostgreSQL
 
-### 2.3 Pydantic Schemas
-- [ ] Create Pydantic schemas in app/schemas/:
-  - [ ] ProblemSchema, ProblemDetailSchema
-  - [ ] TestCaseSchema
-  - [ ] RunCodeRequest, RunCodeResponse
-  - [ ] SubmitCodeRequest, SubmitCodeResponse
-  - [ ] TodaySessionResponse
-  - [ ] ProgressResponse
-  - [ ] MasteredProblemSchema
-  - [ ] SubmissionSchema
+### 2.5 Pydantic Schemas
+- [x] Create Pydantic schemas in app/schemas/:
+  - [x] ProblemSchema, ProblemDetailSchema
+  - [x] TestCaseSchema
+  - [x] RunCodeRequest, RunCodeResponse
+  - [x] SubmitCodeRequest, SubmitCodeResponse
+  - [x] TodaySessionResponse
+  - [x] ProgressResponse
+  - [x] MasteredProblemSchema
+  - [x] SubmissionSchema
 
-### 2.4 Seed Data
-- [ ] Create seed script: scripts/seed_problems.py
-- [ ] Add first 15 Blind 75 problems with:
-  - [ ] Problem metadata (title, slug, description, difficulty, pattern, sequence)
-  - [ ] Python language config (starter code, reference solution, function signature)
-  - [ ] Test cases (minimum 5 per problem: 3 visible, 2 hidden)
-- [ ] Run seed script to populate database
-- [ ] Create test users via Supabase Auth dashboard/API
+### 2.6 Seed Data
+- [x] Create seed system: YAML files + CLI seeder (app/services/seeder.py)
+- [x] Add 16 Blind 75 problems as YAML files in data/problems/:
+  - [x] Problem metadata (title, slug, description, difficulty, pattern, sequence)
+  - [x] Python language config (starter code, reference solution, function signature)
+  - [x] Test cases (minimum 5 per problem: 3 visible, 2 hidden)
+- [x] Run seeder to populate database: `uv run python -m app.services.seeder seed`
+- [x] Create test users via Supabase Auth dashboard/API
 
 ---
 
-## Phase 3: Backend Implementation
+## Phase 3: Backend Implementation ✅ COMPLETE
 
 ### 3.1 Core FastAPI Setup (following aide backend pattern)
-- [ ] Configure structlog for logging (app/config/logging.py):
-  - [ ] Set up JSON logging for production
-  - [ ] Set up console logging for development
-  - [ ] Add request_id to all logs
-- [ ] Create main.py with async lifespan:
+- [x] Configure structlog for logging (app/config/logging.py):
+  - [x] Set up JSON logging for production
+  - [x] Set up console logging for development
+  - [x] Add request_id to all logs
+- [x] Create main.py with async lifespan:
   ```python
   @asynccontextmanager
   async def lifespan(app: FastAPI):
@@ -540,32 +541,32 @@ acodeaday/
       description="Backend for acodeaday - daily coding practice with spaced repetition"
   )
   ```
-- [ ] Add CORS middleware (allow localhost:3000 and localhost:5173)
-- [ ] Add logging middleware with request ID and duration tracking
-- [ ] Register exception handlers (app/routes/exceptions.py)
-- [ ] Register all route modules with tags
-- [ ] Add health check endpoint: `GET /health`
-- [ ] Add root endpoint: `GET /` (returns name and version)
-- [ ] Key points:
+- [x] Add CORS middleware (allow localhost:3000 and localhost:5173)
+- [x] Add logging middleware with request ID and duration tracking
+- [x] Register exception handlers (app/routes/exceptions.py)
+- [x] Register all route modules with tags
+- [x] Add health check endpoint: `GET /health`
+- [x] Add root endpoint: `GET /` (returns name and version)
+- [x] Key points:
   - All route handlers MUST be `async def`
   - Dispose engine on shutdown
   - Use structlog for structured logging
 
 ### 3.2 Judge0 Integration
-- [ ] Implement Judge0 client in services/judge0.py:
-  - [ ] Initialize Judge0 SDK client
-  - [ ] submit_code() method
-  - [ ] get_submission() method
-  - [ ] Wait for completion with polling
-- [ ] Implement code wrapper generator in services/wrapper.py:
-  - [ ] Python wrapper template with class Solution instantiation
-  - [ ] Test case JSON serialization
-  - [ ] Result parsing from Judge0 stdout
-  - [ ] Error handling (timeout, runtime errors, syntax errors)
-- [ ] Test Judge0 connectivity and execution
+- [x] Implement Judge0 client in services/judge0.py:
+  - [x] Direct HTTP client (removed SDK dependency)
+  - [x] submit_code() method
+  - [x] get_submission() method
+  - [x] Wait for completion with polling
+- [x] Implement code wrapper generator in services/wrapper.py:
+  - [x] Python wrapper template with class Solution instantiation
+  - [x] Test case JSON serialization
+  - [x] Result parsing from Judge0 stdout
+  - [x] Error handling (timeout, runtime errors, syntax errors)
+- [x] Test Judge0 connectivity and execution
 
-### 3.3 HTTP Basic Auth (app/middleware/auth.py)
-- [ ] Create simple HTTP Basic Auth dependency:
+### 3.3 Supabase JWT Auth (app/middleware/auth.py)
+- [x] Create Supabase JWT validation dependency (upgraded from HTTP Basic):
   ```python
   from fastapi import Depends, HTTPException, status
   from fastapi.security import HTTPBasic, HTTPBasicCredentials
@@ -594,7 +595,7 @@ acodeaday/
 
       return credentials.username  # Return username as user_id
   ```
-- [ ] Usage in routes:
+- [x] Usage in routes:
   ```python
   @router.get("/api/today")
   async def get_today(
@@ -605,14 +606,14 @@ acodeaday/
       # Query user_progress for this user_id
       ...
   ```
-- [ ] Key points:
-  - No password hashing needed (comparing plain text, secure over HTTPS)
-  - Username becomes the user_id in database queries
-  - Browser will prompt for credentials automatically
-  - Can override credentials in .env file
+- [x] Key points:
+  - Uses Supabase JWT validation (more secure than HTTP Basic)
+  - User ID from Supabase token used in database queries
+  - Frontend sends Bearer token in Authorization header
+  - SUPABASE_URL and SUPABASE_KEY in .env file
 
 ### 3.4 API Endpoints - Problems (app/routes/problems.py)
-- [ ] GET /api/problems - List all problems:
+- [x] GET /api/problems - List all problems:
   ```python
   @router.get("/")
   async def get_problems(db: AsyncSession = Depends(get_db)):
@@ -621,7 +622,7 @@ acodeaday/
       return problems
   ```
   - Key: Use `await db.execute()` with `select()`
-- [ ] GET /api/problems/{slug} - Get problem details:
+- [x] GET /api/problems/{slug} - Get problem details:
   ```python
   @router.get("/{slug}")
   async def get_problem(slug: str, db: AsyncSession = Depends(get_db)):
@@ -640,58 +641,58 @@ acodeaday/
   - Filter test_cases for is_hidden=False in response
 
 ### 3.4 API Endpoints - Code Execution
-- [ ] POST /api/run - Run code against visible test cases
-  - [ ] Fetch problem and test cases (is_hidden=false) via SQLAlchemy
-  - [ ] Generate wrapper code
-  - [ ] Submit to Judge0
-  - [ ] Parse results and return
-- [ ] POST /api/run (with custom_input) - Run with user's custom input
+- [x] POST /api/run - Run code against visible test cases
+  - [x] Fetch problem and test cases (is_hidden=false) via SQLAlchemy
+  - [x] Generate wrapper code
+  - [x] Submit to Judge0
+  - [x] Parse results and return
+- [ ] POST /api/run (with custom_input) - Run with user's custom input (deferred)
   - [ ] Execute user code with custom input
   - [ ] Execute reference solution with custom input
   - [ ] Compare outputs
   - [ ] Handle reference solution errors (invalid input)
-- [ ] POST /api/submit - Submit solution against all test cases
-  - [ ] Fetch all test cases (including hidden)
-  - [ ] Execute code
-  - [ ] If all passed, update UserProgress (spaced repetition logic)
-  - [ ] Create Submission record in database
-  - [ ] Return detailed results (which tests failed, with input/output)
+- [x] POST /api/submit - Submit solution against all test cases
+  - [x] Fetch all test cases (including hidden)
+  - [x] Execute code
+  - [x] If all passed, update UserProgress (spaced repetition logic)
+  - [x] Create Submission record in database
+  - [x] Return detailed results (which tests failed, with input/output)
 
 ### 3.5 API Endpoints - User Progress
-- [ ] GET /api/today - Get today's session
-  - [ ] Query UserProgress for due reviews (next_review_date <= today, is_mastered=false)
-  - [ ] Sort by next_review_date ASC, take up to 2
-  - [ ] Query next unsolved problem by sequence_number
-  - [ ] Return array of up to 3 problems
-- [ ] GET /api/progress - Get user's overall progress
-  - [ ] Query UserProgress for counts
-  - [ ] Total problems solved
-  - [ ] Problems mastered count
-  - [ ] Progress percentage (solved / 75)
-- [ ] GET /api/mastered - Get mastered problems list
-  - [ ] Query UserProgress where is_mastered=true
-  - [ ] Join with Problem table
-  - [ ] Return with last_solved_at date
-- [ ] POST /api/mastered/:id/show-again - Re-add to rotation
-  - [ ] Update UserProgress: show_again=true, is_mastered=false
-  - [ ] Set next_review_date=today
-  - [ ] Commit transaction
+- [x] GET /api/today - Get today's session
+  - [x] Query UserProgress for due reviews (next_review_date <= today, is_mastered=false)
+  - [x] Sort by next_review_date ASC, take up to 2
+  - [x] Query next unsolved problem by sequence_number
+  - [x] Return array of up to 3 problems
+- [x] GET /api/progress - Get user's overall progress
+  - [x] Query UserProgress for counts
+  - [x] Total problems solved
+  - [x] Problems mastered count
+  - [x] Progress percentage (solved / 75)
+- [x] GET /api/mastered - Get mastered problems list
+  - [x] Query UserProgress where is_mastered=true
+  - [x] Join with Problem table
+  - [x] Return with last_solved_at date
+- [x] POST /api/mastered/:id/show-again - Re-add to rotation
+  - [x] Update UserProgress: show_again=true, is_mastered=false
+  - [x] Set next_review_date=today
+  - [x] Commit transaction
 
 ### 3.6 API Endpoints - Submissions
-- [ ] GET /api/submissions/:problem_id - Get submission history
-  - [ ] Query Submission table for user + problem
-  - [ ] Order by submitted_at DESC
-  - [ ] Return list with code, passed status, runtime
+- [x] GET /api/submissions/:problem_id - Get submission history
+  - [x] Query Submission table for user + problem
+  - [x] Order by submitted_at DESC
+  - [x] Return list with code, passed status, runtime
 
 ### 3.7 Spaced Repetition Logic (services/progress.py)
-- [ ] Implement update_user_progress function:
-  - [ ] Check if UserProgress record exists, create if not
-  - [ ] If times_solved=0: Set times_solved=1, next_review_date=today+7days
-  - [ ] If times_solved=1: Set times_solved=2, is_mastered=true, next_review_date=null
-  - [ ] If times_solved>=2: Do nothing (already mastered)
-  - [ ] Update last_solved_at
-  - [ ] Commit transaction
-- [ ] Test edge cases (already mastered, show_again flag)
+- [x] Implement update_user_progress function:
+  - [x] Check if UserProgress record exists, create if not
+  - [x] If times_solved=0: Set times_solved=1, next_review_date=today+7days
+  - [x] If times_solved=1: Set times_solved=2, is_mastered=true, next_review_date=null
+  - [x] If times_solved>=2: Do nothing (already mastered)
+  - [x] Update last_solved_at
+  - [x] Commit transaction
+- [x] Test edge cases (already mastered, show_again flag)
 
 ---
 
@@ -798,12 +799,14 @@ acodeaday/
 
 ## Phase 5: Testing & Polish
 
-### 5.1 Backend Tests
-- [ ] Unit tests for code wrapper generation
-- [ ] Unit tests for spaced repetition logic
-- [ ] Integration tests for API endpoints with test database
-- [ ] Test Judge0 error scenarios (timeout, syntax errors)
-- [ ] Test SQLAlchemy models and relationships
+### 5.1 Backend Tests ✅ COMPLETE
+- [x] Unit tests for code wrapper generation
+- [x] Unit tests for spaced repetition logic
+- [x] Integration tests for API endpoints with test database
+- [x] Test Judge0 error scenarios (timeout, syntax errors)
+- [x] Test SQLAlchemy models and relationships
+- [x] 20 tests passing (execution, problems, progress, submissions)
+- [x] Test database isolation (postgres-test on port 54325)
 
 ### 5.2 Frontend Tests
 - [ ] Component tests for key UI components
