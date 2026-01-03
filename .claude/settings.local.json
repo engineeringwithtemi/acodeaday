@@ -8,7 +8,14 @@
       "WebFetch(domain:python.docs.judge0.com)",
       "Bash(uv run pytest:*)",
       "WebFetch(domain:github.com)",
-      "Bash(JUDGE0_URL=https://judge0.temi.fyi uv run python:*)"
+      "Bash(JUDGE0_URL=https://judge0.temi.fyi uv run python:*)",
+      "Bash(npm create:*)",
+      "Bash(npx create-start@latest frontend)",
+      "Bash(npx @tanstack/create-start@latest frontend)",
+      "Bash(npm install:*)",
+      "Bash(nvm install:*)",
+      "Bash(nvm use:*)",
+      "Bash(uv sync:*)"
     ],
     "deny": [],
     "ask": []

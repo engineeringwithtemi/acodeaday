@@ -1,0 +1,81 @@
+title: Find Minimum in Rotated Sorted Array
+slug: find-minimum-in-rotated-sorted-array
+sequence_number: 7
+difficulty: medium
+pattern: binary-search
+
+description: |
+  Suppose an array of length `n` sorted in ascending order is **rotated** between `1` and `n` times. For example, the array `nums = [0,1,2,4,5,6,7]` might become:
+
+  - `[4,5,6,7,0,1,2]` if it was rotated `4` times.
+  - `[0,1,2,4,5,6,7]` if it was rotated `7` times.
+
+  Notice that **rotating** an array `[a[0], a[1], a[2], ..., a[n-1]]` 1 time results in the array `[a[n-1], a[0], a[1], a[2], ..., a[n-2]]`.
+
+  Given the sorted rotated array `nums` of **unique** elements, return the minimum element of this array.
+
+  You must write an algorithm that runs in `O(log n)` time.
+
+constraints:
+  - "n == nums.length"
+  - "1 <= n <= 5000"
+  - "-5000 <= nums[i] <= 5000"
+  - "All the integers of nums are unique."
+  - "nums is sorted and rotated between 1 and n times."
+
+examples:
+  - input: "nums = [3,4,5,1,2]"
+    output: "1"
+    explanation: "The original array was [1,2,3,4,5] rotated 3 times."
+  - input: "nums = [4,5,6,7,0,1,2]"
+    output: "0"
+    explanation: "The original array was [0,1,2,4,5,6,7] and it was rotated 4 times."
+  - input: "nums = [11,13,15,17]"
+    output: "11"
+    explanation: "The original array was [11,13,15,17] and it was rotated 4 times."
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def findMin(self, nums: List[int]) -> int:
+              pass
+    reference_solution: |
+      class Solution:
+          def findMin(self, nums: List[int]) -> int:
+              left, right = 0, len(nums) - 1
+
+              while left < right:
+                  mid = (left + right) // 2
+
+                  if nums[mid] > nums[right]:
+                      # Minimum is in the right half
+                      left = mid + 1
+                  else:
+                      # Minimum is in the left half (including mid)
+                      right = mid
+
+              return nums[left]
+    function_signature:
+      name: findMin
+      params:
+        - name: nums
+          type: "List[int]"
+      return_type: int
+
+test_cases:
+  - input: [[3, 4, 5, 1, 2]]
+    expected: 1
+    is_hidden: false
+  - input: [[4, 5, 6, 7, 0, 1, 2]]
+    expected: 0
+    is_hidden: false
+  - input: [[11, 13, 15, 17]]
+    expected: 11
+    is_hidden: false
+  - input: [[2, 1]]
+    expected: 1
+    is_hidden: true
+  - input: [[1]]
+    expected: 1
+    is_hidden: true

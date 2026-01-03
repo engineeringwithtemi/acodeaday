@@ -15,7 +15,7 @@ dependencies = [
     "python-multipart>=0.0.21",
     "python-dotenv>=1.2.1",
     "supabase>=2.0.0",
-    "judge0>=0.0.7",
+    "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]
@@ -30,7 +30,6 @@ dev = [
 asyncio_mode = "auto"
 testpaths = ["tests"]
 filterwarnings = [
-    "ignore::pydantic.warnings.PydanticDeprecatedSince212:pyiceberg.*",
     "ignore::DeprecationWarning:pyiceberg.*",
 ]
 

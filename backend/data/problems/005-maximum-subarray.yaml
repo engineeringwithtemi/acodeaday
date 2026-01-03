@@ -1,0 +1,67 @@
+title: Maximum Subarray
+slug: maximum-subarray
+sequence_number: 5
+difficulty: medium
+pattern: dynamic-programming
+
+description: |
+  Given an integer array `nums`, find the subarray with the largest sum, and return its sum.
+
+  A **subarray** is a contiguous non-empty sequence of elements within an array.
+
+constraints:
+  - "1 <= nums.length <= 10^5"
+  - "-10^4 <= nums[i] <= 10^4"
+
+examples:
+  - input: "nums = [-2,1,-3,4,-1,2,1,-5,4]"
+    output: "6"
+    explanation: "The subarray [4,-1,2,1] has the largest sum 6."
+  - input: "nums = [1]"
+    output: "1"
+    explanation: "The subarray [1] has the largest sum 1."
+  - input: "nums = [5,4,-1,7,8]"
+    output: "23"
+    explanation: "The subarray [5,4,-1,7,8] has the largest sum 23."
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def maxSubArray(self, nums: List[int]) -> int:
+              pass
+    reference_solution: |
+      class Solution:
+          def maxSubArray(self, nums: List[int]) -> int:
+              # Kadane's algorithm
+              max_sum = nums[0]
+              current_sum = nums[0]
+
+              for i in range(1, len(nums)):
+                  current_sum = max(nums[i], current_sum + nums[i])
+                  max_sum = max(max_sum, current_sum)
+
+              return max_sum
+    function_signature:
+      name: maxSubArray
+      params:
+        - name: nums
+          type: "List[int]"
+      return_type: int
+
+test_cases:
+  - input: [[-2, 1, -3, 4, -1, 2, 1, -5, 4]]
+    expected: 6
+    is_hidden: false
+  - input: [[1]]
+    expected: 1
+    is_hidden: false
+  - input: [[5, 4, -1, 7, 8]]
+    expected: 23
+    is_hidden: false
+  - input: [[-1]]
+    expected: -1
+    is_hidden: true
+  - input: [[-2, -1]]
+    expected: -1
+    is_hidden: true

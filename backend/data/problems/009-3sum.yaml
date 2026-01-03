@@ -1,0 +1,87 @@
+title: 3Sum
+slug: 3sum
+sequence_number: 9
+difficulty: medium
+pattern: two-pointers
+
+description: |
+  Given an integer array `nums`, return all the triplets `[nums[i], nums[j], nums[k]]` such that `i != j`, `i != k`, and `j != k`, and `nums[i] + nums[j] + nums[k] == 0`.
+
+  Notice that the solution set must not contain duplicate triplets.
+
+constraints:
+  - "3 <= nums.length <= 3000"
+  - "-10^5 <= nums[i] <= 10^5"
+
+examples:
+  - input: "nums = [-1,0,1,2,-1,-4]"
+    output: "[[-1,-1,2],[-1,0,1]]"
+    explanation: "nums[0] + nums[1] + nums[2] = (-1) + 0 + 1 = 0. nums[1] + nums[2] + nums[4] = 0 + 1 + (-1) = 0. nums[0] + nums[3] + nums[4] = (-1) + 2 + (-1) = 0. The distinct triplets are [-1,0,1] and [-1,-1,2]."
+  - input: "nums = [0,1,1]"
+    output: "[]"
+    explanation: "The only possible triplet does not sum up to 0."
+  - input: "nums = [0,0,0]"
+    output: "[[0,0,0]]"
+    explanation: "The only possible triplet sums up to 0."
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def threeSum(self, nums: List[int]) -> List[List[int]]:
+              pass
+    reference_solution: |
+      class Solution:
+          def threeSum(self, nums: List[int]) -> List[List[int]]:
+              nums.sort()
+              result = []
+              n = len(nums)
+
+              for i in range(n - 2):
+                  # Skip duplicates for the first element
+                  if i > 0 and nums[i] == nums[i - 1]:
+                      continue
+
+                  left, right = i + 1, n - 1
+
+                  while left < right:
+                      total = nums[i] + nums[left] + nums[right]
+
+                      if total == 0:
+                          result.append([nums[i], nums[left], nums[right]])
+                          # Skip duplicates
+                          while left < right and nums[left] == nums[left + 1]:
+                              left += 1
+                          while left < right and nums[right] == nums[right - 1]:
+                              right -= 1
+                          left += 1
+                          right -= 1
+                      elif total < 0:
+                          left += 1
+                      else:
+                          right -= 1
+
+              return result
+    function_signature:
+      name: threeSum
+      params:
+        - name: nums
+          type: "List[int]"
+      return_type: "List[List[int]]"
+
+test_cases:
+  - input: [[-1, 0, 1, 2, -1, -4]]
+    expected: [[-1, -1, 2], [-1, 0, 1]]
+    is_hidden: false
+  - input: [[0, 1, 1]]
+    expected: []
+    is_hidden: false
+  - input: [[0, 0, 0]]
+    expected: [[0, 0, 0]]
+    is_hidden: false
+  - input: [[0, 0, 0, 0]]
+    expected: [[0, 0, 0]]
+    is_hidden: true
+  - input: [[-2, 0, 1, 1, 2]]
+    expected: [[-2, 0, 2], [-2, 1, 1]]
+    is_hidden: true

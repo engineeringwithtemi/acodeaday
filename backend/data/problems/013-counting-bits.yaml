@@ -1,0 +1,58 @@
+title: Counting Bits
+slug: counting-bits
+sequence_number: 13
+difficulty: easy
+pattern: bit-manipulation
+
+description: |
+  Given an integer `n`, return an array `ans` of length `n + 1` such that for each `i` (`0 <= i <= n`), `ans[i]` is the **number of `1`'s** in the binary representation of `i`.
+
+constraints:
+  - "0 <= n <= 10^5"
+
+examples:
+  - input: "n = 2"
+    output: "[0,1,1]"
+    explanation: "0 --> 0, 1 --> 1, 2 --> 10"
+  - input: "n = 5"
+    output: "[0,1,1,2,1,2]"
+    explanation: "0 --> 0, 1 --> 1, 2 --> 10, 3 --> 11, 4 --> 100, 5 --> 101"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def countBits(self, n: int) -> List[int]:
+              pass
+    reference_solution: |
+      class Solution:
+          def countBits(self, n: int) -> List[int]:
+              # dp[i] = dp[i >> 1] + (i & 1)
+              # i >> 1 removes the last bit, i & 1 checks if last bit is 1
+              dp = [0] * (n + 1)
+              for i in range(1, n + 1):
+                  dp[i] = dp[i >> 1] + (i & 1)
+              return dp
+    function_signature:
+      name: countBits
+      params:
+        - name: n
+          type: int
+      return_type: "List[int]"
+
+test_cases:
+  - input: [2]
+    expected: [0, 1, 1]
+    is_hidden: false
+  - input: [5]
+    expected: [0, 1, 1, 2, 1, 2]
+    is_hidden: false
+  - input: [0]
+    expected: [0]
+    is_hidden: false
+  - input: [1]
+    expected: [0, 1]
+    is_hidden: true
+  - input: [10]
+    expected: [0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2]
+    is_hidden: true

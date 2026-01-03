@@ -1,0 +1,65 @@
+title: Sum of Two Integers
+slug: sum-of-two-integers
+sequence_number: 11
+difficulty: medium
+pattern: bit-manipulation
+
+description: |
+  Given two integers `a` and `b`, return the sum of the two integers without using the operators `+` and `-`.
+
+constraints:
+  - "-1000 <= a, b <= 1000"
+
+examples:
+  - input: "a = 1, b = 2"
+    output: "3"
+  - input: "a = 2, b = 3"
+    output: "5"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def getSum(self, a: int, b: int) -> int:
+              pass
+    reference_solution: |
+      class Solution:
+          def getSum(self, a: int, b: int) -> int:
+              # 32-bit mask for handling negative numbers
+              MASK = 0xFFFFFFFF
+              MAX_INT = 0x7FFFFFFF
+
+              while b != 0:
+                  # Calculate carry
+                  carry = (a & b) << 1
+                  # XOR for sum without carry
+                  a = (a ^ b) & MASK
+                  b = carry & MASK
+
+              # If a is negative (bit 31 is set), convert from unsigned to signed
+              return a if a <= MAX_INT else ~(a ^ MASK)
+    function_signature:
+      name: getSum
+      params:
+        - name: a
+          type: int
+        - name: b
+          type: int
+      return_type: int
+
+test_cases:
+  - input: [1, 2]
+    expected: 3
+    is_hidden: false
+  - input: [2, 3]
+    expected: 5
+    is_hidden: false
+  - input: [-1, 1]
+    expected: 0
+    is_hidden: false
+  - input: [-12, -8]
+    expected: -20
+    is_hidden: true
+  - input: [0, 0]
+    expected: 0
+    is_hidden: true

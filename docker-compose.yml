@@ -195,6 +195,64 @@ services:
   #   networks:
   #     - acodeaday-network
 
+  # ===========================================================================
+  # Test Database (Separate from Supabase dev database)
+  # ===========================================================================
+  # Use: docker compose --profile test up -d postgres-test
+  postgres-test:
+    image: postgres:17-alpine
+    container_name: acodeaday-postgres-test
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: acodeaday_test
+    ports:
+      - "54325:5432"  # Different port from Supabase (54321-54324)
+    volumes:
+      # Use tmpfs for faster tests (in-memory, no disk I/O)
+      - type: tmpfs
+        target: /var/lib/postgresql/data
+    networks:
+      - acodeaday-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    profiles:
+      - test
+
+  # ===========================================================================
+  # Test Runner Service
+  # ===========================================================================
+  # Use: docker compose --profile test up backend-test
+  backend-test:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: acodeaday-backend-test
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres-test:5432/acodeaday_test
+      - JUDGE0_URL=http://judge0-server:2358
+      - AUTH_USERNAME=admin
+      - AUTH_PASSWORD=changeme
+    volumes:
+      - ./backend:/app
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+    networks:
+      - acodeaday-network
+    command: >
+      sh -c "
+        echo 'Running database migrations...' &&
+        uv run alembic upgrade head &&
+        echo 'Running tests...' &&
+        uv run pytest -v --tb=short
+      "
+    profiles:
+      - test
+
 # ===========================================================================
 # Networks
 # ===========================================================================

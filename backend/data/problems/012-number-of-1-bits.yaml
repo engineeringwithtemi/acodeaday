@@ -1,0 +1,60 @@
+title: Number of 1 Bits
+slug: number-of-1-bits
+sequence_number: 12
+difficulty: easy
+pattern: bit-manipulation
+
+description: |
+  Write a function that takes the binary representation of a positive integer and returns the number of set bits it has (also known as the **Hamming weight**).
+
+constraints:
+  - "1 <= n <= 2^31 - 1"
+
+examples:
+  - input: "n = 11"
+    output: "3"
+    explanation: "The input binary string 1011 has a total of three set bits."
+  - input: "n = 128"
+    output: "1"
+    explanation: "The input binary string 10000000 has a total of one set bit."
+  - input: "n = 2147483645"
+    output: "30"
+    explanation: "The input binary string 1111111111111111111111111111101 has a total of thirty set bits."
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def hammingWeight(self, n: int) -> int:
+              pass
+    reference_solution: |
+      class Solution:
+          def hammingWeight(self, n: int) -> int:
+              count = 0
+              while n:
+                  count += n & 1
+                  n >>= 1
+              return count
+    function_signature:
+      name: hammingWeight
+      params:
+        - name: n
+          type: int
+      return_type: int
+
+test_cases:
+  - input: [11]
+    expected: 3
+    is_hidden: false
+  - input: [128]
+    expected: 1
+    is_hidden: false
+  - input: [2147483645]
+    expected: 30
+    is_hidden: false
+  - input: [1]
+    expected: 1
+    is_hidden: true
+  - input: [255]
+    expected: 8
+    is_hidden: true

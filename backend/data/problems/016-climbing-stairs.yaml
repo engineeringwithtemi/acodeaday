@@ -1,0 +1,64 @@
+title: Climbing Stairs
+slug: climbing-stairs
+sequence_number: 16
+difficulty: easy
+pattern: dynamic-programming
+
+description: |
+  You are climbing a staircase. It takes `n` steps to reach the top.
+
+  Each time you can either climb `1` or `2` steps. In how many distinct ways can you climb to the top?
+
+constraints:
+  - "1 <= n <= 45"
+
+examples:
+  - input: "n = 2"
+    output: "2"
+    explanation: "There are two ways to climb to the top. 1. 1 step + 1 step. 2. 2 steps."
+  - input: "n = 3"
+    output: "3"
+    explanation: "There are three ways to climb to the top. 1. 1 step + 1 step + 1 step. 2. 1 step + 2 steps. 3. 2 steps + 1 step."
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def climbStairs(self, n: int) -> int:
+              pass
+    reference_solution: |
+      class Solution:
+          def climbStairs(self, n: int) -> int:
+              # Fibonacci sequence: ways(n) = ways(n-1) + ways(n-2)
+              if n <= 2:
+                  return n
+              prev, curr = 1, 2
+              for _ in range(3, n + 1):
+                  prev, curr = curr, prev + curr
+              return curr
+    function_signature:
+      name: climbStairs
+      params:
+        - name: n
+          type: int
+      return_type: int
+
+test_cases:
+  - input: [2]
+    expected: 2
+    is_hidden: false
+  - input: [3]
+    expected: 3
+    is_hidden: false
+  - input: [1]
+    expected: 1
+    is_hidden: false
+  - input: [4]
+    expected: 5
+    is_hidden: true
+  - input: [5]
+    expected: 8
+    is_hidden: true
+  - input: [10]
+    expected: 89
+    is_hidden: true

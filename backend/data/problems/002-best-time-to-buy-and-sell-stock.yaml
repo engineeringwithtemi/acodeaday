@@ -1,0 +1,65 @@
+title: Best Time to Buy and Sell Stock
+slug: best-time-to-buy-and-sell-stock
+sequence_number: 2
+difficulty: easy
+pattern: sliding-window
+
+description: |
+  You are given an array `prices` where `prices[i]` is the price of a given stock on the `i`th day.
+
+  You want to maximize your profit by choosing a **single day** to buy one stock and choosing a **different day in the future** to sell that stock.
+
+  Return the maximum profit you can achieve from this transaction. If you cannot achieve any profit, return `0`.
+
+constraints:
+  - "1 <= prices.length <= 10^5"
+  - "0 <= prices[i] <= 10^4"
+
+examples:
+  - input: "prices = [7,1,5,3,6,4]"
+    output: "5"
+    explanation: "Buy on day 2 (price = 1) and sell on day 5 (price = 6), profit = 6-1 = 5."
+  - input: "prices = [7,6,4,3,1]"
+    output: "0"
+    explanation: "In this case, no transactions are done and the max profit = 0."
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def maxProfit(self, prices: List[int]) -> int:
+              pass
+    reference_solution: |
+      class Solution:
+          def maxProfit(self, prices: List[int]) -> int:
+              min_price = float('inf')
+              max_profit = 0
+              for price in prices:
+                  if price < min_price:
+                      min_price = price
+                  elif price - min_price > max_profit:
+                      max_profit = price - min_price
+              return max_profit
+    function_signature:
+      name: maxProfit
+      params:
+        - name: prices
+          type: "List[int]"
+      return_type: int
+
+test_cases:
+  - input: [[7, 1, 5, 3, 6, 4]]
+    expected: 5
+    is_hidden: false
+  - input: [[7, 6, 4, 3, 1]]
+    expected: 0
+    is_hidden: false
+  - input: [[1, 2]]
+    expected: 1
+    is_hidden: false
+  - input: [[2, 4, 1]]
+    expected: 2
+    is_hidden: true
+  - input: [[3, 2, 6, 5, 0, 3]]
+    expected: 4
+    is_hidden: true

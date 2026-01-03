@@ -1,0 +1,54 @@
+title: Contains Duplicate
+slug: contains-duplicate
+sequence_number: 3
+difficulty: easy
+pattern: hash-map
+
+description: |
+  Given an integer array `nums`, return `true` if any value appears **at least twice** in the array, and return `false` if every element is distinct.
+
+constraints:
+  - "1 <= nums.length <= 10^5"
+  - "-10^9 <= nums[i] <= 10^9"
+
+examples:
+  - input: "nums = [1,2,3,1]"
+    output: "true"
+  - input: "nums = [1,2,3,4]"
+    output: "false"
+  - input: "nums = [1,1,1,3,3,4,3,2,4,2]"
+    output: "true"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def containsDuplicate(self, nums: List[int]) -> bool:
+              pass
+    reference_solution: |
+      class Solution:
+          def containsDuplicate(self, nums: List[int]) -> bool:
+              return len(nums) != len(set(nums))
+    function_signature:
+      name: containsDuplicate
+      params:
+        - name: nums
+          type: "List[int]"
+      return_type: bool
+
+test_cases:
+  - input: [[1, 2, 3, 1]]
+    expected: true
+    is_hidden: false
+  - input: [[1, 2, 3, 4]]
+    expected: false
+    is_hidden: false
+  - input: [[1, 1, 1, 3, 3, 4, 3, 2, 4, 2]]
+    expected: true
+    is_hidden: false
+  - input: [[1]]
+    expected: false
+    is_hidden: true
+  - input: [[1, 5, -2, -2, 10]]
+    expected: true
+    is_hidden: true

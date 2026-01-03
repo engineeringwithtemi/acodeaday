@@ -1,0 +1,65 @@
+title: Reverse Bits
+slug: reverse-bits
+sequence_number: 15
+difficulty: easy
+pattern: bit-manipulation
+
+description: |
+  Reverse bits of a given 32 bits unsigned integer.
+
+  **Note:**
+  - Note that in some languages, such as Java, there is no unsigned integer type. In this case, both input and output will be given as a signed integer type. They should not affect your implementation, as the integer's internal binary representation is the same, whether it is signed or unsigned.
+  - In Java, the compiler represents the signed integers using 2's complement notation.
+
+examples:
+  - input: "n = 00000010100101000001111010011100"
+    output: "964176192 (00111001011110000010100101000000)"
+    explanation: "The input binary string 00000010100101000001111010011100 represents the unsigned integer 43261596, so return 964176192 which its binary representation is 00111001011110000010100101000000."
+  - input: "n = 11111111111111111111111111111101"
+    output: "3221225471 (10111111111111111111111111111111)"
+    explanation: "The input binary string 11111111111111111111111111111101 represents the unsigned integer 4294967293, so return 3221225471 which its binary representation is 10111111111111111111111111111111."
+
+constraints:
+  - "The input must be a binary string of length 32"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def reverseBits(self, n: int) -> int:
+              pass
+    reference_solution: |
+      class Solution:
+          def reverseBits(self, n: int) -> int:
+              result = 0
+              for i in range(32):
+                  # Get the rightmost bit of n
+                  bit = n & 1
+                  # Shift result left and add the bit
+                  result = (result << 1) | bit
+                  # Shift n right
+                  n >>= 1
+              return result
+    function_signature:
+      name: reverseBits
+      params:
+        - name: n
+          type: int
+      return_type: int
+
+test_cases:
+  - input: [43261596]
+    expected: 964176192
+    is_hidden: false
+  - input: [4294967293]
+    expected: 3221225471
+    is_hidden: false
+  - input: [0]
+    expected: 0
+    is_hidden: false
+  - input: [1]
+    expected: 2147483648
+    is_hidden: true
+  - input: [2147483648]
+    expected: 1
+    is_hidden: true

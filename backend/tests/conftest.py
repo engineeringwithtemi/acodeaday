@@ -1,12 +1,17 @@
 """Pytest configuration and fixtures."""
 
 import asyncio
+import os
 import uuid
 from datetime import UTC, date, datetime, timedelta
+from pathlib import Path
 from typing import AsyncGenerator, Generator
 
 import pytest
+from alembic import command
+from alembic.config import Config
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -27,9 +32,12 @@ from app.db.tables import (
 from app.main import app
 
 
-# Use the same PostgreSQL database as development
-# Tests will create/drop tables in each test to isolate data
-TEST_DATABASE_URL = settings.database_url
+# Use separate test database (port 54325) to avoid destroying dev/prod data
+# Set TEST_DATABASE_URL env var to override, or use default test container
+TEST_DATABASE_URL = os.getenv(
+    "TEST_DATABASE_URL",
+    "postgresql+asyncpg://postgres:postgres@localhost:54325/acodeaday_test",
+)
 
 
 @pytest.fixture(scope="session")
@@ -40,24 +48,42 @@ def event_loop() -> Generator:
     loop.close()
 
 
+@pytest.fixture(scope="session")
+def setup_database():
+    """Run migrations once before all tests."""
+    import subprocess
+
+    # Run alembic with DATABASE_URL env var set to test database
+    # This ensures env.py (which reads from settings) uses the test URL
+    env = os.environ.copy()
+    env["DATABASE_URL"] = TEST_DATABASE_URL
+
+    result = subprocess.run(
+        ["uv", "run", "alembic", "upgrade", "head"],
+        cwd=str(Path(__file__).parent.parent),
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"Alembic migration failed: {result.stderr}")
+    yield
+
+
 @pytest.fixture(scope="function")
-async def test_engine():
-    """Create test database engine with PostgreSQL."""
+async def test_engine(setup_database):
+    """Create test database engine - function scoped for proper async handling."""
     engine = create_async_engine(
         TEST_DATABASE_URL,
         pool_pre_ping=True,
         echo=False,
     )
-
-    # Create all tables
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
     yield engine
 
-    # Drop all tables after test
+    # Cleanup: truncate all tables after each test (preserves schema)
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+        for table in reversed(Base.metadata.sorted_tables):
+            await conn.execute(text(f"TRUNCATE TABLE {table.name} CASCADE"))
 
     await engine.dispose()
 
