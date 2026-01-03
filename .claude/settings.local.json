@@ -18,9 +18,14 @@
       "Bash(uv sync:*)",
       "WebFetch(domain:tanstack.com)",
       "Bash(npx tsc:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []
-  }
+  },
+  "enabledMcpjsonServers": [
+    "playwriter"
+  ],
+  "enableAllProjectMcpServers": true
 }
