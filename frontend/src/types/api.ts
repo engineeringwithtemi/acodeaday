@@ -97,16 +97,25 @@ export interface Submission {
   submitted_at: string
 }
 
+// Flat structure returned by backend for today's problems
 export interface TodayProblem {
-  problem: Problem
-  problem_language: ProblemLanguage
-  user_progress: UserProgress | null
-  review_type?: 'review' | 'new'
+  id: number
+  title: string
+  slug: string
+  difficulty: 'easy' | 'medium' | 'hard'
+  pattern: string
+  sequence_number: number
+  times_solved: number
+  last_solved_at: string | null
+  next_review_date: string | null
+  is_mastered: boolean
 }
 
 export interface TodayResponse {
   review_problems: TodayProblem[]
   new_problem: TodayProblem | null
+  total_mastered: number
+  total_attempted: number
 }
 
 export interface SubmitRequest {

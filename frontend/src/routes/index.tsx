@@ -126,8 +126,6 @@ interface ProblemCardProps {
 }
 
 function ProblemCard({ problem, type }: ProblemCardProps) {
-  const { problem: problemData, user_progress } = problem
-
   const difficultyColors = {
     easy: 'text-green-400 bg-green-500/20',
     medium: 'text-yellow-400 bg-yellow-500/20',
@@ -141,27 +139,27 @@ function ProblemCard({ problem, type }: ProblemCardProps) {
 
   return (
     <Link
-      to={`/problem/${problemData.slug}`}
+      to={`/problem/${problem.slug}`}
       className={`block bg-gradient-to-br ${typeColors[type]} backdrop-blur-sm border rounded-xl p-6 hover:scale-[1.02] transition-all duration-300 hover:shadow-xl`}
     >
       <div className="flex items-start justify-between mb-3">
         <div>
           <div className="flex items-center gap-2 mb-2">
             <span className="text-xs font-semibold text-gray-400">
-              #{problemData.sequence_number}
+              #{problem.sequence_number}
             </span>
-            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${difficultyColors[problemData.difficulty]}`}>
-              {problemData.difficulty}
+            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${difficultyColors[problem.difficulty]}`}>
+              {problem.difficulty}
             </span>
-            {type === 'review' && user_progress && (
+            {type === 'review' && (
               <span className="px-2 py-1 bg-orange-500/20 text-orange-400 rounded-full text-xs font-semibold">
-                Review {user_progress.times_solved}/2
+                Review {problem.times_solved}/2
               </span>
             )}
           </div>
-          <h3 className="text-xl font-bold text-white mb-2">{problemData.title}</h3>
+          <h3 className="text-xl font-bold text-white mb-2">{problem.title}</h3>
           <p className="text-sm text-gray-400 mb-3">
-            Pattern: <span className="text-cyan-400">{problemData.pattern}</span>
+            Pattern: <span className="text-cyan-400">{problem.pattern}</span>
           </p>
         </div>
       </div>
