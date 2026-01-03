@@ -81,9 +81,10 @@ async def health_check():
     }
 
 
-# TODO: Register route modules here
-# from app.routes import problems, execution, progress, submissions
-# app.include_router(problems.router, prefix="/api", tags=["problems"])
-# app.include_router(execution.router, prefix="/api", tags=["execution"])
-# app.include_router(progress.router, prefix="/api", tags=["progress"])
-# app.include_router(submissions.router, prefix="/api", tags=["submissions"])
+# Register route modules
+from app.routes import execution, problems, progress, submissions
+
+app.include_router(problems.router)
+app.include_router(execution.router)
+app.include_router(progress.router)
+app.include_router(submissions.router)

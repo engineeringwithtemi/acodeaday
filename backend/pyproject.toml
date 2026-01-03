@@ -29,6 +29,10 @@ dev = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+filterwarnings = [
+    "ignore::pydantic.warnings.PydanticDeprecatedSince212:pyiceberg.*",
+    "ignore::DeprecationWarning:pyiceberg.*",
+]
 
 [tool.ruff]
 line-length = 100

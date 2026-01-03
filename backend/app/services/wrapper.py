@@ -32,6 +32,9 @@ def generate_python_wrapper(
     Returns:
         Complete Python code ready for Judge0 execution
 
+    Raises:
+        ValueError: If function_name is not a valid Python identifier
+
     Example:
         user_code = '''
         class Solution:
@@ -53,6 +56,10 @@ def generate_python_wrapper(
         #         results.append({"test": i+1, "passed": result == test["expected"], ...})
         #     print(json.dumps(results))
     """
+    # Validate function_name to prevent code injection
+    if not function_name.isidentifier():
+        raise ValueError(f"Invalid function name: {function_name}")
+
     # Serialize test cases to JSON (convert SQLAlchemy objects to dicts)
     test_cases_json = [
         {

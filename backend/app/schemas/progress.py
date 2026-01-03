@@ -101,3 +101,10 @@ class SubmissionSchema(BaseModel):
     submitted_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class ShowAgainResponse(BaseModel):
+    """Response from marking a problem to show again."""
+
+    success: bool = Field(..., description="Whether the operation succeeded")
+    message: str = Field(..., description="Status message")

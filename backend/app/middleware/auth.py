@@ -5,7 +5,10 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from supabase import Client, create_client
 
+from app.config.logging import get_logger
 from app.config.settings import settings
+
+logger = get_logger(__name__)
 
 # HTTP Bearer token security scheme
 security = HTTPBearer()
@@ -63,8 +66,11 @@ async def get_current_user(
         }
 
     except Exception as e:
+        # Log the full exception internally for debugging
+        logger.error("auth_validation_failed", error=str(e), error_type=type(e).__name__)
+        # Return generic error message to client (avoid leaking internal details)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Could not validate credentials: {str(e)}",
+            detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
