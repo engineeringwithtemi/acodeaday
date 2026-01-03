@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate, useRouter, Link } from '@tanstack/react-r
 import { useState, FormEvent } from 'react'
 import { Code2, LogIn } from 'lucide-react'
 import { useAuth } from '@/hooks'
+import { getAccessToken } from '@/lib/api-client'
 
 export const Route = createFileRoute('/login')({
   component: LoginPage,
@@ -25,6 +26,12 @@ function LoginPage() {
     try {
       // Perform login
       await login(email, password)
+
+      // Verify session is ready before navigating
+      const token = await getAccessToken()
+      if (!token) {
+        throw new Error('Login succeeded but session not established')
+      }
 
       // Get redirect URL from search params or default to home
       const searchParams = new URLSearchParams(window.location.search)

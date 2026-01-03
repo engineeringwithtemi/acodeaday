@@ -1,4 +1,4 @@
-import { HeadContent, Scripts, createRootRoute, Outlet, redirect } from '@tanstack/react-router'
+import { HeadContent, Scripts, createRootRoute, Outlet, redirect, useLocation } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -53,6 +53,9 @@ export const Route = createRootRoute({
 })
 
 function RootDocument({ children }: { children: React.ReactNode }) {
+  const location = useLocation()
+  const isLoginPage = location.pathname === '/login'
+
   return (
     <html lang="en">
       <head>
@@ -60,7 +63,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body>
         <QueryClientProvider client={queryClient}>
-          <Header />
+          {!isLoginPage && <Header />}
           {children}
           <TanStackDevtools
             config={{
