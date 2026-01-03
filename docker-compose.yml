@@ -7,6 +7,7 @@ services:
   judge0-server:
     image: judge0/judge0:1.13.1
     container_name: acodeaday-judge0-server
+    command: ["bash", "-c", "sudo mkdir -p /box && sudo chmod 1777 /box && exec ./scripts/server"]
     volumes:
       - ./judge0-data:/data
     ports:
@@ -39,6 +40,10 @@ services:
       - CALLBACKS_MAX_TRIES=3
       - CALLBACKS_TIMEOUT=5
 
+      # Enable per-process resource limits (avoids cgroups)
+      - ENABLE_PER_PROCESS_AND_THREAD_MEMORY_LIMIT=true
+      - ENABLE_PER_PROCESS_AND_THREAD_TIME_LIMIT=true
+
       # Authentication (optional, enable if needed)
       # - AUTHENTICATION_TOKEN=your-secret-token
 
@@ -54,7 +59,7 @@ services:
   judge0-workers:
     image: judge0/judge0:1.13.1
     container_name: acodeaday-judge0-workers
-    command: ["./scripts/workers"]
+    command: ["bash", "-c", "sudo mkdir -p /box && sudo chmod 1777 /box && exec ./scripts/workers"]
     volumes:
       - ./judge0-data:/data
     privileged: true
@@ -85,9 +90,9 @@ services:
       - CALLBACKS_MAX_TRIES=3
       - CALLBACKS_TIMEOUT=5
 
-      # macOS Docker workaround - disable sandboxing (DEV ONLY)
-      - ENABLE_PER_PROCESS_AND_THREAD_MEMORY_LIMIT=false
-      - ENABLE_PER_PROCESS_AND_THREAD_TIME_LIMIT=false
+      # Enable per-process resource limits (avoids cgroups)
+      - ENABLE_PER_PROCESS_AND_THREAD_MEMORY_LIMIT=true
+      - ENABLE_PER_PROCESS_AND_THREAD_TIME_LIMIT=true
 
     depends_on:
       judge0-db:

@@ -143,6 +143,13 @@ Current implementation approach:
 - If `times_solved = 0`: Set `times_solved = 1`, `next_review_date = today + 7 days`
 - If `times_solved = 1`: Set `times_solved = 2`, `is_mastered = true`, `next_review_date = null`
 
+## Code Style Rules
+
+### Imports
+- All imports MUST be at the top of the file
+- Never use inline/local imports inside functions
+- Follow standard Python import ordering: stdlib, third-party, local
+
 ## Key Implementation Patterns
 
 ### Async SQLAlchemy (Critical!)

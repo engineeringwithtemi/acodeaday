@@ -5,7 +5,10 @@
       "Bash(cat:*)",
       "Bash(docker logs:*)",
       "Bash(supabase status:*)",
-      "WebFetch(domain:python.docs.judge0.com)"
+      "WebFetch(domain:python.docs.judge0.com)",
+      "Bash(uv run pytest:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(JUDGE0_URL=https://judge0.temi.fyi uv run python:*)"
     ],
     "deny": [],
     "ask": []
