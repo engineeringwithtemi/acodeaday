@@ -364,3 +364,7 @@ backend/test-reports/
 
 # Alembic temporary files
 backend/migrations/versions/__pycache__/
+
+# TanStack Start / Vinxi build output
+frontend/.vinxi/
+frontend/.output/
