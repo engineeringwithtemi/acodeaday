@@ -23,7 +23,7 @@ export interface RefreshRequest {
 }
 
 export interface Problem {
-  id: number
+  id: string
   slug: string
   sequence_number: number
   title: string
@@ -32,6 +32,8 @@ export interface Problem {
   description: string
   constraints: string[]
   examples: ProblemExample[]
+  languages: ProblemLanguage[]
+  test_cases: TestCase[]
   created_at: string
   updated_at: string
 }
@@ -148,4 +150,74 @@ export interface MasteredProblem {
 
 export interface MasteredProblemsResponse {
   mastered_problems: MasteredProblem[]
+}
+
+// New types matching backend schemas
+
+// Test result from backend (for both Run and Submit)
+export interface TestResult {
+  test_number: number
+  passed: boolean
+  output: any
+  expected: any
+  error?: string
+  error_type?: string
+  is_hidden: boolean
+}
+
+// Run Code request (visible tests only)
+export interface RunCodeRequest {
+  problem_slug: string
+  code: string
+  language: string
+}
+
+// Run Code response (visible tests only)
+export interface RunCodeResponse {
+  success: boolean
+  results: TestResult[]
+  summary: {
+    total: number
+    passed: number
+    failed: number
+  }
+  stdout?: string
+  stderr?: string
+  compile_error?: string
+  runtime_error?: string
+}
+
+// Submit Code request (all tests + saves)
+export interface SubmitCodeRequest {
+  problem_slug: string
+  code: string
+  language: string
+}
+
+// Submit Code response (all tests + progress)
+export interface SubmitCodeResponse {
+  success: boolean
+  results: TestResult[]
+  summary: {
+    total: number
+    passed: number
+    failed: number
+  }
+  submission_id: string
+  runtime_ms?: number
+  times_solved?: number
+  is_mastered?: boolean
+  next_review_date?: string
+}
+
+// Submission history schema
+export interface SubmissionSchema {
+  id: string
+  problem_id: string
+  problem_title: string
+  code: string
+  language: string
+  passed: boolean
+  runtime_ms: number | null
+  submitted_at: string
 }

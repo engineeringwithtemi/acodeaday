@@ -1,10 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Allotment } from 'allotment'
 import 'allotment/dist/style.css'
 import { Play, Send, Loader2, AlertCircle } from 'lucide-react'
-import { useProblem, useSubmitCode } from '@/hooks'
+import { useProblem, useSubmitCode, useRunCode, useSubmissions } from '@/hooks'
 import Editor from '@monaco-editor/react'
+import type { RunCodeResponse, SubmitCodeResponse, SubmissionSchema } from '@/types/api'
 
 export const Route = createFileRoute('/problem/$slug')({
   component: ProblemSolver,
@@ -14,44 +15,42 @@ function ProblemSolver() {
   const { slug } = Route.useParams()
   const { data: problem, isLoading, error } = useProblem(slug)
   const submitCode = useSubmitCode()
+  const runCode = useRunCode()
 
   const [code, setCode] = useState('')
   const [language] = useState('python')
-  const [testResults, setTestResults] = useState<any>(null)
+  const [testResults, setTestResults] = useState<RunCodeResponse | SubmitCodeResponse | null>(null)
   const [isRunning, setIsRunning] = useState(false)
+  const [leftPaneTab, setLeftPaneTab] = useState<'description' | 'submissions'>('description')
 
-  // Initialize code with starter code when problem loads
-  useState(() => {
-    if (problem) {
-      // Assuming the API returns the problem with language data
-      // This might need adjustment based on actual API response
-      setCode((problem as any).starter_code || '# Write your solution here')
+  // Fix #1: Initialize code with starter code when problem loads
+  useEffect(() => {
+    if (problem?.languages?.[0]?.starter_code) {
+      setCode(problem.languages[0].starter_code)
     }
-  })
+  }, [problem])
 
+  // Fix #2: Separate Run Code handler
   const handleRunCode = async () => {
     if (!problem) return
     setIsRunning(true)
     setTestResults(null)
 
     try {
-      // For "Run Code", we might need a different endpoint or use submit with a flag
-      // For now, using the same submit endpoint
-      const result = await submitCode.mutateAsync({
-        problem_id: problem.id,
-        language,
+      const result = await runCode.mutateAsync({
+        problem_slug: slug,
         code,
+        language,
       })
       setTestResults(result)
     } catch (err) {
-      setTestResults({
-        error: (err as Error).message || 'Failed to run code',
-      })
+      console.error('Run code error:', err)
     } finally {
       setIsRunning(false)
     }
   }
 
+  // Fix #2: Updated Submit handler with correct types
   const handleSubmit = async () => {
     if (!problem) return
     setIsRunning(true)
@@ -59,15 +58,13 @@ function ProblemSolver() {
 
     try {
       const result = await submitCode.mutateAsync({
-        problem_id: problem.id,
-        language,
+        problem_slug: slug,
         code,
+        language,
       })
       setTestResults(result)
     } catch (err) {
-      setTestResults({
-        error: (err as Error).message || 'Failed to submit code',
-      })
+      console.error('Submit error:', err)
     } finally {
       setIsRunning(false)
     }
@@ -102,9 +99,42 @@ function ProblemSolver() {
     <div className="h-screen flex flex-col bg-gray-900">
       {/* Full-height split pane */}
       <Allotment defaultSizes={[40, 60]}>
-        {/* Left Pane: Problem Description */}
+        {/* Left Pane: Description + Submissions (LeetCode style) */}
         <Allotment.Pane minSize={300}>
-          <ProblemDescription problem={problem} />
+          <div className="h-full flex flex-col bg-gray-900">
+            {/* Tab Header */}
+            <div className="flex border-b border-gray-700 bg-gray-800">
+              <button
+                onClick={() => setLeftPaneTab('description')}
+                className={`px-4 py-2 text-sm font-semibold ${
+                  leftPaneTab === 'description'
+                    ? 'text-cyan-400 border-b-2 border-cyan-400'
+                    : 'text-gray-400 hover:text-gray-300'
+                }`}
+              >
+                Description
+              </button>
+              <button
+                onClick={() => setLeftPaneTab('submissions')}
+                className={`px-4 py-2 text-sm font-semibold ${
+                  leftPaneTab === 'submissions'
+                    ? 'text-cyan-400 border-b-2 border-cyan-400'
+                    : 'text-gray-400 hover:text-gray-300'
+                }`}
+              >
+                Submissions
+              </button>
+            </div>
+
+            {/* Tab Content */}
+            <div className="flex-1 overflow-hidden">
+              {leftPaneTab === 'description' ? (
+                <ProblemDescription problem={problem} />
+              ) : (
+                <SubmissionsPanel problemId={problem.id} />
+              )}
+            </div>
+          </div>
         </Allotment.Pane>
 
         {/* Right Pane: Code Editor + Test Results */}
@@ -274,7 +304,72 @@ function ProblemDescription({ problem }: { problem: any }) {
   )
 }
 
-function TestResults({ results }: { results: any }) {
+// Fix #6: Submissions Panel Component (LeetCode style)
+function SubmissionsPanel({ problemId }: { problemId: string }) {
+  const { data: submissions, isLoading } = useSubmissions(problemId)
+
+  if (isLoading) {
+    return (
+      <div className="h-full overflow-y-auto bg-gray-900 text-white p-6 flex items-center justify-center">
+        <Loader2 className="animate-spin text-cyan-400" size={24} />
+      </div>
+    )
+  }
+
+  if (!submissions || submissions.length === 0) {
+    return (
+      <div className="h-full overflow-y-auto bg-gray-900 text-white p-6">
+        <p className="text-gray-400">No submissions yet. Submit your code to see history here.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="h-full overflow-y-auto bg-gray-900 text-white p-6">
+      <h2 className="text-xl font-bold mb-4 text-cyan-400">Submission History</h2>
+      <div className="space-y-3">
+        {submissions.map((submission: SubmissionSchema) => (
+          <div
+            key={submission.id}
+            className={`rounded-lg p-4 border ${
+              submission.passed
+                ? 'bg-green-500/5 border-green-500/30'
+                : 'bg-red-500/5 border-red-500/30'
+            }`}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className={`text-sm font-semibold ${
+                submission.passed ? 'text-green-400' : 'text-red-400'
+              }`}>
+                {submission.passed ? 'Accepted' : 'Runtime Error'}
+              </span>
+              <span className="text-xs text-gray-400">
+                {new Date(submission.submitted_at).toLocaleString()}
+              </span>
+            </div>
+            <div className="text-xs text-gray-400 space-y-1">
+              <div>Language: <span className="text-gray-300">{submission.language}</span></div>
+              {submission.runtime_ms && (
+                <div>Runtime: <span className="text-gray-300">{submission.runtime_ms} ms</span></div>
+              )}
+            </div>
+            <details className="mt-2">
+              <summary className="text-xs text-cyan-400 cursor-pointer hover:text-cyan-300">
+                View Code
+              </summary>
+              <pre className="mt-2 p-2 bg-gray-900 rounded text-xs text-gray-300 overflow-x-auto">
+                {submission.code}
+              </pre>
+            </details>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// Fix #5: Enhanced Test Results Component
+function TestResults({ results }: { results: RunCodeResponse | SubmitCodeResponse | null }) {
   if (!results) {
     return (
       <div className="h-full bg-gray-800 p-4 overflow-y-auto">
@@ -285,51 +380,103 @@ function TestResults({ results }: { results: any }) {
     )
   }
 
-  if (results.error) {
+  // Handle compilation/runtime errors
+  if (results.compile_error) {
     return (
       <div className="h-full bg-gray-800 p-4 overflow-y-auto">
         <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-4">
           <div className="flex items-center gap-2 mb-2">
             <AlertCircle className="text-red-400" size={20} />
-            <span className="font-semibold text-red-400">Error</span>
+            <span className="font-semibold text-red-400">Compilation Error</span>
           </div>
-          <p className="text-sm text-gray-300">{results.error}</p>
+          <pre className="text-sm text-gray-300 whitespace-pre-wrap font-mono">
+            {results.compile_error}
+          </pre>
         </div>
       </div>
     )
   }
 
-  const passedCount = results.test_results?.filter((r: any) => r.passed).length || 0
-  const totalCount = results.test_results?.length || 0
-  const allPassed = results.is_passed
+  if (results.runtime_error) {
+    return (
+      <div className="h-full bg-gray-800 p-4 overflow-y-auto">
+        <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertCircle className="text-red-400" size={20} />
+            <span className="font-semibold text-red-400">Runtime Error</span>
+          </div>
+          <pre className="text-sm text-gray-300 whitespace-pre-wrap font-mono">
+            {results.runtime_error}
+          </pre>
+        </div>
+      </div>
+    )
+  }
+
+  const allPassed = results.success
 
   return (
     <div className="h-full bg-gray-800 p-4 overflow-y-auto">
       {/* Summary */}
-      <div className={`rounded-lg p-4 mb-4 ${allPassed ? 'bg-green-500/10 border border-green-500/50' : 'bg-red-500/10 border border-red-500/50'}`}>
+      <div className={`rounded-lg p-4 mb-4 ${
+        allPassed
+          ? 'bg-green-500/10 border border-green-500/50'
+          : 'bg-red-500/10 border border-red-500/50'
+      }`}>
         <div className="flex items-center justify-between mb-2">
-          <span className={`font-bold text-lg ${allPassed ? 'text-green-400' : 'text-red-400'}`}>
+          <span className={`font-bold text-lg ${
+            allPassed ? 'text-green-400' : 'text-red-400'
+          }`}>
             {allPassed ? 'All Tests Passed!' : 'Some Tests Failed'}
           </span>
           <span className="text-sm font-semibold text-gray-300">
-            {passedCount} / {totalCount} passed
+            {results.summary.passed} / {results.summary.total} passed
           </span>
         </div>
-        {results.runtime_ms && (
-          <p className="text-sm text-gray-400">Runtime: {results.runtime_ms}ms</p>
+
+        {/* Show progress info for Submit responses */}
+        {'times_solved' in results && results.times_solved !== null && (
+          <div className="mt-3 pt-3 border-t border-gray-700">
+            <p className="text-sm text-gray-300">
+              Times Solved: <span className="font-semibold text-cyan-400">{results.times_solved}</span>
+            </p>
+            {results.is_mastered && (
+              <p className="text-sm text-green-400 font-semibold mt-1">✓ Mastered!</p>
+            )}
+            {results.next_review_date && !results.is_mastered && (
+              <p className="text-sm text-gray-400 mt-1">
+                Next Review: {new Date(results.next_review_date).toLocaleDateString()}
+              </p>
+            )}
+          </div>
         )}
       </div>
 
       {/* Individual Test Results */}
       <div className="space-y-2">
-        {results.test_results?.map((result: any, index: number) => (
+        {results.results.map((result, index) => (
           <div
             key={index}
-            className={`rounded-lg p-3 border ${result.passed ? 'bg-green-500/5 border-green-500/30' : 'bg-red-500/5 border-red-500/30'}`}
+            className={`rounded-lg p-3 border ${
+              result.passed
+                ? 'bg-green-500/5 border-green-500/30'
+                : 'bg-red-500/5 border-red-500/30'
+            }`}
           >
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-semibold text-gray-300">Test Case {index + 1}</span>
-              <span className={`text-xs font-semibold ${result.passed ? 'text-green-400' : 'text-red-400'}`}>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-gray-300">
+                  Test {result.test_number}
+                </span>
+                {result.is_hidden && (
+                  <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 rounded text-xs font-semibold">
+                    Hidden
+                  </span>
+                )}
+              </div>
+              <span className={`text-xs font-semibold ${
+                result.passed ? 'text-green-400' : 'text-red-400'
+              }`}>
                 {result.passed ? 'PASSED' : 'FAILED'}
               </span>
             </div>
@@ -337,11 +484,15 @@ function TestResults({ results }: { results: any }) {
               <div className="text-xs space-y-1">
                 <div>
                   <span className="text-gray-400">Expected: </span>
-                  <span className="text-gray-300 font-mono">{JSON.stringify(result.expected)}</span>
+                  <span className="text-gray-300 font-mono">
+                    {JSON.stringify(result.expected)}
+                  </span>
                 </div>
                 <div>
                   <span className="text-gray-400">Got: </span>
-                  <span className="text-gray-300 font-mono">{JSON.stringify(result.actual)}</span>
+                  <span className="text-gray-300 font-mono">
+                    {JSON.stringify(result.output)}
+                  </span>
                 </div>
                 {result.error && (
                   <div>
