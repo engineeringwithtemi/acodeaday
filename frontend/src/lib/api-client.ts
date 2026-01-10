@@ -1,7 +1,7 @@
 // API Client for acodeaday
 // Handles HTTP requests with Supabase session token authentication
 
-import { supabase } from './supabase'
+import { supabase, getAuthReady } from './supabase'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
@@ -22,10 +22,13 @@ export class ApiError extends Error {
 
 /**
  * Check if user is authenticated (has a Supabase session)
+ * Waits for Supabase auth to initialize before checking
  */
 export async function isAuthenticated(): Promise<boolean> {
   if (typeof window === 'undefined') return false // Not authenticated on server
-  const { data: { session } } = await supabase.auth.getSession()
+
+  // Wait for auth to be initialized (session restored from localStorage)
+  const session = await getAuthReady()
   return session !== null
 }
 

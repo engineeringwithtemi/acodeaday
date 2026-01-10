@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     log_to_file: bool = Field(True)
     log_file_path: str = Field("logs/acodeaday.log")
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=("../.env", ".env"), extra="ignore")
 
 
 settings = Settings()

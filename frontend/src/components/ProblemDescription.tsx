@@ -1,3 +1,5 @@
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import type { Problem } from '../types/api'
 
 interface ProblemDescriptionProps {
@@ -48,10 +50,11 @@ export function ProblemDescription({ problem }: ProblemDescriptionProps) {
             <span className="w-1 h-1 bg-cyan-400 rounded-full animate-pulse" />
             Description
           </h2>
-          <div
-            className="prose prose-invert prose-zinc max-w-none prose-p:text-zinc-300 prose-p:leading-relaxed prose-code:text-cyan-400 prose-code:bg-cyan-400/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:font-mono prose-code:text-sm"
-            dangerouslySetInnerHTML={{ __html: problem.description }}
-          />
+          <div className="prose prose-invert prose-zinc max-w-none prose-p:text-zinc-300 prose-p:leading-relaxed prose-code:text-cyan-400 prose-code:bg-cyan-400/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:font-mono prose-code:text-sm prose-strong:text-zinc-200 prose-ul:text-zinc-300 prose-ol:text-zinc-300">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {problem.description}
+            </ReactMarkdown>
+          </div>
         </div>
 
         {/* Examples */}

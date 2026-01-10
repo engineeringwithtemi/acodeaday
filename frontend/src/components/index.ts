@@ -1,5 +1,6 @@
 export { CodeEditor, getEditorValue } from './CodeEditor'
 export { ProblemDescription } from './ProblemDescription'
 export { TestResults } from './TestResults'
+export { TestCasesPanel } from './TestCasesPanel'
 export { ProblemCard } from './ProblemCard'
 export { Navigation } from './Navigation'

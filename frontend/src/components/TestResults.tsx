@@ -1,38 +1,34 @@
-import { CheckCircle2, XCircle, Loader2, Clock } from 'lucide-react'
-import type { TestCaseResult } from '../types/api'
+import { CheckCircle2, XCircle, Loader2, Clock, AlertCircle, Terminal } from 'lucide-react'
+import type { RunCodeResponse, SubmitCodeResponse, TestResult } from '../types/api'
 
 interface TestResultsProps {
-  testResults?: TestCaseResult[]
+  results: RunCodeResponse | SubmitCodeResponse | null
   isRunning?: boolean
-  runtime?: number | null
 }
 
 export function TestResults({
-  testResults,
+  results,
   isRunning = false,
-  runtime,
 }: TestResultsProps) {
   if (isRunning) {
     return (
-      <div className="h-full flex items-center justify-center bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950">
+      <div className="h-full flex items-center justify-center bg-gray-800">
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-12 h-12 text-cyan-400 animate-spin" />
-          <p className="text-zinc-400 font-mono text-sm tracking-wide">
-            Running tests...
-          </p>
+          <Loader2 className="w-10 h-10 text-cyan-400 animate-spin" />
+          <p className="text-gray-400 font-mono text-sm">Running tests...</p>
         </div>
       </div>
     )
   }
 
-  if (!testResults || testResults.length === 0) {
+  if (!results) {
     return (
-      <div className="h-full flex items-center justify-center bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950">
+      <div className="h-full flex items-center justify-center bg-gray-800">
         <div className="text-center px-8">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-zinc-800/50 border border-zinc-700 flex items-center justify-center">
-            <Clock className="w-8 h-8 text-zinc-600" />
+          <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-gray-700/50 border border-gray-600 flex items-center justify-center">
+            <Clock className="w-7 h-7 text-gray-500" />
           </div>
-          <p className="text-zinc-500 font-mono text-sm">
+          <p className="text-gray-500 font-mono text-sm">
             Run your code to see test results
           </p>
         </div>
@@ -40,121 +36,182 @@ export function TestResults({
     )
   }
 
-  const passedCount = testResults.filter((result) => result.passed).length
-  const totalCount = testResults.length
-  const allPassed = passedCount === totalCount
+  // Handle compilation errors
+  if (results.compile_error) {
+    return (
+      <div className="h-full overflow-y-auto bg-gray-800 p-4">
+        <div className="bg-red-500/10 border border-red-500/40 rounded-lg p-4">
+          <div className="flex items-center gap-3 mb-3">
+            <AlertCircle className="w-5 h-5 text-red-400" />
+            <span className="font-mono font-semibold text-red-400">Compile Error</span>
+          </div>
+          <pre className="font-mono text-sm text-red-300 bg-gray-900/50 p-4 rounded-lg overflow-x-auto whitespace-pre-wrap">
+            {results.compile_error}
+          </pre>
+        </div>
+      </div>
+    )
+  }
+
+  // Handle runtime errors
+  if (results.runtime_error) {
+    return (
+      <div className="h-full overflow-y-auto bg-gray-800 p-4">
+        <div className="bg-red-500/10 border border-red-500/40 rounded-lg p-4">
+          <div className="flex items-center gap-3 mb-3">
+            <AlertCircle className="w-5 h-5 text-red-400" />
+            <span className="font-mono font-semibold text-red-400">Runtime Error</span>
+          </div>
+          <pre className="font-mono text-sm text-red-300 bg-gray-900/50 p-4 rounded-lg overflow-x-auto whitespace-pre-wrap">
+            {results.runtime_error}
+          </pre>
+        </div>
+      </div>
+    )
+  }
+
+  const allPassed = results.success
+  const isSubmitResponse = 'submission_id' in results
 
   return (
-    <div className="h-full overflow-y-auto bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 text-zinc-100">
-      <div className="p-6">
-        {/* Header */}
-        <div className="mb-6 pb-4 border-b border-zinc-800">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-lg font-mono font-semibold text-white">
-              Test Results
-            </h2>
-            {runtime !== null && runtime !== undefined && (
-              <div className="flex items-center gap-2 text-xs font-mono text-zinc-400">
-                <Clock className="w-4 h-4" />
-                <span>{runtime}ms</span>
-              </div>
-            )}
-          </div>
-          <div className="flex items-center gap-3">
-            <div
-              className={`px-4 py-2 rounded-lg font-mono text-sm font-semibold ${
-                allPassed
-                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                  : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
-              }`}
-            >
-              {passedCount} / {totalCount} Passed
+    <div className="h-full overflow-y-auto bg-gray-800">
+      <div className="p-4">
+        {/* Summary Header */}
+        <div className={`rounded-lg p-4 mb-4 border ${
+          allPassed
+            ? 'bg-green-500/10 border-green-500/40'
+            : 'bg-red-500/10 border-red-500/40'
+        }`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {allPassed ? (
+                <CheckCircle2 className="w-6 h-6 text-green-400" />
+              ) : (
+                <XCircle className="w-6 h-6 text-red-400" />
+              )}
+              <span className={`text-lg font-bold ${
+                allPassed ? 'text-green-400' : 'text-red-400'
+              }`}>
+                {allPassed ? 'Accepted' : 'Wrong Answer'}
+              </span>
             </div>
-            {allPassed && (
-              <div className="flex items-center gap-2 text-emerald-400">
-                <CheckCircle2 className="w-5 h-5 animate-pulse" />
-                <span className="text-sm font-mono">All tests passed!</span>
-              </div>
-            )}
+            <span className="font-mono text-sm text-gray-300">
+              {results.summary.passed}/{results.summary.total} tests passed
+            </span>
           </div>
+
+          {/* Progress info for Submit responses */}
+          {isSubmitResponse && results.times_solved !== undefined && (
+            <div className="mt-3 pt-3 border-t border-gray-700 flex items-center gap-4">
+              <span className="text-sm text-gray-400">
+                Times Solved: <span className="text-cyan-400 font-semibold">{results.times_solved}</span>
+              </span>
+              {results.is_mastered && (
+                <span className="text-green-400 font-semibold text-sm">✓ Mastered!</span>
+              )}
+              {results.next_review_date && !results.is_mastered && (
+                <span className="text-sm text-gray-400">
+                  Next Review: {new Date(results.next_review_date).toLocaleDateString()}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Test Cases */}
-        <div className="space-y-4">
-          {testResults.map((result, idx) => (
-            <div
-              key={result.test_case_id}
-              className={`rounded-lg p-4 border backdrop-blur-sm transition-all ${
-                result.passed
-                  ? 'bg-emerald-500/5 border-emerald-500/30 hover:border-emerald-500/50'
-                  : 'bg-rose-500/5 border-rose-500/30 hover:border-rose-500/50'
-              }`}
-            >
-              <div className="flex items-start gap-3 mb-3">
-                {result.passed ? (
-                  <CheckCircle2 className="w-5 h-5 text-emerald-400 mt-0.5 flex-shrink-0" />
-                ) : (
-                  <XCircle className="w-5 h-5 text-rose-400 mt-0.5 flex-shrink-0" />
-                )}
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span
-                      className={`text-sm font-mono font-semibold ${
-                        result.passed ? 'text-emerald-300' : 'text-rose-300'
-                      }`}
-                    >
-                      Test Case {idx + 1}
-                    </span>
-                    <span
-                      className={`text-xs font-mono px-2 py-0.5 rounded ${
-                        result.passed
-                          ? 'bg-emerald-500/20 text-emerald-300'
-                          : 'bg-rose-500/20 text-rose-300'
-                      }`}
-                    >
-                      {result.passed ? 'PASS' : 'FAIL'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="pl-8 space-y-2 font-mono text-sm">
-                <div className="flex flex-col gap-1">
-                  <span className="text-zinc-500 text-xs uppercase tracking-wider">
-                    Expected
-                  </span>
-                  <code className="text-emerald-300 bg-emerald-400/5 px-3 py-1.5 rounded border border-emerald-500/20 block overflow-x-auto">
-                    {JSON.stringify(result.expected)}
-                  </code>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span className="text-zinc-500 text-xs uppercase tracking-wider">
-                    Actual
-                  </span>
-                  <code
-                    className={`px-3 py-1.5 rounded border block overflow-x-auto ${
-                      result.passed
-                        ? 'text-emerald-300 bg-emerald-400/5 border-emerald-500/20'
-                        : 'text-rose-300 bg-rose-400/5 border-rose-500/20'
-                    }`}
-                  >
-                    {JSON.stringify(result.actual)}
-                  </code>
-                </div>
-                {result.error && (
-                  <div className="flex flex-col gap-1 pt-2 border-t border-zinc-800">
-                    <span className="text-rose-400 text-xs uppercase tracking-wider">
-                      Error
-                    </span>
-                    <pre className="text-rose-300 bg-rose-400/5 px-3 py-1.5 rounded border border-rose-500/20 text-xs overflow-x-auto">
-                      {result.error}
-                    </pre>
-                  </div>
-                )}
-              </div>
-            </div>
+        {/* Individual Test Results */}
+        <div className="space-y-3">
+          {results.results.map((result: TestResult, index: number) => (
+            <TestCaseResult key={index} result={result} index={index} />
           ))}
         </div>
+      </div>
+    </div>
+  )
+}
+
+function TestCaseResult({ result, index }: { result: TestResult; index: number }) {
+  return (
+    <div className={`rounded-lg border p-4 ${
+      result.passed
+        ? 'bg-green-500/5 border-green-500/30'
+        : 'bg-red-500/5 border-red-500/30'
+    }`}>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          {result.passed ? (
+            <CheckCircle2 className="w-4 h-4 text-green-400" />
+          ) : (
+            <XCircle className="w-4 h-4 text-red-400" />
+          )}
+          <span className="font-mono text-sm font-semibold text-gray-200">
+            Case {index + 1}
+          </span>
+        </div>
+        <span className={`text-xs font-mono font-semibold px-2 py-0.5 rounded ${
+          result.passed
+            ? 'bg-green-500/20 text-green-400'
+            : 'bg-red-500/20 text-red-400'
+        }`}>
+          {result.passed ? 'PASSED' : 'FAILED'}
+        </span>
+      </div>
+
+      {/* Test Details - LeetCode style */}
+      <div className="space-y-3 font-mono text-sm">
+        {/* Input */}
+        {result.input !== undefined && (
+          <div>
+            <span className="text-gray-500 text-xs uppercase tracking-wider block mb-1">Input</span>
+            <pre className="p-2 bg-gray-900 rounded text-cyan-400 overflow-x-auto">
+              {JSON.stringify(result.input, null, 2)}
+            </pre>
+          </div>
+        )}
+
+        {/* Output (User's result) */}
+        <div>
+          <span className="text-gray-500 text-xs uppercase tracking-wider block mb-1">Output</span>
+          <pre className={`p-2 rounded overflow-x-auto ${
+            result.passed
+              ? 'bg-gray-900 text-green-400'
+              : 'bg-gray-900 text-red-400'
+          }`}>
+            {result.output !== undefined ? JSON.stringify(result.output, null, 2) : 'null'}
+          </pre>
+        </div>
+
+        {/* Expected */}
+        <div>
+          <span className="text-gray-500 text-xs uppercase tracking-wider block mb-1">Expected</span>
+          <pre className="p-2 bg-gray-900 rounded text-green-400 overflow-x-auto">
+            {JSON.stringify(result.expected, null, 2)}
+          </pre>
+        </div>
+
+        {/* Stdout - if user has print statements */}
+        {result.stdout && (
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <Terminal className="w-3 h-3 text-gray-500" />
+              <span className="text-gray-500 text-xs uppercase tracking-wider">Stdout</span>
+            </div>
+            <pre className="p-2 bg-gray-900 rounded text-yellow-400 overflow-x-auto whitespace-pre-wrap">
+              {result.stdout}
+            </pre>
+          </div>
+        )}
+
+        {/* Error - if there was a runtime error for this test */}
+        {result.error && (
+          <div>
+            <span className="text-red-400 text-xs uppercase tracking-wider block mb-1">Error</span>
+            <pre className="p-2 bg-red-900/20 border border-red-500/30 rounded text-red-300 overflow-x-auto whitespace-pre-wrap text-xs">
+              {result.error_type && <span className="font-semibold">{result.error_type}: </span>}
+              {result.error}
+            </pre>
+          </div>
+        )}
       </div>
     </div>
   )

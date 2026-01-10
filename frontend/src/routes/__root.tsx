@@ -37,7 +37,12 @@ export const Route = createRootRoute({
       return
     }
 
-    // Redirect to login if not authenticated
+    // Skip auth check during SSR - let client handle it
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    // Redirect to login if not authenticated (client-side only)
     const authenticated = await isAuthenticated()
     if (!authenticated) {
       throw redirect({

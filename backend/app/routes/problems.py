@@ -29,7 +29,7 @@ async def get_problem(slug: str, db: AsyncSession = Depends(get_db)):
     """
     Get detailed problem information including test cases and language configs.
 
-    Only returns non-hidden test cases (hidden cases are only shown during submission).
+    Returns first 3 test cases by sequence order.
     """
     result = await db.execute(
         select(Problem)
@@ -41,8 +41,9 @@ async def get_problem(slug: str, db: AsyncSession = Depends(get_db)):
     if not problem:
         raise HTTPException(status_code=404, detail=f"Problem '{slug}' not found")
 
-    # Build response with filtered test cases (don't mutate the ORM model)
-    visible_test_cases = [tc for tc in problem.test_cases if not tc.is_hidden]
+    # Get first 3 test cases by sequence order
+    sorted_test_cases = sorted(problem.test_cases, key=lambda tc: tc.sequence)
+    first_three_test_cases = sorted_test_cases[:3]
 
     return ProblemDetailSchema(
         id=problem.id,
@@ -56,5 +57,5 @@ async def get_problem(slug: str, db: AsyncSession = Depends(get_db)):
         examples=problem.examples,
         created_at=problem.created_at,
         languages=problem.languages,
-        test_cases=visible_test_cases,
+        test_cases=first_three_test_cases,
     )

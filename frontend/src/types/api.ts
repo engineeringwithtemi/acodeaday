@@ -158,18 +158,21 @@ export interface MasteredProblemsResponse {
 export interface TestResult {
   test_number: number
   passed: boolean
+  input: any  // Input arguments for this test case
   output: any
   expected: any
+  stdout?: string  // User's print() output
   error?: string
   error_type?: string
   is_hidden: boolean
 }
 
-// Run Code request (visible tests only)
+// Run Code request (visible tests only, or custom input)
 export interface RunCodeRequest {
   problem_slug: string
   code: string
   language: string
+  custom_input?: any[][]  // Optional custom test inputs
 }
 
 // Run Code response (visible tests only)

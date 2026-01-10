@@ -2,6 +2,7 @@
 
 import json
 import uuid
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
@@ -55,6 +56,15 @@ async def _get_problem_with_details(
     test_cases = sorted(problem.test_cases, key=lambda tc: tc.sequence)
 
     return problem, problem_lang, test_cases
+
+
+class _MockTestCase:
+    """Mock TestCase object for custom inputs."""
+
+    def __init__(self, input_data: list[Any], expected: Any = None):
+        self.input = input_data
+        self.expected = expected
+        self.is_hidden = False
 
 
 async def _execute_code_with_wrapper(
@@ -132,6 +142,7 @@ def _parse_execution_results(judge0_result: dict, test_cases: list[TestCase]) ->
             TestResult(
                 test_number=result_data.get("test", i + 1),
                 passed=result_data.get("passed", False),
+                input=result_data.get("input"),
                 output=result_data.get("output"),
                 expected=result_data.get("expected"),
                 error=result_data.get("error"),
@@ -162,21 +173,14 @@ async def run_code(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Run code against visible test cases only (not hidden).
+    Run code against first 3 test cases or custom inputs.
 
-    This is the "Run Code" button - shows only example test cases.
+    This is the "Run Code" button - shows first 3 test cases by sequence order,
+    or runs against custom inputs if provided.
     """
     problem, problem_lang, test_cases = await _get_problem_with_details(
         db, request.problem_slug, request.language.value
     )
-
-    # Filter to only visible test cases
-    visible_test_cases = [tc for tc in test_cases if not tc.is_hidden]
-
-    if not visible_test_cases:
-        raise HTTPException(
-            status_code=400, detail="No visible test cases found for this problem"
-        )
 
     # Get function name from signature
     function_name = problem_lang.function_signature.get("name")
@@ -185,12 +189,73 @@ async def run_code(
             status_code=500, detail="Problem configuration error: missing function name"
         )
 
+    # Handle custom input if provided
+    if request.custom_input:
+        logger.info(
+            "running_custom_input",
+            problem_slug=request.problem_slug,
+            custom_test_count=len(request.custom_input),
+        )
+
+        # First, run reference solution to get expected outputs
+        reference_code = problem_lang.reference_solution
+        reference_test_cases = [
+            _MockTestCase(input_data=inp, expected=None)
+            for inp in request.custom_input
+        ]
+
+        reference_result = await _execute_code_with_wrapper(
+            user_code=reference_code,
+            language=request.language.value,
+            function_name=function_name,
+            test_cases=reference_test_cases,
+        )
+
+        # Extract expected outputs from reference execution
+        if not reference_result.get("success"):
+            # Reference solution failed - this shouldn't happen
+            logger.error(
+                "reference_solution_failed",
+                problem_slug=request.problem_slug,
+                error=reference_result.get("runtime_error") or reference_result.get("compile_error"),
+            )
+            raise HTTPException(
+                status_code=500,
+                detail="Reference solution failed to execute. Please check your custom inputs.",
+            )
+
+        # Get expected outputs from reference results
+        expected_outputs = [r.output for r in reference_result["results"]]
+
+        # Now run user code with expected outputs
+        user_test_cases = [
+            _MockTestCase(input_data=inp, expected=exp)
+            for inp, exp in zip(request.custom_input, expected_outputs)
+        ]
+
+        execution_result = await _execute_code_with_wrapper(
+            user_code=request.code,
+            language=request.language.value,
+            function_name=function_name,
+            test_cases=user_test_cases,
+        )
+
+        return RunCodeResponse(**execution_result)
+
+    # Use first 3 test cases from DB (default behavior)
+    first_three_tests = test_cases[:3]
+
+    if not first_three_tests:
+        raise HTTPException(
+            status_code=400, detail="No test cases found for this problem"
+        )
+
     # Execute code
     execution_result = await _execute_code_with_wrapper(
         user_code=request.code,
         language=request.language.value,
         function_name=function_name,
-        test_cases=visible_test_cases,
+        test_cases=first_three_tests,
     )
 
     return RunCodeResponse(**execution_result)
@@ -203,9 +268,9 @@ async def submit_code(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Submit code against ALL test cases (including hidden).
+    Submit code against first 3 test cases.
 
-    This is the "Submit" button - runs all tests and updates user progress.
+    This is the "Submit" button - runs first 3 tests and updates user progress.
     """
     user_id = user["id"]
 
@@ -213,7 +278,10 @@ async def submit_code(
         db, request.problem_slug, request.language.value
     )
 
-    if not test_cases:
+    # Always use first 3 test cases by sequence order
+    first_three_tests = test_cases[:3]
+
+    if not first_three_tests:
         raise HTTPException(
             status_code=400, detail="No test cases found for this problem"
         )
@@ -225,12 +293,12 @@ async def submit_code(
             status_code=500, detail="Problem configuration error: missing function name"
         )
 
-    # Execute code against ALL test cases
+    # Execute code against first 3 test cases
     execution_result = await _execute_code_with_wrapper(
         user_code=request.code,
         language=request.language.value,
         function_name=function_name,
-        test_cases=test_cases,
+        test_cases=first_three_tests,
     )
 
     all_passed = execution_result["success"]

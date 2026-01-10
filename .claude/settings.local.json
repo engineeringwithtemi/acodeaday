@@ -19,13 +19,15 @@
       "WebFetch(domain:tanstack.com)",
       "Bash(npx tsc:*)",
       "Bash(npm run build:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(ls:*)",
+      "mcp__playwriter__execute"
     ],
     "deny": [],
     "ask": []
   },
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "playwriter"
-  ],
-  "enableAllProjectMcpServers": true
+  ]
 }

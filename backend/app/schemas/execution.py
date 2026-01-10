@@ -1,5 +1,7 @@
 """Pydantic schemas for code execution."""
 
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 from app.db.tables import Language
@@ -11,6 +13,9 @@ class RunCodeRequest(BaseModel):
     problem_slug: str = Field(..., description="Problem slug identifier")
     code: str = Field(..., description="User's code to execute")
     language: Language = Field(..., description="Programming language")
+    custom_input: list[list[Any]] | None = Field(
+        None, description="Custom test inputs (if provided, runs against these instead of DB test cases)"
+    )
 
 
 class TestResult(BaseModel):
@@ -18,6 +23,7 @@ class TestResult(BaseModel):
 
     test_number: int
     passed: bool
+    input: dict | list | str | int | float | bool | None = None
     output: dict | list | str | int | float | bool | None = None
     expected: dict | list | str | int | float | bool | None = None
     error: str | None = None

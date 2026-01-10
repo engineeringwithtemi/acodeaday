@@ -70,7 +70,9 @@ def generate_python_wrapper(
         for tc in test_cases
     ]
 
-    wrapper = f'''{user_code}
+    wrapper = f'''from typing import List, Optional, Dict, Tuple, Set, Any
+
+{user_code}
 
 import json
 import sys
@@ -94,6 +96,7 @@ if __name__ == "__main__":
             results.append({{
                 "test_number": i + 1,
                 "passed": passed,
+                "input": test["input"],
                 "output": result,
                 "expected": test["expected"],
                 "is_hidden": test["is_hidden"]
@@ -104,6 +107,7 @@ if __name__ == "__main__":
             results.append({{
                 "test_number": i + 1,
                 "passed": False,
+                "input": test["input"],
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "expected": test["expected"],
