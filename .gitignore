@@ -367,3 +367,4 @@ backend/migrations/versions/__pycache__/
 # TanStack Start / Vinxi build output
 frontend/.vinxi/
 frontend/.output/
+/tmp/**

@@ -1,8 +1,11 @@
 title: Number of 1 Bits
-slug: number-of-1-bits
 sequence_number: 12
 difficulty: easy
-pattern: bit-manipulation
+pattern:
+  - bit-manipulation
+  - hamming-weight
+  - counting
+  - binary
 
 description: |
   Write a function that takes the binary representation of a positive integer and returns the number of set bits it has (also known as the **Hamming weight**).
@@ -45,16 +48,63 @@ languages:
 test_cases:
   - input: [11]
     expected: 3
-    is_hidden: false
   - input: [128]
     expected: 1
-    is_hidden: false
   - input: [2147483645]
     expected: 30
-    is_hidden: false
   - input: [1]
     expected: 1
-    is_hidden: true
   - input: [255]
     expected: 8
-    is_hidden: true
+  - input: [2]
+    expected: 1
+  - input: [4]
+    expected: 1
+  - input: [8]
+    expected: 1
+  - input: [16]
+    expected: 1
+  - input: [32]
+    expected: 1
+  - input: [64]
+    expected: 1
+  - input: [1024]
+    expected: 1
+  - input: [3]
+    expected: 2
+  - input: [7]
+    expected: 3
+  - input: [15]
+    expected: 4
+  - input: [31]
+    expected: 5
+  - input: [63]
+    expected: 6
+  - input: [127]
+    expected: 7
+  - input: [511]
+    expected: 9
+  - input: [1023]
+    expected: 10
+  - input: [5]
+    expected: 2
+  - input: [10]
+    expected: 2
+  - input: [21]
+    expected: 3
+  - input: [42]
+    expected: 3
+  - input: [85]
+    expected: 4
+  - input: [170]
+    expected: 4
+  - input: [2147483647]
+    expected: 31
+  - input: [1073741824]
+    expected: 1
+  - input: [2147483646]
+    expected: 30
+  - input: [100]
+    expected: 3
+  - input: [1000]
+    expected: 6

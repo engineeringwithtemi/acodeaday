@@ -1,8 +1,11 @@
 title: Sum of Two Integers
-slug: sum-of-two-integers
 sequence_number: 11
 difficulty: medium
-pattern: bit-manipulation
+pattern:
+  - bit-manipulation
+  - math
+  - xor
+  - carry-propagation
 
 description: |
   Given two integers `a` and `b`, return the sum of the two integers without using the operators `+` and `-`.
@@ -50,16 +53,61 @@ languages:
 test_cases:
   - input: [1, 2]
     expected: 3
-    is_hidden: false
   - input: [2, 3]
     expected: 5
-    is_hidden: false
   - input: [-1, 1]
     expected: 0
-    is_hidden: false
   - input: [-12, -8]
     expected: -20
-    is_hidden: true
   - input: [0, 0]
     expected: 0
-    is_hidden: true
+  - input: [0, 1]
+    expected: 1
+  - input: [1, 0]
+    expected: 1
+  - input: [0, -1]
+    expected: -1
+  - input: [-1, 0]
+    expected: -1
+  - input: [5, 5]
+    expected: 10
+  - input: [-5, -5]
+    expected: -10
+  - input: [5, -5]
+    expected: 0
+  - input: [-5, 5]
+    expected: 0
+  - input: [100, -100]
+    expected: 0
+  - input: [1000, 0]
+    expected: 1000
+  - input: [-1000, 0]
+    expected: -1000
+  - input: [1000, -1000]
+    expected: 0
+  - input: [500, 500]
+    expected: 1000
+  - input: [-500, -500]
+    expected: -1000
+  - input: [10, 20]
+    expected: 30
+  - input: [123, 456]
+    expected: 579
+  - input: [1, 1]
+    expected: 2
+  - input: [-10, -20]
+    expected: -30
+  - input: [-1, -1]
+    expected: -2
+  - input: [-100, -200]
+    expected: -300
+  - input: [100, -50]
+    expected: 50
+  - input: [50, -20]
+    expected: 30
+  - input: [50, -100]
+    expected: -50
+  - input: [20, -50]
+    expected: -30
+  - input: [1, -1]
+    expected: 0

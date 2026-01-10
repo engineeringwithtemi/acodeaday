@@ -46,6 +46,7 @@ async def get_submissions(
             language=submission.language.value,
             passed=submission.passed,
             runtime_ms=submission.runtime_ms,
+            memory_kb=submission.memory_kb,
             submitted_at=submission.submitted_at,
         )
         for submission, problem in submissions_data

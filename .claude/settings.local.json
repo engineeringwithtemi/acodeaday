@@ -21,7 +21,8 @@
       "Bash(npm run build:*)",
       "Bash(curl:*)",
       "Bash(ls:*)",
-      "mcp__playwriter__execute"
+      "mcp__playwriter__execute",
+      "mcp__playwriter__reset"
     ],
     "deny": [],
     "ask": []

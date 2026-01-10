@@ -13,6 +13,7 @@ def generate_python_wrapper(
     user_code: str,
     test_cases: list[TestCase],
     function_name: str,
+    early_exit: bool = False,
 ) -> str:
     """
     Generate Python wrapper code for Judge0 execution.
@@ -28,6 +29,7 @@ def generate_python_wrapper(
         user_code: User's submitted code (includes class Solution)
         test_cases: List of TestCase objects with input/expected
         function_name: Name of the function to call (from function_signature)
+        early_exit: If True, stop execution at first failing test (for submit)
 
     Returns:
         Complete Python code ready for Judge0 execution
@@ -115,6 +117,10 @@ if __name__ == "__main__":
                 "stdout": stdout_content if stdout_content else None
             }})
 
+            # Early exit on first failure (for submit mode)
+            if {str(early_exit)} and not passed:
+                break
+
         except Exception as e:
             # Get captured stdout even on error
             stdout_content = _captured_stdout.getvalue()
@@ -130,6 +136,10 @@ if __name__ == "__main__":
                 "is_hidden": test["is_hidden"],
                 "stdout": stdout_content if stdout_content else None
             }})
+
+            # Early exit on error (for submit mode)
+            if {str(early_exit)}:
+                break
 
     # Restore original stdout before outputting JSON
     sys.stdout = _original_stdout

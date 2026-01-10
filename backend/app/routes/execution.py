@@ -72,13 +72,14 @@ async def _execute_code_with_wrapper(
     language: str,
     function_name: str,
     test_cases: list[TestCase],
+    early_exit: bool = False,
 ) -> dict:
     """Execute user code with wrapper and return parsed results."""
     judge0 = get_judge0_service()
 
     # Generate wrapper code
     if language == "python":
-        wrapped_code = generate_python_wrapper(user_code, test_cases, function_name)
+        wrapped_code = generate_python_wrapper(user_code, test_cases, function_name, early_exit=early_exit)
     else:
         raise HTTPException(
             status_code=400, detail=f"Language '{language}' not yet supported"
@@ -89,6 +90,7 @@ async def _execute_code_with_wrapper(
         language=language,
         function=function_name,
         test_count=len(test_cases),
+        early_exit=early_exit,
     )
 
     # Execute on Judge0
@@ -104,6 +106,19 @@ def _parse_execution_results(judge0_result: dict, test_cases: list[TestCase]) ->
     stderr = judge0_result.get("stderr", "")
     compile_output = judge0_result.get("compile_output", "")
     status = judge0_result.get("status", {})
+
+    # Extract runtime and memory from Judge0
+    # time is in seconds (e.g., "0.015"), memory is in KB
+    runtime_seconds = judge0_result.get("time")
+    memory_kb = judge0_result.get("memory")
+
+    # Convert runtime from seconds to milliseconds
+    runtime_ms = None
+    if runtime_seconds:
+        try:
+            runtime_ms = int(float(runtime_seconds) * 1000)
+        except (ValueError, TypeError):
+            logger.warning("failed_to_parse_runtime", time=runtime_seconds)
 
     # Check for compilation errors
     if status.get("id") == 6:  # Compilation Error
@@ -165,6 +180,8 @@ def _parse_execution_results(judge0_result: dict, test_cases: list[TestCase]) ->
         },
         "stdout": stdout if not all_passed else None,
         "stderr": stderr,
+        "runtime_ms": runtime_ms,
+        "memory_kb": memory_kb,
     }
 
 
@@ -281,9 +298,9 @@ async def submit_code(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Submit code against first 3 test cases.
+    Submit code against ALL test cases (including hidden).
 
-    This is the "Submit" button - runs first 3 tests and updates user progress.
+    This is the "Submit" button - runs all tests and updates user progress.
     """
     user_id = user["id"]
 
@@ -291,10 +308,7 @@ async def submit_code(
         db, request.problem_slug, request.language.value
     )
 
-    # Always use first 3 test cases by sequence order
-    first_three_tests = test_cases[:3]
-
-    if not first_three_tests:
+    if not test_cases:
         raise HTTPException(
             status_code=400, detail="No test cases found for this problem"
         )
@@ -306,15 +320,20 @@ async def submit_code(
             status_code=500, detail="Problem configuration error: missing function name"
         )
 
-    # Execute code against first 3 test cases
+    # Execute code against ALL test cases (including hidden) with early exit
     execution_result = await _execute_code_with_wrapper(
         user_code=request.code,
         language=request.language.value,
         function_name=function_name,
-        test_cases=first_three_tests,
+        test_cases=test_cases,
+        early_exit=True,  # Stop at first failure for submit
     )
 
     all_passed = execution_result["success"]
+
+    # Extract runtime and memory from execution result
+    runtime_ms = execution_result.get("runtime_ms")
+    memory_kb = execution_result.get("memory_kb")
 
     # Create submission record
     submission = Submission(
@@ -324,7 +343,8 @@ async def submit_code(
         code=request.code,
         language=request.language,
         passed=all_passed,
-        runtime_ms=None,  # TODO: Extract from Judge0 if needed
+        runtime_ms=runtime_ms,
+        memory_kb=memory_kb,
     )
     db.add(submission)
 
@@ -341,8 +361,12 @@ async def submit_code(
         success=all_passed,
         results=execution_result["results"],
         summary=execution_result["summary"],
+        total_test_cases=len(test_cases),  # Total tests in problem (for X/Y display)
         submission_id=str(submission.id),
         runtime_ms=submission.runtime_ms,
+        memory_kb=submission.memory_kb,
+        compile_error=execution_result.get("compile_error"),
+        runtime_error=execution_result.get("runtime_error"),
         times_solved=progress_info.get("times_solved"),
         is_mastered=progress_info.get("is_mastered"),
         next_review_date=progress_info.get("next_review_date"),

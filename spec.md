@@ -283,6 +283,46 @@ Problems are stored across normalized tables. Here's an example of how Two Sum w
 
 ---
 
+## Important Data Flow Notes
+
+### Test Case Visibility
+
+**Critical distinction**: The frontend does NOT have access to all test cases.
+
+```
+| Source                          | Test Cases Returned         |
+|---------------------------------|-----------------------------|
+| GET /api/problems/:slug         | First 3 visible tests ONLY  |
+| POST /api/run                   | First 3 visible tests ONLY  |
+| POST /api/submit                | ALL tests (visible + hidden)|
+```
+
+For Two Sum:
+- **YAML file**: 5 test cases (3 visible + 2 hidden)
+- **Frontend `problem.test_cases`**: 3 (visible only)
+- **Submit execution**: 5 (all test cases)
+
+**Why this matters**:
+- Frontend cannot use `problem.test_cases.length` as total test count
+- Backend must return `total_test_cases` in `SubmitCodeResponse`
+
+### Run Code vs Submit Separation
+
+| Feature | Run Code | Submit |
+|---------|----------|--------|
+| Endpoint | `POST /api/run` | `POST /api/submit` |
+| Auth required | No | Yes |
+| Test cases | First 3 visible | ALL (incl. hidden) |
+| Early exit | No (runs all) | Yes (stops at failure) |
+| Saves submission | No | Yes |
+| Updates progress | No | Yes (if passed) |
+| UI display | Test Result Panel (inline) | Submission Result Modal |
+| Custom input | Supported | Not supported |
+
+**IMPORTANT**: These are INDEPENDENT operations. Submit results should NEVER appear in the Test Result Panel.
+
+---
+
 ## Code Execution
 
 ### Architecture
@@ -352,20 +392,87 @@ POST /api/submit
 }
 // Requires Authorization: Bearer <token>
 
-// Runs against ALL test cases (including hidden)
-// Response
+// Runs against ALL test cases (including hidden) with early_exit=True
+// (stops at first failure to save resources)
+
+// Response (all tests pass)
 {
   "success": true,
-  "results": [...],
+  "results": [
+    {
+      "test_number": 1,
+      "passed": true,
+      "input": [[2, 7, 11, 15], 9],
+      "output": [0, 1],
+      "expected": [0, 1],
+      "stdout": null,
+      "error": null,
+      "is_hidden": false
+    },
+    // ... more test results
+  ],
   "summary": {
-    "total": 5,
+    "total": 5,       // tests actually executed
     "passed": 5,
     "failed": 0
   },
+  "total_test_cases": 5,  // REQUIRED: total tests in problem (for "X/Y passed" display)
   "submission_id": "uuid",
-  "times_solved": 1,
-  "is_mastered": false,
-  "next_review_date": "2024-01-15"
+  "runtime_ms": 45,
+  "memory_kb": 14320,
+  "compile_error": null,
+  "runtime_error": null,
+  "times_solved": 1,      // only on success
+  "is_mastered": false,   // only on success
+  "next_review_date": "2024-01-15"  // only on success
+}
+
+// Response (first test fails - early exit)
+{
+  "success": false,
+  "results": [
+    {
+      "test_number": 1,
+      "passed": false,
+      "input": [[2, 7, 11, 15], 9],
+      "output": [1, 0],      // wrong answer
+      "expected": [0, 1],
+      "stdout": "Debug: checking...",
+      "error": null,
+      "is_hidden": false
+    }
+  ],
+  "summary": {
+    "total": 1,       // only 1 test executed (early exit)
+    "passed": 0,
+    "failed": 1
+  },
+  "total_test_cases": 5,  // REQUIRED: still shows total (for "0/5 passed")
+  "submission_id": "uuid",
+  "runtime_ms": 12,
+  "memory_kb": 14100,
+  "compile_error": null,
+  "runtime_error": null,
+  "times_solved": null,
+  "is_mastered": null,
+  "next_review_date": null
+}
+
+// Response (third test fails - early exit)
+{
+  "success": false,
+  "results": [
+    { "test_number": 1, "passed": true, ... },
+    { "test_number": 2, "passed": true, ... },
+    { "test_number": 3, "passed": false, "input": [...], "output": [...], "expected": [...], ... }
+  ],
+  "summary": {
+    "total": 3,       // 3 tests executed before early exit
+    "passed": 2,
+    "failed": 1
+  },
+  "total_test_cases": 5,  // for "2/5 passed" display
+  ...
 }
 ```
 
@@ -552,6 +659,8 @@ The problem-solving UI is a **LeetCode clone**. No reinventing — same layout, 
 
 ### Test Result Panel (After Running Code)
 
+**IMPORTANT**: This panel is ONLY for "Run Code" results. Submit results appear in the Submission Result Modal (see below).
+
 ```
 ┌────────────────────────────────────────────────────────────┐
 │  [Testcase]  [>_ Test Result]                              │
@@ -575,6 +684,77 @@ The problem-solving UI is a **LeetCode clone**. No reinventing — same layout, 
 │  [0,1]                                                     │
 └────────────────────────────────────────────────────────────┘
 ```
+
+### Submission Result Modal (After Submitting Code)
+
+**IMPORTANT**: This is a MODAL that appears after clicking "Submit". It is SEPARATE from the Test Result Panel.
+
+The modal shows:
+1. **Status Banner**: "Accepted" (green) or "Wrong Answer" / "Compile Error" / "Runtime Error" (red)
+2. **Test Count**: "X / Y testcases passed" where Y is `total_test_cases` from backend response
+3. **Failed Test Details** (if wrong answer and test is not hidden):
+   - "Failed on Test Case X"
+   - Input (formatted with param names from function signature)
+   - Output (user's wrong output)
+   - Expected (correct output)
+4. **Runtime & Memory**: From submission response
+5. **Code**: The submitted code
+6. **Progress Info**: Times solved, mastered status, next review date
+
+```
+┌───────────────────────────────────────────────────────────────┐
+│  Submission Result                                      [X]   │
+├───────────────────────────────────────────────────────────────┤
+│  ┌─────────────────────────────────────────────────────────┐  │
+│  │  ✗ Wrong Answer                      2 / 5 testcases   │  │
+│  │                                          passed         │  │
+│  └─────────────────────────────────────────────────────────┘  │
+│                                                               │
+│  Failed on Test Case 3                                        │
+│                                                               │
+│  Input                                                        │
+│  ┌─────────────────────────────────────────────────────────┐  │
+│  │ nums = [3, 3]                                           │  │
+│  │ target = 6                                              │  │
+│  └─────────────────────────────────────────────────────────┘  │
+│                                                               │
+│  Output                                                       │
+│  ┌─────────────────────────────────────────────────────────┐  │
+│  │ [1, 0]                                                  │  │  ← red text
+│  └─────────────────────────────────────────────────────────┘  │
+│                                                               │
+│  Expected                                                     │
+│  ┌─────────────────────────────────────────────────────────┐  │
+│  │ [0, 1]                                                  │  │  ← green text
+│  └─────────────────────────────────────────────────────────┘  │
+│                                                               │
+│  Runtime: 45 ms          Memory: 14.32 MB                     │
+│                                                               │
+│  Code  [Python]                                               │
+│  ┌─────────────────────────────────────────────────────────┐  │
+│  │ class Solution:                                         │  │
+│  │     def twoSum(self, nums, target):                     │  │
+│  │         ...                                             │  │
+│  └─────────────────────────────────────────────────────────┘  │
+│                                                               │
+│                         [Close]                               │
+└───────────────────────────────────────────────────────────────┘
+```
+
+**Test Count Display Logic**:
+```
+| Scenario              | summary.passed | total_test_cases | Display         |
+|-----------------------|----------------|------------------|-----------------|
+| All pass              | 5              | 5                | "5 / 5 passed"  |
+| First test fails      | 0              | 5                | "0 / 5 passed"  |
+| Third test fails      | 2              | 5                | "2 / 5 passed"  |
+| Compile error         | 0              | 5                | "0 / 5 passed"  |
+```
+
+**When viewing old submissions** (from Submissions tab):
+- Old submissions don't have full result data
+- Show only: Status, Runtime, Memory, Code
+- Don't show test count (we don't have the detailed results)
 
 ### Mastered Problems Page
 

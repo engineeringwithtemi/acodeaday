@@ -202,12 +202,16 @@ export interface SubmitCodeResponse {
   success: boolean
   results: TestResult[]
   summary: {
-    total: number
+    total: number    // Tests actually executed (may be less than total_test_cases due to early_exit)
     passed: number
     failed: number
   }
+  total_test_cases?: number  // Total tests in problem (for "X / Y testcases passed" display). Optional for old submissions.
   submission_id: string
   runtime_ms?: number
+  memory_kb?: number
+  compile_error?: string
+  runtime_error?: string
   times_solved?: number
   is_mastered?: boolean
   next_review_date?: string
@@ -222,5 +226,6 @@ export interface SubmissionSchema {
   language: string
   passed: boolean
   runtime_ms: number | null
+  memory_kb?: number | null
   submitted_at: string
 }

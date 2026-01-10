@@ -1,8 +1,11 @@
 title: Contains Duplicate
-slug: contains-duplicate
 sequence_number: 3
 difficulty: easy
-pattern: hash-map
+pattern:
+  - hash-map
+  - arrays
+  - set
+  - duplicate-detection
 
 description: |
   Given an integer array `nums`, return `true` if any value appears **at least twice** in the array, and return `false` if every element is distinct.
@@ -39,16 +42,61 @@ languages:
 test_cases:
   - input: [[1, 2, 3, 1]]
     expected: true
-    is_hidden: false
   - input: [[1, 2, 3, 4]]
     expected: false
-    is_hidden: false
   - input: [[1, 1, 1, 3, 3, 4, 3, 2, 4, 2]]
     expected: true
-    is_hidden: false
   - input: [[1]]
     expected: false
-    is_hidden: true
   - input: [[1, 5, -2, -2, 10]]
     expected: true
-    is_hidden: true
+  - input: [[0]]
+    expected: false
+  - input: [[-1000000000]]
+    expected: false
+  - input: [[1000000000]]
+    expected: false
+  - input: [[1, 1]]
+    expected: true
+  - input: [[1, 2]]
+    expected: false
+  - input: [[-1, -1]]
+    expected: true
+  - input: [[-1, 1]]
+    expected: false
+  - input: [[5, 5, 5, 5, 5]]
+    expected: true
+  - input: [[0, 0, 0]]
+    expected: true
+  - input: [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]]
+    expected: false
+  - input: [[-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5]]
+    expected: false
+  - input: [[1, 2, 3, 4, 5, 1]]
+    expected: true
+  - input: [[1, 2, 1, 4, 5]]
+    expected: true
+  - input: [[1, 2, 3, 4, 4]]
+    expected: true
+  - input: [[1000000000, -1000000000]]
+    expected: false
+  - input: [[1000000000, 1000000000]]
+    expected: true
+  - input: [[-1000000000, -1000000000]]
+    expected: true
+  - input: [[-1, 2, -3, 4, -5, 6]]
+    expected: false
+  - input: [[-1, 2, -1, 4]]
+    expected: true
+  - input: [[0, 1, 2, 3, 0]]
+    expected: true
+  - input: [[0, 1, 2, 3]]
+    expected: false
+  - input: [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]]
+    expected: false
+  - input: [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 1]]
+    expected: true
+  - input: [[7, 3, 1, 9, 5, 3]]
+    expected: true
+  - input: [[100, 200, 300, 400, 500]]
+    expected: false

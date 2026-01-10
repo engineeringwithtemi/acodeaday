@@ -193,6 +193,7 @@ class Submission(Base):
     language: Mapped[Language] = mapped_column(Enum(Language), nullable=False)
     passed: Mapped[bool] = mapped_column(Boolean, nullable=False)
     runtime_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    memory_kb: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     submitted_at: Mapped[datetime] = mapped_column(server_default=func.now())
 

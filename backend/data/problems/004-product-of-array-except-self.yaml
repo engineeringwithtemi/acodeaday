@@ -1,8 +1,11 @@
 title: Product of Array Except Self
-slug: product-of-array-except-self
 sequence_number: 4
 difficulty: medium
-pattern: array
+pattern:
+  - arrays
+  - prefix-product
+  - suffix-product
+  - no-division
 
 description: |
   Given an integer array `nums`, return an array `answer` such that `answer[i]` is equal to the product of all the elements of `nums` except `nums[i]`.
@@ -57,16 +60,59 @@ languages:
 test_cases:
   - input: [[1, 2, 3, 4]]
     expected: [24, 12, 8, 6]
-    is_hidden: false
   - input: [[-1, 1, 0, -3, 3]]
     expected: [0, 0, 9, 0, 0]
-    is_hidden: false
   - input: [[2, 3, 4, 5]]
     expected: [60, 40, 30, 24]
-    is_hidden: false
   - input: [[0, 0]]
     expected: [0, 0]
-    is_hidden: true
   - input: [[1, 1, 1, 1]]
     expected: [1, 1, 1, 1]
-    is_hidden: true
+  - input: [[1, 2]]
+    expected: [2, 1]
+  - input: [[5, 10]]
+    expected: [10, 5]
+  - input: [[-1, 2]]
+    expected: [2, -1]
+  - input: [[-3, -4]]
+    expected: [-4, -3]
+  - input: [[1, 0]]
+    expected: [0, 1]
+  - input: [[0, 1]]
+    expected: [1, 0]
+  - input: [[1, 2, 0, 4]]
+    expected: [0, 0, 8, 0]
+  - input: [[0, 1, 2, 3, 0]]
+    expected: [0, 0, 0, 0, 0]
+  - input: [[1, 1, 1, 1, 1]]
+    expected: [1, 1, 1, 1, 1]
+  - input: [[2, 2, 2, 2]]
+    expected: [8, 8, 8, 8]
+  - input: [[3, 3, 3]]
+    expected: [9, 9, 9]
+  - input: [[-2, -2, -2, -2]]
+    expected: [-8, -8, -8, -8]
+  - input: [[-1, -1, -1]]
+    expected: [1, 1, 1]
+  - input: [[1, -1, 1, -1]]
+    expected: [1, -1, 1, -1]
+  - input: [[-1, 2, -3, 4]]
+    expected: [-24, 12, -8, 6]
+  - input: [[2, -3, 4, -5]]
+    expected: [60, -40, 30, -24]
+  - input: [[30, 1]]
+    expected: [1, 30]
+  - input: [[-30, 1]]
+    expected: [1, -30]
+  - input: [[30, -30]]
+    expected: [-30, 30]
+  - input: [[1, 2, 3, 4, 5]]
+    expected: [120, 60, 40, 30, 24]
+  - input: [[1, 2, 3, 4, 5, 6]]
+    expected: [720, 360, 240, 180, 144, 120]
+  - input: [[5, 1, 2]]
+    expected: [2, 10, 5]
+  - input: [[10, 2, 5, 1]]
+    expected: [10, 50, 20, 100]
+  - input: [[-2, 3, -4, 5]]
+    expected: [-60, 40, -30, 24]

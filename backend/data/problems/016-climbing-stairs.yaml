@@ -1,8 +1,11 @@
 title: Climbing Stairs
-slug: climbing-stairs
 sequence_number: 16
 difficulty: easy
-pattern: dynamic-programming
+pattern:
+  - dynamic-programming
+  - fibonacci
+  - memoization
+  - math
 
 description: |
   You are climbing a staircase. It takes `n` steps to reach the top.
@@ -46,19 +49,51 @@ languages:
 test_cases:
   - input: [2]
     expected: 2
-    is_hidden: false
   - input: [3]
     expected: 3
-    is_hidden: false
   - input: [1]
     expected: 1
-    is_hidden: false
   - input: [4]
     expected: 5
-    is_hidden: true
   - input: [5]
     expected: 8
-    is_hidden: true
   - input: [10]
     expected: 89
-    is_hidden: true
+  - input: [6]
+    expected: 13
+  - input: [7]
+    expected: 21
+  - input: [8]
+    expected: 34
+  - input: [9]
+    expected: 55
+  - input: [11]
+    expected: 144
+  - input: [12]
+    expected: 233
+  - input: [13]
+    expected: 377
+  - input: [14]
+    expected: 610
+  - input: [15]
+    expected: 987
+  - input: [16]
+    expected: 1597
+  - input: [17]
+    expected: 2584
+  - input: [18]
+    expected: 4181
+  - input: [19]
+    expected: 6765
+  - input: [20]
+    expected: 10946
+  - input: [25]
+    expected: 121393
+  - input: [30]
+    expected: 1346269
+  - input: [35]
+    expected: 14930352
+  - input: [40]
+    expected: 165580141
+  - input: [45]
+    expected: 1836311903

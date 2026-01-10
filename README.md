@@ -294,3 +294,7 @@ MIT — do whatever you want with it.
 > "A code a day keeps rejection away"
 
 Focus on understanding through consistent practice, not cramming. One problem at a time, reviewed at optimal intervals for long-term retention.
+
+
+ <!-- todos -->
+ - USE anki style flashcard to determine the frequency of the user seeing the ones to retry 

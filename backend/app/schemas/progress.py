@@ -98,6 +98,7 @@ class SubmissionSchema(BaseModel):
     language: str
     passed: bool
     runtime_ms: int | None
+    memory_kb: int | None
     submitted_at: datetime
 
     model_config = {"from_attributes": True}

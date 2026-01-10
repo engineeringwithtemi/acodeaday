@@ -3,11 +3,14 @@ import { useState } from 'react'
 import { Allotment } from 'allotment'
 import 'allotment/dist/style.css'
 import { Play, Send, Loader2, AlertCircle, RotateCcw } from 'lucide-react'
-import { useProblem, useSubmitCode, useRunCode, useSubmissions, useCodePersistence } from '@/hooks'
+import { useProblem, useSubmitCode, useRunCode, useCodePersistence } from '@/hooks'
 import { ProblemDescription } from '@/components/ProblemDescription'
 import { TestCasesPanel } from '@/components/TestCasesPanel'
 import { TestResults } from '@/components/TestResults'
+import { SubmissionsPanel } from '@/components/SubmissionsPanel'
+import { SubmissionResultPanel } from '@/components/SubmissionResultPanel'
 import Editor from '@monaco-editor/react'
+import { useQueryClient } from '@tanstack/react-query'
 import type { RunCodeResponse, SubmitCodeResponse, SubmissionSchema } from '@/types/api'
 
 export const Route = createFileRoute('/problem/$slug')({
@@ -19,6 +22,7 @@ function ProblemSolver() {
   const { data: problem, isLoading, error } = useProblem(slug)
   const submitCode = useSubmitCode()
   const runCode = useRunCode()
+  const queryClient = useQueryClient()
 
   const [language] = useState('python')
   const [testResults, setTestResults] = useState<RunCodeResponse | SubmitCodeResponse | null>(null)
@@ -26,6 +30,9 @@ function ProblemSolver() {
   const [leftPaneTab, setLeftPaneTab] = useState<'description' | 'submissions'>('description')
   const [bottomPaneTab, setBottomPaneTab] = useState<'testcase' | 'result'>('testcase')
   const [customInputs, setCustomInputs] = useState<any[][]>([])
+  const [showSubmissionResult, setShowSubmissionResult] = useState(false)
+  const [submissionResult, setSubmissionResult] = useState<SubmitCodeResponse | null>(null)
+  const [submittedCode, setSubmittedCode] = useState<string>('')
 
   // Get starter code from problem data
   const starterCode = problem?.languages?.[0]?.starter_code || ''
@@ -57,8 +64,6 @@ function ProblemSolver() {
   const handleSubmit = async () => {
     if (!problem) return
     setIsRunning(true)
-    setTestResults(null)
-    setBottomPaneTab('result') // Switch to result tab
 
     try {
       const result = await submitCode.mutateAsync({
@@ -66,12 +71,48 @@ function ProblemSolver() {
         code,
         language,
       })
-      setTestResults(result)
+
+      // Show submission result panel (modal)
+      setSubmissionResult(result)
+      setSubmittedCode(code)
+      setShowSubmissionResult(true)
+
+      // Switch to Submissions tab
+      setLeftPaneTab('submissions')
+
+      // Refetch submissions list
+      queryClient.invalidateQueries({ queryKey: ['submissions', problem.id] })
     } catch (err) {
       console.error('Submit error:', err)
     } finally {
       setIsRunning(false)
     }
+  }
+
+  const handleCloseSubmissionResult = () => {
+    setShowSubmissionResult(false)
+    setSubmissionResult(null)
+    setSubmittedCode('')
+  }
+
+  const handleSubmissionClick = (submission: SubmissionSchema) => {
+    // Convert SubmissionSchema to SubmitCodeResponse format
+    const resultFromSubmission: SubmitCodeResponse = {
+      success: submission.passed,
+      results: [],
+      summary: {
+        total: 0,
+        passed: 0,
+        failed: 0,
+      },
+      submission_id: submission.id,
+      runtime_ms: submission.runtime_ms ?? undefined,
+      memory_kb: submission.memory_kb ?? undefined,
+    }
+
+    setSubmissionResult(resultFromSubmission)
+    setSubmittedCode(submission.code)
+    setShowSubmissionResult(true)
   }
 
   if (isLoading) {
@@ -135,7 +176,10 @@ function ProblemSolver() {
               {leftPaneTab === 'description' ? (
                 <ProblemDescription problem={problem} />
               ) : (
-                <SubmissionsPanel problemId={problem.id} />
+                <SubmissionsPanel
+                  problemId={problem.id}
+                  onSubmissionClick={handleSubmissionClick}
+                />
               )}
             </div>
           </div>
@@ -274,70 +318,17 @@ function ProblemSolver() {
           </Allotment>
         </Allotment.Pane>
       </Allotment>
-    </div>
-  )
-}
 
-// Submissions Panel Component
-function SubmissionsPanel({ problemId }: { problemId: string }) {
-  const { data: submissions, isLoading } = useSubmissions(problemId)
-
-  if (isLoading) {
-    return (
-      <div className="h-full overflow-y-auto bg-gray-900 text-white p-6 flex items-center justify-center">
-        <Loader2 className="animate-spin text-cyan-400" size={24} />
-      </div>
-    )
-  }
-
-  if (!submissions || submissions.length === 0) {
-    return (
-      <div className="h-full overflow-y-auto bg-gray-900 text-white p-6">
-        <p className="text-gray-400">No submissions yet. Submit your code to see history here.</p>
-      </div>
-    )
-  }
-
-  return (
-    <div className="h-full overflow-y-auto bg-gray-900 text-white p-6">
-      <h2 className="text-xl font-bold mb-4 text-cyan-400">Submission History</h2>
-      <div className="space-y-3">
-        {submissions.map((submission: SubmissionSchema) => (
-          <div
-            key={submission.id}
-            className={`rounded-lg p-4 border ${
-              submission.passed
-                ? 'bg-green-500/5 border-green-500/30'
-                : 'bg-red-500/5 border-red-500/30'
-            }`}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className={`text-sm font-semibold ${
-                submission.passed ? 'text-green-400' : 'text-red-400'
-              }`}>
-                {submission.passed ? 'Accepted' : 'Failed'}
-              </span>
-              <span className="text-xs text-gray-400">
-                {new Date(submission.submitted_at).toLocaleString()}
-              </span>
-            </div>
-            <div className="text-xs text-gray-400 space-y-1">
-              <div>Language: <span className="text-gray-300">{submission.language}</span></div>
-              {submission.runtime_ms && (
-                <div>Runtime: <span className="text-gray-300">{submission.runtime_ms} ms</span></div>
-              )}
-            </div>
-            <details className="mt-2">
-              <summary className="text-xs text-cyan-400 cursor-pointer hover:text-cyan-300">
-                View Code
-              </summary>
-              <pre className="mt-2 p-2 bg-gray-900 rounded text-xs text-gray-300 overflow-x-auto">
-                {submission.code}
-              </pre>
-            </details>
-          </div>
-        ))}
-      </div>
+      {/* Submission Result Modal */}
+      {showSubmissionResult && submissionResult && (
+        <SubmissionResultPanel
+          result={submissionResult}
+          code={submittedCode}
+          language={language}
+          functionSignature={problem.languages?.[0]?.function_signature}
+          onClose={handleCloseSubmissionResult}
+        />
+      )}
     </div>
   )
 }

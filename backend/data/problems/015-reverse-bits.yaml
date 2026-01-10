@@ -1,8 +1,11 @@
 title: Reverse Bits
-slug: reverse-bits
 sequence_number: 15
 difficulty: easy
-pattern: bit-manipulation
+pattern:
+  - bit-manipulation
+  - binary
+  - reversal
+  - 32-bit
 
 description: |
   Reverse bits of a given 32 bits unsigned integer.
@@ -50,16 +53,49 @@ languages:
 test_cases:
   - input: [43261596]
     expected: 964176192
-    is_hidden: false
   - input: [4294967293]
     expected: 3221225471
-    is_hidden: false
   - input: [0]
     expected: 0
-    is_hidden: false
   - input: [1]
     expected: 2147483648
-    is_hidden: true
   - input: [2147483648]
     expected: 1
-    is_hidden: true
+  - input: [2]
+    expected: 1073741824
+  - input: [4]
+    expected: 536870912
+  - input: [8]
+    expected: 268435456
+  - input: [16]
+    expected: 134217728
+  - input: [32]
+    expected: 67108864
+  - input: [64]
+    expected: 33554432
+  - input: [128]
+    expected: 16777216
+  - input: [256]
+    expected: 8388608
+  - input: [4294967295]
+    expected: 4294967295
+  - input: [2863311530]
+    expected: 1431655765
+  - input: [1431655765]
+    expected: 2863311530
+  - input: [3]
+    expected: 3221225472
+  - input: [7]
+    expected: 3758096384
+  - input: [15]
+    expected: 4026531840
+  - input: [100]
+    expected: 637534208
+  - input: [255]
+    expected: 4278190080
+  - input: [1000]
+    expected: 398458880
+  - input: [65535]
+    expected: 4294901760
+  - input: [2147483649]
+    expected: 2147483649

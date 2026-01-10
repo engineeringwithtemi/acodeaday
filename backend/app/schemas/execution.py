@@ -57,9 +57,13 @@ class SubmitCodeResponse(BaseModel):
 
     success: bool = Field(..., description="Whether all tests passed")
     results: list[TestResult] = Field(..., description="All test results (including hidden)")
-    summary: dict = Field(..., description="Summary stats")
+    summary: dict = Field(..., description="Summary stats (total executed, passed, failed)")
+    total_test_cases: int = Field(..., description="Total test cases in problem (for X/Y display)")
     submission_id: str = Field(..., description="Submission record ID")
     runtime_ms: int | None = Field(None, description="Execution time in milliseconds")
+    memory_kb: int | None = Field(None, description="Memory usage in kilobytes")
+    compile_error: str | None = Field(None, description="Compilation errors if any")
+    runtime_error: str | None = Field(None, description="Runtime errors if any")
 
     # Progress update (if submission passed)
     times_solved: int | None = Field(None, description="Number of times solved")
