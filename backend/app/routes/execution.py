@@ -190,15 +190,26 @@ async def run_code(
             status_code=500, detail="Problem configuration error: missing function name"
         )
 
-    # Handle custom input if provided
+    # Start with first 3 test cases from DB
+    first_three_tests = test_cases[:3]
+
+    if not first_three_tests:
+        raise HTTPException(
+            status_code=400, detail="No test cases found for this problem"
+        )
+
+    # If custom inputs provided, append them to the first 3 test cases
+    tests_to_run = list(first_three_tests)  # Copy the list
+
     if request.custom_input:
         logger.info(
-            "running_custom_input",
+            "running_with_custom_input",
             problem_slug=request.problem_slug,
+            base_test_count=len(first_three_tests),
             custom_test_count=len(request.custom_input),
         )
 
-        # First, run reference solution to get expected outputs
+        # First, run reference solution to get expected outputs for custom inputs
         reference_code = problem_lang.reference_solution
         reference_test_cases = [
             _MockTestCase(input_data=inp, expected=None)
@@ -243,35 +254,21 @@ async def run_code(
         # Get expected outputs from reference results
         expected_outputs = [r.output for r in reference_result["results"]]
 
-        # Now run user code with expected outputs
-        user_test_cases = [
+        # Create custom test case objects with expected outputs
+        custom_test_cases = [
             _MockTestCase(input_data=inp, expected=exp)
             for inp, exp in zip(request.custom_input, expected_outputs)
         ]
 
-        execution_result = await _execute_code_with_wrapper(
-            user_code=request.code,
-            language=request.language.value,
-            function_name=function_name,
-            test_cases=user_test_cases,
-        )
+        # Append custom test cases to the first 3
+        tests_to_run.extend(custom_test_cases)
 
-        return RunCodeResponse(**execution_result)
-
-    # Use first 3 test cases from DB (default behavior)
-    first_three_tests = test_cases[:3]
-
-    if not first_three_tests:
-        raise HTTPException(
-            status_code=400, detail="No test cases found for this problem"
-        )
-
-    # Execute code
+    # Execute code against all tests (first 3 + any custom)
     execution_result = await _execute_code_with_wrapper(
         user_code=request.code,
         language=request.language.value,
         function_name=function_name,
-        test_cases=first_three_tests,
+        test_cases=tests_to_run,
     )
 
     return RunCodeResponse(**execution_result)

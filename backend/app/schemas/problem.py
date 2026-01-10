@@ -3,9 +3,17 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.db.tables import Difficulty, Language
+
+
+class ProblemExampleSchema(BaseModel):
+    """Example schema for problem examples."""
+
+    input: str
+    output: str
+    explanation: str | None = None
 
 
 class TestCaseSchema(BaseModel):
@@ -59,7 +67,7 @@ class ProblemDetailSchema(BaseModel):
     pattern: str
     sequence_number: int
     constraints: list[str]
-    examples: dict
+    examples: list[ProblemExampleSchema]
     created_at: datetime
 
     # Related data
@@ -67,3 +75,11 @@ class ProblemDetailSchema(BaseModel):
     test_cases: list[TestCaseSchema]  # Filtered to non-hidden
 
     model_config = {"from_attributes": True}
+
+    @field_validator("examples", mode="before")
+    @classmethod
+    def unwrap_examples(cls, v):
+        """Unwrap examples from JSONB dict structure."""
+        if isinstance(v, dict) and "examples" in v:
+            return v["examples"]
+        return v
