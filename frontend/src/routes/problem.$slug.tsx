@@ -1,9 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Allotment } from 'allotment'
 import 'allotment/dist/style.css'
-import { Play, Send, Loader2, AlertCircle } from 'lucide-react'
-import { useProblem, useSubmitCode, useRunCode, useSubmissions } from '@/hooks'
+import { Play, Send, Loader2, AlertCircle, RotateCcw } from 'lucide-react'
+import { useProblem, useSubmitCode, useRunCode, useSubmissions, useCodePersistence } from '@/hooks'
 import { ProblemDescription } from '@/components/ProblemDescription'
 import { TestCasesPanel } from '@/components/TestCasesPanel'
 import { TestResults } from '@/components/TestResults'
@@ -20,7 +20,6 @@ function ProblemSolver() {
   const submitCode = useSubmitCode()
   const runCode = useRunCode()
 
-  const [code, setCode] = useState('')
   const [language] = useState('python')
   const [testResults, setTestResults] = useState<RunCodeResponse | SubmitCodeResponse | null>(null)
   const [isRunning, setIsRunning] = useState(false)
@@ -28,12 +27,11 @@ function ProblemSolver() {
   const [bottomPaneTab, setBottomPaneTab] = useState<'testcase' | 'result'>('testcase')
   const [customInputs, setCustomInputs] = useState<any[][]>([])
 
-  // Initialize code with starter code when problem loads
-  useEffect(() => {
-    if (problem?.languages?.[0]?.starter_code) {
-      setCode(problem.languages[0].starter_code)
-    }
-  }, [problem])
+  // Get starter code from problem data
+  const starterCode = problem?.languages?.[0]?.starter_code || ''
+
+  // Persist code in localStorage across page refreshes
+  const { code, setCode, resetCode } = useCodePersistence(slug, language, starterCode)
 
   const handleRunCode = async () => {
     if (!problem) return
@@ -158,6 +156,18 @@ function ProblemSolver() {
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        if (confirm('Reset code to starter template? Your changes will be lost.')) {
+                          resetCode()
+                        }
+                      }}
+                      disabled={isRunning}
+                      className="flex items-center gap-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Reset to starter code"
+                    >
+                      <RotateCcw size={16} />
+                    </button>
                     <button
                       onClick={handleRunCode}
                       disabled={isRunning}
