@@ -101,6 +101,17 @@ class SubmissionSchema(BaseModel):
     memory_kb: int | None
     submitted_at: datetime
 
+    # Test result summary
+    total_test_cases: int = 0
+    passed_count: int = 0
+
+    # First failed test details (None if all passed)
+    failed_test_number: int | None = None
+    failed_input: dict | list | None = None
+    failed_output: dict | list | int | float | str | bool | None = None
+    failed_expected: dict | list | int | float | str | bool | None = None
+    failed_is_hidden: bool = False
+
     model_config = {"from_attributes": True}
 
 

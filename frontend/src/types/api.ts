@@ -230,4 +230,13 @@ export interface SubmissionSchema {
   runtime_ms: number | null
   memory_kb?: number | null
   submitted_at: string
+  // Test result summary
+  total_test_cases: number
+  passed_count: number
+  // First failed test details (null if all passed)
+  failed_test_number: number | null
+  failed_input: any | null
+  failed_output: any | null
+  failed_expected: any | null
+  failed_is_hidden: boolean
 }

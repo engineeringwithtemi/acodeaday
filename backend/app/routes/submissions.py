@@ -48,6 +48,15 @@ async def get_submissions(
             runtime_ms=submission.runtime_ms,
             memory_kb=submission.memory_kb,
             submitted_at=submission.submitted_at,
+            # Test result summary
+            total_test_cases=submission.total_test_cases,
+            passed_count=submission.passed_count,
+            # First failed test details
+            failed_test_number=submission.failed_test_number,
+            failed_input=submission.failed_input,
+            failed_output=submission.failed_output,
+            failed_expected=submission.failed_expected,
+            failed_is_hidden=submission.failed_is_hidden,
         )
         for submission, problem in submissions_data
     ]

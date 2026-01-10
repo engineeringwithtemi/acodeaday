@@ -198,6 +198,17 @@ class Submission(Base):
     runtime_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     memory_kb: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
+    # Test result summary (for displaying "X / Y testcases passed")
+    total_test_cases: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    passed_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+    # First failed test details (NULL if all passed)
+    failed_test_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    failed_input: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    failed_output: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    failed_expected: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    failed_is_hidden: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
     submitted_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
     # Relationship

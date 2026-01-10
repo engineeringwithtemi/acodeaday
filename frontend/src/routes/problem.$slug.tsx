@@ -11,7 +11,7 @@ import { SubmissionsPanel } from '@/components/SubmissionsPanel'
 import { SubmissionResultPanel } from '@/components/SubmissionResultPanel'
 import Editor from '@monaco-editor/react'
 import { useQueryClient } from '@tanstack/react-query'
-import type { RunCodeResponse, SubmitCodeResponse, SubmissionSchema } from '@/types/api'
+import type { RunCodeResponse, SubmitCodeResponse, SubmissionSchema, TestResult } from '@/types/api'
 
 export const Route = createFileRoute('/problem/$slug')({
   component: ProblemSolver,
@@ -164,15 +164,29 @@ function ProblemSolver() {
   }
 
   const handleSubmissionClick = (submission: SubmissionSchema) => {
+    // Build results array from stored first failed test (if any)
+    const results: TestResult[] = []
+    if (submission.failed_test_number !== null) {
+      results.push({
+        test_number: submission.failed_test_number,
+        passed: false,
+        input: submission.failed_input,
+        output: submission.failed_output,
+        expected: submission.failed_expected,
+        is_hidden: submission.failed_is_hidden ?? false,
+      })
+    }
+
     // Convert SubmissionSchema to SubmitCodeResponse format
     const resultFromSubmission: SubmitCodeResponse = {
       success: submission.passed,
-      results: [],
+      results,
       summary: {
-        total: 0,
-        passed: 0,
-        failed: 0,
+        total: submission.passed_count + (submission.failed_test_number !== null ? 1 : 0),
+        passed: submission.passed_count,
+        failed: submission.failed_test_number !== null ? 1 : 0,
       },
+      total_test_cases: submission.total_test_cases,
       submission_id: submission.id,
       runtime_ms: submission.runtime_ms ?? undefined,
       memory_kb: submission.memory_kb ?? undefined,

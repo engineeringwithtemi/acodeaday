@@ -335,6 +335,10 @@ async def submit_code(
     runtime_ms = execution_result.get("runtime_ms")
     memory_kb = execution_result.get("memory_kb")
 
+    # Extract first failed test (if any) for storage
+    results_list = execution_result.get("results", [])
+    first_failed = next((r for r in results_list if not r.passed), None)
+
     # Create submission record
     submission = Submission(
         id=uuid.uuid4(),
@@ -345,6 +349,15 @@ async def submit_code(
         passed=all_passed,
         runtime_ms=runtime_ms,
         memory_kb=memory_kb,
+        # Test result summary
+        total_test_cases=len(test_cases),
+        passed_count=execution_result["summary"]["passed"],
+        # First failed test details (None if all passed)
+        failed_test_number=first_failed.test_number if first_failed else None,
+        failed_input=first_failed.input if first_failed else None,
+        failed_output=first_failed.output if first_failed else None,
+        failed_expected=first_failed.expected if first_failed else None,
+        failed_is_hidden=first_failed.is_hidden if first_failed else False,
     )
     db.add(submission)
 
