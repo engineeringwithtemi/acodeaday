@@ -252,7 +252,11 @@ function ProblemSolver() {
                       onCustomTestCasesChange={setCustomInputs}
                     />
                   ) : (
-                    <TestResults results={testResults} isRunning={isRunning} />
+                    <TestResults
+                      results={testResults}
+                      isRunning={isRunning}
+                      functionSignature={problem.languages?.[0]?.function_signature}
+                    />
                   )}
                 </div>
               </div>

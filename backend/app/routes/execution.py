@@ -140,13 +140,14 @@ def _parse_execution_results(judge0_result: dict, test_cases: list[TestCase]) ->
     for i, result_data in enumerate(results_data):
         test_results.append(
             TestResult(
-                test_number=result_data.get("test", i + 1),
+                test_number=result_data.get("test_number", i + 1),
                 passed=result_data.get("passed", False),
                 input=result_data.get("input"),
                 output=result_data.get("output"),
                 expected=result_data.get("expected"),
                 error=result_data.get("error"),
                 error_type=result_data.get("error_type"),
+                stdout=result_data.get("stdout"),
                 is_hidden=test_cases[i].is_hidden if i < len(test_cases) else False,
             )
         )
@@ -211,9 +212,9 @@ async def run_code(
             test_cases=reference_test_cases,
         )
 
-        # Extract expected outputs from reference execution
-        if not reference_result.get("success"):
-            # Reference solution failed - this shouldn't happen
+        # Check for actual errors (compile/runtime), not success
+        # Success is based on output==expected, but expected is None for reference runs
+        if reference_result.get("compile_error") or reference_result.get("runtime_error"):
             logger.error(
                 "reference_solution_failed",
                 problem_slug=request.problem_slug,
@@ -223,6 +224,21 @@ async def run_code(
                 status_code=500,
                 detail="Reference solution failed to execute. Please check your custom inputs.",
             )
+
+        # Check if any test case had an error
+        results = reference_result.get("results", [])
+        for r in results:
+            if r.error:
+                logger.error(
+                    "reference_solution_test_error",
+                    problem_slug=request.problem_slug,
+                    error=r.error,
+                    error_type=r.error_type,
+                )
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Reference solution error: {r.error_type}: {r.error}",
+                )
 
         # Get expected outputs from reference results
         expected_outputs = [r.output for r in reference_result["results"]]

@@ -2,11 +2,15 @@
 
 import logging
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import structlog
 
 from app.config.settings import settings
+
+# Generate timestamp for log filename at module load time (server start)
+_server_start_time = datetime.now().strftime("%Y%m%d_%H%M%S")
 
 
 def configure_logging() -> None:
@@ -70,11 +74,23 @@ def configure_logging() -> None:
     # Create logs directory if logging to file
     if settings.log_to_file:
         log_path = Path(settings.log_file_path)
-        log_path.parent.mkdir(parents=True, exist_ok=True)
+        log_dir = log_path.parent
+        log_dir.mkdir(parents=True, exist_ok=True)
 
-        # Add file handler
-        file_handler = logging.FileHandler(settings.log_file_path)
+        # Create timestamped log filename (e.g., acodeaday_20260110_080612.log)
+        log_stem = log_path.stem  # e.g., "acodeaday"
+        log_suffix = log_path.suffix or ".log"  # e.g., ".log"
+        timestamped_log_file = log_dir / f"{log_stem}_{_server_start_time}{log_suffix}"
+
+        # Add file handler with timestamped filename
+        file_handler = logging.FileHandler(timestamped_log_file)
         file_handler.setLevel(getattr(logging, settings.log_level.upper()))
+        # Add timestamp formatter for file logs
+        file_formatter = logging.Formatter(
+            "%(asctime)s %(levelname)s %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S"
+        )
+        file_handler.setFormatter(file_formatter)
         logging.root.addHandler(file_handler)
 
 

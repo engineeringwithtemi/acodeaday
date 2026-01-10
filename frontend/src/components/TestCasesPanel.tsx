@@ -96,7 +96,7 @@ export function TestCasesPanel({ testCases, onCustomTestCasesChange }: TestCases
                   : 'text-gray-400 hover:text-gray-300'
               }`}
             >
-              Custom {index + 1}
+              Case {visibleTestCases.length + index + 1}
             </button>
             <button
               onClick={(e) => {
@@ -138,9 +138,6 @@ export function TestCasesPanel({ testCases, onCustomTestCasesChange }: TestCases
 
 function TestCaseDisplay({ testCase }: { testCase: TestCase }) {
   const formatValue = (value: any): string => {
-    if (Array.isArray(value)) {
-      return JSON.stringify(value, null, 2)
-    }
     return JSON.stringify(value)
   }
 

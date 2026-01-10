@@ -28,6 +28,7 @@ class TestResult(BaseModel):
     expected: dict | list | str | int | float | bool | None = None
     error: str | None = None
     error_type: str | None = None
+    stdout: str | None = None  # Captured print() output from user code
     is_hidden: bool = False
 
 

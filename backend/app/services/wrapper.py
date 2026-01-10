@@ -60,12 +60,13 @@ def generate_python_wrapper(
     if not function_name.isidentifier():
         raise ValueError(f"Invalid function name: {function_name}")
 
-    # Serialize test cases to JSON (convert SQLAlchemy objects to dicts)
-    test_cases_json = [
+    # Serialize test cases as Python literals (not JSON)
+    # This avoids issues with JSON's true/false/null vs Python's True/False/None
+    test_cases_python = [
         {
             "input": tc.input if isinstance(tc.input, list) else [tc.input],
             "expected": tc.expected,
-            "is_hidden": tc.is_hidden,
+            "is_hidden": tc.is_hidden if hasattr(tc, 'is_hidden') else False,
         }
         for tc in test_cases
     ]
@@ -76,12 +77,20 @@ def generate_python_wrapper(
 
 import json
 import sys
+import io
 
 if __name__ == "__main__":
-    test_cases = {json.dumps(test_cases_json)}
+    test_cases = {repr(test_cases_python)}
     results = []
 
+    # Save original stdout to restore later
+    _original_stdout = sys.stdout
+
     for i, test in enumerate(test_cases):
+        # Capture stdout for this test case (user's print statements)
+        _captured_stdout = io.StringIO()
+        sys.stdout = _captured_stdout
+
         try:
             # Create new Solution instance for each test
             solution = Solution()
@@ -93,16 +102,23 @@ if __name__ == "__main__":
             # Check if result matches expected
             passed = result == test["expected"]
 
+            # Get captured stdout
+            stdout_content = _captured_stdout.getvalue()
+
             results.append({{
                 "test_number": i + 1,
                 "passed": passed,
                 "input": test["input"],
                 "output": result,
                 "expected": test["expected"],
-                "is_hidden": test["is_hidden"]
+                "is_hidden": test["is_hidden"],
+                "stdout": stdout_content if stdout_content else None
             }})
 
         except Exception as e:
+            # Get captured stdout even on error
+            stdout_content = _captured_stdout.getvalue()
+
             # Catch runtime errors in user code
             results.append({{
                 "test_number": i + 1,
@@ -111,10 +127,14 @@ if __name__ == "__main__":
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "expected": test["expected"],
-                "is_hidden": test["is_hidden"]
+                "is_hidden": test["is_hidden"],
+                "stdout": stdout_content if stdout_content else None
             }})
 
-    # Output results as JSON to stdout
+    # Restore original stdout before outputting JSON
+    sys.stdout = _original_stdout
+
+    # Output results as JSON to stdout (only this line should go to stdout)
     print(json.dumps(results))
 '''
 

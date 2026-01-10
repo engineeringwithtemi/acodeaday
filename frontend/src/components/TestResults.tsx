@@ -1,14 +1,17 @@
-import { CheckCircle2, XCircle, Loader2, Clock, AlertCircle, Terminal } from 'lucide-react'
-import type { RunCodeResponse, SubmitCodeResponse, TestResult } from '../types/api'
+import { CheckCircle2, XCircle, Loader2, Clock, AlertCircle, Terminal, Copy, Check } from 'lucide-react'
+import { useState } from 'react'
+import type { RunCodeResponse, SubmitCodeResponse, TestResult, FunctionSignature } from '../types/api'
 
 interface TestResultsProps {
   results: RunCodeResponse | SubmitCodeResponse | null
   isRunning?: boolean
+  functionSignature?: FunctionSignature
 }
 
 export function TestResults({
   results,
   isRunning = false,
+  functionSignature,
 }: TestResultsProps) {
   if (isRunning) {
     return (
@@ -121,7 +124,12 @@ export function TestResults({
         {/* Individual Test Results */}
         <div className="space-y-3">
           {results.results.map((result: TestResult, index: number) => (
-            <TestCaseResult key={index} result={result} index={index} />
+            <TestCaseResult
+              key={index}
+              result={result}
+              index={index}
+              functionSignature={functionSignature}
+            />
           ))}
         </div>
       </div>
@@ -129,7 +137,28 @@ export function TestResults({
   )
 }
 
-function TestCaseResult({ result, index }: { result: TestResult; index: number }) {
+interface TestCaseResultProps {
+  result: TestResult
+  index: number
+  functionSignature?: FunctionSignature
+}
+
+function TestCaseResult({ result, index, functionSignature }: TestCaseResultProps) {
+  const [copiedField, setCopiedField] = useState<string | null>(null)
+
+  const formatValue = (value: any): string => {
+    return JSON.stringify(value)
+  }
+
+  const copyToClipboard = async (value: string, field: string) => {
+    await navigator.clipboard.writeText(value)
+    setCopiedField(field)
+    setTimeout(() => setCopiedField(null), 2000)
+  }
+
+  // Get param names from function signature
+  const paramNames = functionSignature?.params?.map(p => p.name) || []
+
   return (
     <div className={`rounded-lg border p-4 ${
       result.passed
@@ -159,44 +188,72 @@ function TestCaseResult({ result, index }: { result: TestResult; index: number }
 
       {/* Test Details - LeetCode style */}
       <div className="space-y-3 font-mono text-sm">
-        {/* Input */}
+        {/* Input - each param displayed separately */}
         {result.input !== undefined && (
           <div>
-            <span className="text-gray-500 text-xs uppercase tracking-wider block mb-1">Input</span>
-            <pre className="p-2 bg-gray-900 rounded text-cyan-400 overflow-x-auto">
-              {JSON.stringify(result.input, null, 2)}
-            </pre>
+            <span className="text-gray-500 text-xs uppercase tracking-wider block mb-2">Input</span>
+            <div className="space-y-2">
+              {Array.isArray(result.input) ? (
+                result.input.map((value, i) => {
+                  const paramName = paramNames[i] || `arg${i}`
+                  const formattedValue = formatValue(value)
+                  return (
+                    <div key={i} className="relative group">
+                      <div className="p-3 bg-gray-900 rounded">
+                        <span className="text-gray-400">{paramName} =</span>
+                        <div className="mt-1 text-white">{formattedValue}</div>
+                      </div>
+                      <button
+                        onClick={() => copyToClipboard(formattedValue, `input-${i}`)}
+                        className="absolute top-2 right-2 p-1 text-gray-500 hover:text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Copy"
+                      >
+                        {copiedField === `input-${i}` ? (
+                          <Check className="w-4 h-4 text-green-400" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                  )
+                })
+              ) : (
+                <div className="p-3 bg-gray-900 rounded text-white">
+                  {formatValue(result.input)}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
         {/* Output (User's result) */}
         <div>
-          <span className="text-gray-500 text-xs uppercase tracking-wider block mb-1">Output</span>
-          <pre className={`p-2 rounded overflow-x-auto ${
-            result.passed
-              ? 'bg-gray-900 text-green-400'
-              : 'bg-gray-900 text-red-400'
+          <span className="text-gray-500 text-xs uppercase tracking-wider block mb-2">Output</span>
+          <div className={`p-3 rounded ${
+            result.passed ? 'bg-gray-900' : 'bg-gray-900'
           }`}>
-            {result.output !== undefined ? JSON.stringify(result.output, null, 2) : 'null'}
-          </pre>
+            <span className={result.passed ? 'text-green-400' : 'text-red-400'}>
+              {result.output !== undefined ? formatValue(result.output) : 'null'}
+            </span>
+          </div>
         </div>
 
         {/* Expected */}
         <div>
-          <span className="text-gray-500 text-xs uppercase tracking-wider block mb-1">Expected</span>
-          <pre className="p-2 bg-gray-900 rounded text-green-400 overflow-x-auto">
-            {JSON.stringify(result.expected, null, 2)}
-          </pre>
+          <span className="text-gray-500 text-xs uppercase tracking-wider block mb-2">Expected</span>
+          <div className="p-3 bg-gray-900 rounded">
+            <span className="text-green-400">{formatValue(result.expected)}</span>
+          </div>
         </div>
 
         {/* Stdout - if user has print statements */}
         {result.stdout && (
           <div>
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-2">
               <Terminal className="w-3 h-3 text-gray-500" />
               <span className="text-gray-500 text-xs uppercase tracking-wider">Stdout</span>
             </div>
-            <pre className="p-2 bg-gray-900 rounded text-yellow-400 overflow-x-auto whitespace-pre-wrap">
+            <pre className="p-3 bg-gray-900 rounded text-yellow-400 overflow-x-auto whitespace-pre-wrap">
               {result.stdout}
             </pre>
           </div>
@@ -205,8 +262,8 @@ function TestCaseResult({ result, index }: { result: TestResult; index: number }
         {/* Error - if there was a runtime error for this test */}
         {result.error && (
           <div>
-            <span className="text-red-400 text-xs uppercase tracking-wider block mb-1">Error</span>
-            <pre className="p-2 bg-red-900/20 border border-red-500/30 rounded text-red-300 overflow-x-auto whitespace-pre-wrap text-xs">
+            <span className="text-red-400 text-xs uppercase tracking-wider block mb-2">Error</span>
+            <pre className="p-3 bg-red-900/20 border border-red-500/30 rounded text-red-300 overflow-x-auto whitespace-pre-wrap text-xs">
               {result.error_type && <span className="font-semibold">{result.error_type}: </span>}
               {result.error}
             </pre>
