@@ -35,7 +35,9 @@ export interface Problem {
   languages: ProblemLanguage[]
   test_cases: TestCase[]
   created_at: string
-  updated_at: string
+  updated_at?: string
+  // User's saved code (from user_code table) - null means use starter_code
+  user_code?: string | null
 }
 
 export interface ProblemExample {

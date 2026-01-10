@@ -1,4 +1,4 @@
-import { X, CheckCircle2, XCircle, AlertCircle } from 'lucide-react'
+import { X, CheckCircle2, XCircle, AlertCircle, Download } from 'lucide-react'
 import type { SubmitCodeResponse, FunctionSignature } from '../types/api'
 
 interface SubmissionResultPanelProps {
@@ -7,6 +7,7 @@ interface SubmissionResultPanelProps {
   language: string
   functionSignature?: FunctionSignature
   onClose?: () => void
+  onLoadCode?: (code: string) => void
 }
 
 export function SubmissionResultPanel({
@@ -15,6 +16,7 @@ export function SubmissionResultPanel({
   language,
   functionSignature,
   onClose,
+  onLoadCode,
 }: SubmissionResultPanelProps) {
   // Determine status
   const getStatus = () => {
@@ -231,10 +233,19 @@ export function SubmissionResultPanel({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-gray-700">
+        <div className="p-4 border-t border-gray-700 flex gap-3">
+          {onLoadCode && (
+            <button
+              onClick={() => onLoadCode(code)}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              Load Code
+            </button>
+          )}
           <button
             onClick={onClose}
-            className="w-full px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white font-semibold rounded-lg transition-colors"
+            className="flex-1 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white font-semibold rounded-lg transition-colors"
           >
             Close
           </button>

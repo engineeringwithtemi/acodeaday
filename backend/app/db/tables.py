@@ -75,6 +75,9 @@ class Problem(Base):
     submissions: Mapped[list["Submission"]] = relationship(
         back_populates="problem", cascade="all, delete", passive_deletes=True
     )
+    user_codes: Mapped[list["UserCode"]] = relationship(
+        back_populates="problem", cascade="all, delete", passive_deletes=True
+    )
 
 
 class ProblemLanguage(Base):
@@ -201,3 +204,32 @@ class Submission(Base):
     problem: Mapped["Problem"] = relationship(back_populates="submissions")
 
     __table_args__ = (Index("ix_submissions_user_problem", "user_id", "problem_id"),)
+
+
+class UserCode(Base):
+    """Stores user's current code for each problem (server-side code persistence)."""
+
+    __tablename__ = "user_code"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    user_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    problem_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("problems.id", ondelete="CASCADE"), nullable=False
+    )
+    language: Mapped[str] = mapped_column(Text, default="python", nullable=False)
+    code: Mapped[str] = mapped_column(Text, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), onupdate=func.now()
+    )
+
+    # Relationship
+    problem: Mapped["Problem"] = relationship(back_populates="user_codes")
+
+    __table_args__ = (
+        Index("idx_user_code_user_problem", "user_id", "problem_id"),
+        Index(
+            "ix_user_code_unique", "user_id", "problem_id", "language", unique=True
+        ),
+    )

@@ -1,9 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Allotment } from 'allotment'
 import 'allotment/dist/style.css'
 import { Play, Send, Loader2, AlertCircle, RotateCcw } from 'lucide-react'
-import { useProblem, useSubmitCode, useRunCode, useCodePersistence } from '@/hooks'
+import { useProblem, useSubmitCode, useRunCode, useSaveCode, useResetCode, useLoadSubmissionCode } from '@/hooks'
 import { ProblemDescription } from '@/components/ProblemDescription'
 import { TestCasesPanel } from '@/components/TestCasesPanel'
 import { TestResults } from '@/components/TestResults'
@@ -22,6 +22,9 @@ function ProblemSolver() {
   const { data: problem, isLoading, error } = useProblem(slug)
   const submitCode = useSubmitCode()
   const runCode = useRunCode()
+  const saveCode = useSaveCode()
+  const resetCodeMutation = useResetCode()
+  const loadSubmissionCode = useLoadSubmissionCode()
   const queryClient = useQueryClient()
 
   const [language] = useState('python')
@@ -37,8 +40,73 @@ function ProblemSolver() {
   // Get starter code from problem data
   const starterCode = problem?.languages?.[0]?.starter_code || ''
 
-  // Persist code in localStorage across page refreshes
-  const { code, setCode, resetCode } = useCodePersistence(slug, language, starterCode)
+  // Get initial code: user's saved code or starter code
+  const initialCode = problem?.user_code ?? starterCode
+
+  // Track code in state
+  const [code, setCode] = useState(initialCode)
+
+  // Track the last saved/loaded code to avoid unnecessary saves
+  const lastSavedCode = useRef<string | null>(null)
+
+  // Update code when problem data changes (e.g., after reset or load submission)
+  useEffect(() => {
+    if (problem) {
+      const newCode = problem.user_code ?? starterCode
+      setCode(newCode)
+      lastSavedCode.current = newCode // Track what was loaded from server
+    }
+  }, [problem?.user_code, starterCode])
+
+  // Auto-save code to server with 500ms debounce
+  useEffect(() => {
+    // Skip if no problem loaded yet
+    if (!problem) return
+
+    // Skip if code matches last saved (nothing to save)
+    if (code === lastSavedCode.current) return
+
+    const timer = setTimeout(() => {
+      saveCode.mutate({
+        problem_slug: slug,
+        language,
+        code,
+      })
+      lastSavedCode.current = code // Update last saved
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [code, slug, language, problem])
+
+  // Reset code to starter code
+  const handleResetCode = async () => {
+    if (!confirm('Reset code to starter template? Your changes will be lost.')) return
+
+    try {
+      await resetCodeMutation.mutateAsync({
+        problem_slug: slug,
+        language,
+      })
+      // Code will update automatically when problem query is refetched
+    } catch (err) {
+      console.error('Reset code error:', err)
+    }
+  }
+
+  // Load code from a past submission
+  const handleLoadSubmissionCode = async (submissionCode: string) => {
+    try {
+      await loadSubmissionCode.mutateAsync({
+        problem_slug: slug,
+        code: submissionCode,
+        language,
+      })
+      setShowSubmissionResult(false)
+      // Code will update automatically when problem query is refetched
+    } catch (err) {
+      console.error('Load submission code error:', err)
+    }
+  }
 
   const handleRunCode = async () => {
     if (!problem) return
@@ -201,16 +269,12 @@ function ProblemSolver() {
                   </div>
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => {
-                        if (confirm('Reset code to starter template? Your changes will be lost.')) {
-                          resetCode()
-                        }
-                      }}
-                      disabled={isRunning}
+                      onClick={handleResetCode}
+                      disabled={isRunning || resetCodeMutation.isPending}
                       className="flex items-center gap-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       title="Reset to starter code"
                     >
-                      <RotateCcw size={16} />
+                      <RotateCcw size={16} className={resetCodeMutation.isPending ? 'animate-spin' : ''} />
                     </button>
                     <button
                       onClick={handleRunCode}
@@ -327,6 +391,7 @@ function ProblemSolver() {
           language={language}
           functionSignature={problem.languages?.[0]?.function_signature}
           onClose={handleCloseSubmissionResult}
+          onLoadCode={handleLoadSubmissionCode}
         />
       )}
     </div>

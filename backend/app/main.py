@@ -9,7 +9,7 @@ from supabase import acreate_client
 from app.config.logging import configure_logging, get_logger
 from app.config.settings import settings
 from app.db.connection import engine
-from app.routes import execution, problems, progress, submissions
+from app.routes import code, execution, problems, progress, submissions
 
 configure_logging()
 logger = get_logger(__name__)
@@ -85,6 +85,7 @@ app.include_router(problems.router)
 app.include_router(execution.router)
 app.include_router(progress.router)
 app.include_router(submissions.router)
+app.include_router(code.router)
 
 
 @app.get("/")

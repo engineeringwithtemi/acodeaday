@@ -20,8 +20,8 @@ class TestCaseSchema(BaseModel):
     """Test case schema (for responses)."""
 
     id: UUID
-    input: dict | list  # JSON data
-    expected: dict | list  # JSON data
+    input: dict | list  # JSON data (usually array of args)
+    expected: dict | list | int | float | str | bool | None  # JSON data (any valid JSON value)
     is_hidden: bool
     sequence: int
 
@@ -73,6 +73,9 @@ class ProblemDetailSchema(BaseModel):
     # Related data
     languages: list[ProblemLanguageSchema]
     test_cases: list[TestCaseSchema]  # Filtered to non-hidden
+
+    # User's saved code (if any) - populated from user_code table
+    user_code: str | None = None
 
     model_config = {"from_attributes": True}
 
