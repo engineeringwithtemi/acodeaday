@@ -9,3 +9,12 @@ export { useProblem } from './useProblem'
 export { useSaveCode } from './useSaveCode'
 export { useResetCode } from './useResetCode'
 export { useLoadSubmissionCode } from './useLoadSubmissionCode'
+export {
+  useModels,
+  useSessions,
+  useSession,
+  useCreateSession,
+  useUpdateSession,
+  useDeleteSession,
+  useWebSocketChat,
+} from './useChat'

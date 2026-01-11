@@ -168,6 +168,21 @@ export function apiPut<T>(
 }
 
 /**
+ * PATCH request helper
+ */
+export function apiPatch<T>(
+  endpoint: string,
+  data?: any,
+  options?: RequestInit
+): Promise<T> {
+  return apiRequest<T>(endpoint, {
+    ...options,
+    method: 'PATCH',
+    body: data ? JSON.stringify(data) : undefined,
+  })
+}
+
+/**
  * DELETE request helper
  */
 export function apiDelete<T>(

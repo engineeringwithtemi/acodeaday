@@ -240,3 +240,67 @@ export interface SubmissionSchema {
   failed_expected: any | null
   failed_is_hidden: boolean
 }
+
+// Chat types
+export type ChatMode = 'socratic' | 'direct'
+export type MessageRole = 'user' | 'assistant' | 'system'
+
+export interface ChatMessage {
+  id: string
+  session_id: string
+  role: MessageRole
+  content: string
+  code_snapshot?: string | null
+  test_results_snapshot?: any
+  created_at: string
+}
+
+export interface ChatSession {
+  id: string
+  user_id: string
+  problem_id: string
+  title?: string | null
+  mode: ChatMode
+  model?: string | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface ChatSessionWithMessages extends ChatSession {
+  messages: ChatMessage[]
+}
+
+export interface CreateSessionRequest {
+  problem_slug: string
+  mode?: ChatMode
+  model?: string | null
+}
+
+export interface UpdateSessionRequest {
+  title?: string | null
+  mode?: ChatMode
+  model?: string | null
+  is_active?: boolean
+}
+
+export interface ModelInfo {
+  name: string
+  display_name: string
+  is_default: boolean
+}
+
+// WebSocket message types
+export interface ChatWSMessage {
+  type: 'message' | 'cancel'
+  content?: string
+  current_code?: string
+  test_results?: any
+}
+
+export interface ChatWSResponse {
+  type: 'chunk' | 'done' | 'error'
+  content?: string
+  message_id?: string
+  error?: string
+}

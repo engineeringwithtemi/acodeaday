@@ -2,13 +2,14 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useState, useEffect, useRef } from 'react'
 import { Allotment } from 'allotment'
 import 'allotment/dist/style.css'
-import { Play, Send, Loader2, AlertCircle, RotateCcw } from 'lucide-react'
+import { Play, Send, Loader2, AlertCircle, RotateCcw, MessageSquare } from 'lucide-react'
 import { useProblem, useSubmitCode, useRunCode, useSaveCode, useResetCode, useLoadSubmissionCode } from '@/hooks'
 import { ProblemDescription } from '@/components/ProblemDescription'
 import { TestCasesPanel } from '@/components/TestCasesPanel'
 import { TestResults } from '@/components/TestResults'
 import { SubmissionsPanel } from '@/components/SubmissionsPanel'
 import { SubmissionResultPanel } from '@/components/SubmissionResultPanel'
+import { ChatPanel } from '@/components/ChatPanel'
 import Editor from '@monaco-editor/react'
 import { useQueryClient } from '@tanstack/react-query'
 import type { RunCodeResponse, SubmitCodeResponse, SubmissionSchema, TestResult } from '@/types/api'
@@ -36,6 +37,7 @@ function ProblemSolver() {
   const [showSubmissionResult, setShowSubmissionResult] = useState(false)
   const [submissionResult, setSubmissionResult] = useState<SubmitCodeResponse | null>(null)
   const [submittedCode, setSubmittedCode] = useState<string>('')
+  const [showAIChat, setShowAIChat] = useState(false)
 
   // Get starter code from problem data
   const starterCode = problem?.languages?.[0]?.starter_code || ''
@@ -224,8 +226,8 @@ function ProblemSolver() {
 
   return (
     <div className="h-screen flex flex-col bg-gray-900">
-      {/* Full-height split pane */}
-      <Allotment defaultSizes={[40, 60]}>
+      {/* Full-height split pane - key forces re-render when pane count changes */}
+      <Allotment key={showAIChat ? 'with-chat' : 'no-chat'} defaultSizes={showAIChat ? [35, 45, 20] : [40, 60]}>
         {/* Left Pane: Description + Submissions */}
         <Allotment.Pane minSize={300}>
           <div className="h-full flex flex-col bg-gray-900">
@@ -282,6 +284,18 @@ function ProblemSolver() {
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setShowAIChat(!showAIChat)}
+                      className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-lg transition-colors ${
+                        showAIChat
+                          ? 'bg-cyan-600 hover:bg-cyan-700 text-white'
+                          : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                      }`}
+                      title="Toggle AI Assistant"
+                    >
+                      <MessageSquare size={16} />
+                      AI Help
+                    </button>
                     <button
                       onClick={handleResetCode}
                       disabled={isRunning || resetCodeMutation.isPending}
@@ -395,6 +409,18 @@ function ProblemSolver() {
             </Allotment.Pane>
           </Allotment>
         </Allotment.Pane>
+
+        {/* Right Pane: AI Chat Assistant (conditional) */}
+        {showAIChat && (
+          <Allotment.Pane minSize={250}>
+            <ChatPanel
+              problemSlug={slug}
+              currentCode={code}
+              testResults={testResults}
+              onClose={() => setShowAIChat(false)}
+            />
+          </Allotment.Pane>
+        )}
       </Allotment>
 
       {/* Submission Result Modal */}
