@@ -108,10 +108,29 @@ export function useWebSocketChat(sessionId: string | null) {
   const wsRef = useRef<WebSocket | null>(null)
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const reconnectAttemptsRef = useRef(0)
+  const sessionIdRef = useRef(sessionId)
   const queryClient = useQueryClient()
 
+  // Keep sessionId ref in sync
+  useEffect(() => {
+    sessionIdRef.current = sessionId
+  }, [sessionId])
+
+  const disconnect = useCallback(() => {
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current)
+      reconnectTimeoutRef.current = null
+    }
+    if (wsRef.current) {
+      wsRef.current.close()
+      wsRef.current = null
+    }
+    setIsConnected(false)
+  }, [])
+
   const connect = useCallback(async () => {
-    if (!sessionId) return
+    const currentSessionId = sessionIdRef.current
+    if (!currentSessionId) return
 
     try {
       const token = await getAccessToken()
@@ -123,9 +142,10 @@ export function useWebSocketChat(sessionId: string | null) {
       // Close existing connection
       if (wsRef.current) {
         wsRef.current.close()
+        wsRef.current = null
       }
 
-      const ws = new WebSocket(`${WS_BASE_URL}/api/chat/ws/${sessionId}?token=${token}`)
+      const ws = new WebSocket(`${WS_BASE_URL}/api/chat/ws/${currentSessionId}?token=${token}`)
       wsRef.current = ws
 
       ws.onopen = () => {
@@ -144,7 +164,7 @@ export function useWebSocketChat(sessionId: string | null) {
           setStreamingContent('')
           setPendingMessage(null)
           // Invalidate session to refresh messages
-          queryClient.invalidateQueries({ queryKey: ['chat', 'session', sessionId] })
+          queryClient.invalidateQueries({ queryKey: ['chat', 'session', currentSessionId] })
         } else if (response.type === 'error') {
           setError(response.error || 'Unknown error')
           setIsStreaming(false)
@@ -162,13 +182,20 @@ export function useWebSocketChat(sessionId: string | null) {
         setIsConnected(false)
         setIsStreaming(false)
 
-        // Auto-reconnect with exponential backoff (unless code 4001 = unauthorized)
-        if (event.code !== 4001 && reconnectAttemptsRef.current < 5) {
+        // Only auto-reconnect if sessionId hasn't changed and not unauthorized
+        if (
+          event.code !== 4001 &&
+          reconnectAttemptsRef.current < 5 &&
+          sessionIdRef.current === currentSessionId
+        ) {
           const delay = Math.min(3000 * Math.pow(2, reconnectAttemptsRef.current), 30000)
           reconnectAttemptsRef.current += 1
 
           reconnectTimeoutRef.current = setTimeout(() => {
-            connect()
+            // Double-check sessionId hasn't changed before reconnecting
+            if (sessionIdRef.current === currentSessionId) {
+              connect()
+            }
           }, delay)
         } else if (event.code === 4001) {
           setError('Unauthorized - please refresh the page')
@@ -177,18 +204,7 @@ export function useWebSocketChat(sessionId: string | null) {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Connection failed')
     }
-  }, [sessionId, queryClient])
-
-  const disconnect = useCallback(() => {
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current)
-    }
-    if (wsRef.current) {
-      wsRef.current.close()
-      wsRef.current = null
-    }
-    setIsConnected(false)
-  }, [])
+  }, [queryClient])
 
   const sendMessage = useCallback(
     (content: string, currentCode?: string, testResults?: any) => {
@@ -226,16 +242,20 @@ export function useWebSocketChat(sessionId: string | null) {
     setPendingMessage(null)
   }, [])
 
-  // Connect on mount and when sessionId changes
+  // Connect when sessionId changes
   useEffect(() => {
     if (sessionId) {
+      // Reset reconnect attempts when sessionId changes
+      reconnectAttemptsRef.current = 0
       connect()
+    } else {
+      disconnect()
     }
 
     return () => {
       disconnect()
     }
-  }, [sessionId, connect, disconnect])
+  }, [sessionId]) // Only depend on sessionId, not on connect/disconnect
 
   return {
     isConnected,

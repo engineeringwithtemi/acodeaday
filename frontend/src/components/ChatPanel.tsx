@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import {
   MessageSquare,
   Send,
@@ -10,11 +10,13 @@ import {
   X,
   AlertCircle,
   Trash2,
+  Copy,
+  Check,
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism'
 import {
   useModels,
   useSessions,
@@ -144,7 +146,7 @@ export function ChatPanel({ problemSlug, currentCode, testResults, onClose }: Ch
             className="w-full flex items-center justify-between px-2 py-1 hover:bg-gray-700 rounded transition-colors"
           >
             <span className="text-sm text-gray-200 truncate">
-              {activeSession?.title || 'Select session...'}
+              {activeSession ? (activeSession.title || 'Untitled') : 'Select session...'}
             </span>
             <ChevronDown size={14} className="text-gray-400" />
           </button>
@@ -236,7 +238,7 @@ export function ChatPanel({ problemSlug, currentCode, testResults, onClose }: Ch
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-6">
         {!activeSession ? (
           <div className="h-full flex flex-col items-center justify-center text-gray-400">
             <MessageSquare size={48} className="mb-4 opacity-50" />
@@ -275,22 +277,15 @@ export function ChatPanel({ problemSlug, currentCode, testResults, onClose }: Ch
             {streamingContent && (
               <div className="bg-gray-900 border-l-2 border-gray-600 rounded-r-lg px-4 py-3">
                 <div className="flex items-start gap-2 text-gray-300">
-                  <div className="flex-1">
+                  <div className="flex-1 text-sm">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={{
                         code({ node, inline, className, children, ...props }: any) {
                           const match = /language-(\w+)/.exec(className || '')
+                          const codeString = String(children).replace(/\n$/, '')
                           return !inline && match ? (
-                            <SyntaxHighlighter
-                              style={vscDarkPlus}
-                              language={match[1]}
-                              PreTag="div"
-                              className="rounded-lg"
-                              {...props}
-                            >
-                              {String(children).replace(/\n$/, '')}
-                            </SyntaxHighlighter>
+                            <CodeBlock code={codeString} language={match[1]} />
                           ) : (
                             <code
                               className="bg-gray-800 px-1 py-0.5 rounded text-cyan-300 font-mono text-sm"
@@ -363,6 +358,36 @@ export function ChatPanel({ problemSlug, currentCode, testResults, onClose }: Ch
   )
 }
 
+function CodeBlock({ code, language }: { code: string; language: string }) {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = useCallback(async () => {
+    await navigator.clipboard.writeText(code)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }, [code])
+
+  return (
+    <div className="relative group my-3">
+      <button
+        onClick={handleCopy}
+        className="absolute right-2 top-2 p-1.5 rounded bg-gray-700/80 hover:bg-gray-600 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+        aria-label="Copy code"
+      >
+        {copied ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
+      </button>
+      <SyntaxHighlighter
+        style={vscDarkPlus}
+        language={language}
+        PreTag="div"
+        className="rounded-lg !mt-0"
+      >
+        {code}
+      </SyntaxHighlighter>
+    </div>
+  )
+}
+
 function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === 'user'
 
@@ -383,16 +408,9 @@ function MessageBubble({ message }: { message: ChatMessage }) {
             components={{
               code({ node, inline, className, children, ...props }: any) {
                 const match = /language-(\w+)/.exec(className || '')
+                const codeString = String(children).replace(/\n$/, '')
                 return !inline && match ? (
-                  <SyntaxHighlighter
-                    style={vscDarkPlus}
-                    language={match[1]}
-                    PreTag="div"
-                    className="rounded-lg my-2"
-                    {...props}
-                  >
-                    {String(children).replace(/\n$/, '')}
-                  </SyntaxHighlighter>
+                  <CodeBlock code={codeString} language={match[1]} />
                 ) : (
                   <code
                     className="bg-gray-800 px-1 py-0.5 rounded text-cyan-300 font-mono text-sm"

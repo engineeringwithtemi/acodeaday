@@ -3,7 +3,7 @@
 import uuid
 from typing import AsyncGenerator
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -35,18 +35,28 @@ async def create_session(
     Returns:
         Created ChatSession
     """
+    # Count existing sessions for this user/problem to generate title
+    result = await db.execute(
+        select(func.count(ChatSession.id))
+        .where(ChatSession.user_id == user_id)
+        .where(ChatSession.problem_id == problem_id)
+    )
+    session_count = result.scalar() or 0
+    default_title = f"acadAI Chat {session_count + 1}"
+
     session = ChatSession(
         user_id=user_id,
         problem_id=problem_id,
         mode=mode,
         model=model,
         is_active=True,
+        title=default_title,
     )
     db.add(session)
     await db.commit()
     await db.refresh(session)
 
-    logger.info("chat_session_created", session_id=str(session.id), mode=mode, model=model)
+    logger.info("chat_session_created", session_id=str(session.id), mode=mode, model=model, title=default_title)
     return session
 
 
