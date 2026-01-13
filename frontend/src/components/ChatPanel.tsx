@@ -12,6 +12,8 @@ import {
   Trash2,
   Copy,
   Check,
+  Pencil,
+  RefreshCw,
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -33,12 +35,35 @@ interface ChatPanelProps {
   currentCode?: string
   testResults?: any
   onClose: () => void
+  initialMessage?: string | null
+  initialSessionTitle?: string | null
+  onInitialMessageSent?: () => void
 }
 
-export function ChatPanel({ problemSlug, currentCode, testResults, onClose }: ChatPanelProps) {
+const LAST_MODEL_KEY = 'acodeaday_last_model'
+
+function getLastModel(): string | null {
+  try {
+    return localStorage.getItem(LAST_MODEL_KEY)
+  } catch {
+    return null
+  }
+}
+
+function saveLastModel(model: string): void {
+  try {
+    localStorage.setItem(LAST_MODEL_KEY, model)
+  } catch {
+    // Ignore localStorage errors
+  }
+}
+
+export function ChatPanel({ problemSlug, currentCode, testResults, onClose, initialMessage, initialSessionTitle, onInitialMessageSent }: ChatPanelProps) {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
   const [inputValue, setInputValue] = useState('')
   const [showSessionDropdown, setShowSessionDropdown] = useState(false)
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null)
+  const [editingTitle, setEditingTitle] = useState('')
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -54,27 +79,85 @@ export function ChatPanel({ problemSlug, currentCode, testResults, onClose }: Ch
   const deleteSession = useDeleteSession()
 
   // WebSocket
-  const { isConnected, isStreaming, streamingContent, pendingMessage, error, sendMessage, cancelStream } =
+  const { isConnected, isStreaming, streamingContent, pendingMessage, error, lastFailedMessage, sendMessage, cancelStream, retry, clearError, reconnect } =
     useWebSocketChat(activeSessionId)
 
-  // Auto-select first session if available
+  // Auto-select first session if available (but not if we have an initial message to send)
   useEffect(() => {
-    if (sessions && sessions.length > 0 && !activeSessionId) {
+    if (sessions && sessions.length > 0 && !activeSessionId && !initialMessage) {
       setActiveSessionId(sessions[0].id)
     }
-  }, [sessions, activeSessionId])
+  }, [sessions, activeSessionId, initialMessage])
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [activeSession?.messages, streamingContent])
 
+  // Track initial message state with refs to avoid dependency issues
+  const initialMessageRef = useRef(initialMessage)
+  const initialMessageSentRef = useRef(false)
+  const isCreatingSessionRef = useRef(false)
+
+  // Update ref when initialMessage changes
+  useEffect(() => {
+    if (initialMessage && initialMessage !== initialMessageRef.current) {
+      // New initial message - reset flags
+      initialMessageRef.current = initialMessage
+      initialMessageSentRef.current = false
+      isCreatingSessionRef.current = false
+    }
+  }, [initialMessage])
+
+  // Step 1: Create a new session when we have an initial message
+  useEffect(() => {
+    if (!initialMessage || initialMessageSentRef.current || isCreatingSessionRef.current) return
+    if (!models) return // Wait for models to load
+
+    const createNewSession = async () => {
+      isCreatingSessionRef.current = true
+      try {
+        // Use last selected model if available, otherwise use default
+        const lastModel = getLastModel()
+        const modelToUse = lastModel && models.some((m) => m.name === lastModel)
+          ? lastModel
+          : models.find((m) => m.is_default)?.name
+        const session = await createSession.mutateAsync({
+          problem_slug: problemSlug,
+          mode: 'direct',
+          model: modelToUse,
+          title: initialSessionTitle || undefined,
+        })
+        setActiveSessionId(session.id)
+      } catch (err) {
+        console.error('Failed to create session:', err)
+        isCreatingSessionRef.current = false
+      }
+    }
+
+    createNewSession()
+  }, [initialMessage, initialSessionTitle, models, problemSlug, createSession])
+
+  // Step 2: Send message once connected
+  useEffect(() => {
+    if (!initialMessage || initialMessageSentRef.current || !isConnected || isStreaming) return
+
+    // Send the message
+    initialMessageSentRef.current = true
+    sendMessage(initialMessage, currentCode, testResults)
+    onInitialMessageSent?.()
+  }, [initialMessage, isConnected, isStreaming, sendMessage, currentCode, testResults, onInitialMessageSent])
+
   const handleCreateSession = async (mode: ChatMode) => {
-    const defaultModel = models?.find((m) => m.is_default)?.name
+    // Use last selected model if available, otherwise use default
+    const lastModel = getLastModel()
+    const modelToUse = lastModel && models?.some((m) => m.name === lastModel)
+      ? lastModel
+      : models?.find((m) => m.is_default)?.name
     const session = await createSession.mutateAsync({
       problem_slug: problemSlug,
       mode,
-      model: defaultModel,
+      model: modelToUse,
     })
     setActiveSessionId(session.id)
     setShowSessionDropdown(false)
@@ -114,10 +197,54 @@ export function ChatPanel({ problemSlug, currentCode, testResults, onClose }: Ch
   const handleChangeModel = (model: string) => {
     if (!activeSession) return
 
-    updateSession.mutate({
-      sessionId: activeSession.id,
-      request: { model },
-    })
+    // Don't change model while streaming - would interrupt the response
+    if (isStreaming) return
+
+    // Save to localStorage for future sessions
+    saveLastModel(model)
+
+    updateSession.mutate(
+      {
+        sessionId: activeSession.id,
+        request: { model },
+      },
+      {
+        onSuccess: () => {
+          // Reconnect WebSocket to pick up the new model
+          reconnect()
+        },
+      }
+    )
+  }
+
+  const handleStartEditTitle = (sessionId: string, currentTitle: string) => {
+    setEditingSessionId(sessionId)
+    setEditingTitle(currentTitle || '')
+  }
+
+  const handleSaveTitle = (sessionId: string) => {
+    if (editingTitle.trim()) {
+      updateSession.mutate({
+        sessionId,
+        request: { title: editingTitle.trim() },
+      })
+    }
+    setEditingSessionId(null)
+    setEditingTitle('')
+  }
+
+  const handleCancelEditTitle = () => {
+    setEditingSessionId(null)
+    setEditingTitle('')
+  }
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent, sessionId: string) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      handleSaveTitle(sessionId)
+    } else if (e.key === 'Escape') {
+      handleCancelEditTitle()
+    }
   }
 
   return (
@@ -155,23 +282,49 @@ export function ChatPanel({ problemSlug, currentCode, testResults, onClose }: Ch
             <div className="absolute top-full left-0 right-0 mt-1 bg-gray-900 border border-gray-700 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
               <div className="p-2 space-y-1">
                 {sessions?.map((session) => (
-                  <div key={session.id} className="flex items-center gap-2">
-                    <button
-                      onClick={() => {
-                        setActiveSessionId(session.id)
-                        setShowSessionDropdown(false)
-                      }}
-                      className="flex-1 text-left px-2 py-1 text-sm text-gray-200 hover:bg-gray-700 rounded"
-                    >
-                      {session.title || 'Untitled'}
-                    </button>
-                    <button
-                      onClick={() => handleDeleteSession(session.id)}
-                      className="p-1 hover:bg-red-500/20 rounded"
-                      aria-label="Delete session"
-                    >
-                      <Trash2 size={14} className="text-red-400" />
-                    </button>
+                  <div key={session.id} className="flex items-center gap-1">
+                    {editingSessionId === session.id ? (
+                      <div className="flex-1 flex items-center gap-1">
+                        <input
+                          type="text"
+                          value={editingTitle}
+                          onChange={(e) => setEditingTitle(e.target.value)}
+                          onKeyDown={(e) => handleTitleKeyDown(e, session.id)}
+                          onBlur={() => handleSaveTitle(session.id)}
+                          autoFocus
+                          className="flex-1 px-2 py-1 text-sm bg-gray-800 text-gray-200 rounded border border-cyan-500 focus:outline-none"
+                        />
+                      </div>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => {
+                            setActiveSessionId(session.id)
+                            setShowSessionDropdown(false)
+                          }}
+                          className="flex-1 text-left px-2 py-1 text-sm text-gray-200 hover:bg-gray-700 rounded truncate"
+                        >
+                          {session.title || 'Untitled'}
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleStartEditTitle(session.id, session.title || '')
+                          }}
+                          className="p-1 hover:bg-gray-700 rounded"
+                          aria-label="Edit session name"
+                        >
+                          <Pencil size={14} className="text-gray-400" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteSession(session.id)}
+                          className="p-1 hover:bg-red-500/20 rounded"
+                          aria-label="Delete session"
+                        >
+                          <Trash2 size={14} className="text-red-400" />
+                        </button>
+                      </>
+                    )}
                   </div>
                 ))}
               </div>
@@ -225,7 +378,8 @@ export function ChatPanel({ problemSlug, currentCode, testResults, onClose }: Ch
             <select
               value={activeSession.model || models?.find((m) => m.is_default)?.name || ''}
               onChange={(e) => handleChangeModel(e.target.value)}
-              className="flex-1 px-2 py-1 text-xs bg-gray-900 text-gray-200 rounded border border-gray-700 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+              disabled={isStreaming}
+              className="flex-1 px-2 py-1 text-xs bg-gray-900 text-gray-200 rounded border border-gray-700 focus:outline-none focus:ring-1 focus:ring-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {models?.map((model) => (
                 <option key={model.name} value={model.name}>
@@ -275,9 +429,9 @@ export function ChatPanel({ problemSlug, currentCode, testResults, onClose }: Ch
             )}
             {/* Streaming content - shown when chunks arrive */}
             {streamingContent && (
-              <div className="bg-gray-900 border-l-2 border-gray-600 rounded-r-lg px-4 py-3">
-                <div className="flex items-start gap-2 text-gray-300">
-                  <div className="flex-1 text-sm">
+              <div className="bg-gray-900 border-l-2 border-gray-600 rounded-r-lg px-4 py-4">
+                <div className="text-gray-300">
+                  <div className="prose prose-invert prose-sm max-w-none prose-p:text-base prose-p:leading-relaxed prose-p:my-3 prose-headings:text-gray-100 prose-strong:text-gray-100 prose-li:text-base prose-li:leading-relaxed">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={{
@@ -288,7 +442,7 @@ export function ChatPanel({ problemSlug, currentCode, testResults, onClose }: Ch
                             <CodeBlock code={codeString} language={match[1]} />
                           ) : (
                             <code
-                              className="bg-gray-800 px-1 py-0.5 rounded text-cyan-300 font-mono text-sm"
+                              className="bg-gray-800 px-1.5 py-0.5 rounded text-cyan-300 font-mono text-sm"
                               {...props}
                             >
                               {children}
@@ -299,7 +453,7 @@ export function ChatPanel({ problemSlug, currentCode, testResults, onClose }: Ch
                     >
                       {streamingContent}
                     </ReactMarkdown>
-                    <span className="inline-block w-2 h-4 bg-cyan-400 ml-1 animate-pulse" />
+                    <span className="inline-block w-2 h-5 bg-cyan-400 ml-1 animate-pulse" />
                   </div>
                 </div>
               </div>
@@ -312,11 +466,30 @@ export function ChatPanel({ problemSlug, currentCode, testResults, onClose }: Ch
       {/* Error display */}
       {error && (
         <div className="mx-4 mb-2 bg-red-500/10 border border-red-500/40 rounded-lg p-3">
-          <div className="flex items-center gap-2 text-red-400">
-            <AlertCircle size={16} />
-            <span className="text-sm font-semibold">Error</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-red-400">
+              <AlertCircle size={16} />
+              <span className="text-sm font-semibold">Error</span>
+            </div>
+            <button
+              onClick={clearError}
+              className="p-1 hover:bg-red-500/20 rounded transition-colors"
+              aria-label="Dismiss error"
+            >
+              <X size={14} className="text-red-400" />
+            </button>
           </div>
           <p className="text-sm text-red-300 mt-1">{error}</p>
+          {lastFailedMessage && (
+            <button
+              onClick={retry}
+              disabled={!isConnected || isStreaming}
+              className="mt-2 flex items-center gap-2 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 text-sm font-medium rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <RefreshCw size={14} />
+              Retry with current model
+            </button>
+          )}
         </div>
       )}
 
@@ -393,37 +566,39 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 
   return (
     <div
-      className={`rounded-r-lg px-4 py-3 ${
+      className={`rounded-r-lg px-4 py-4 ${
         isUser
           ? 'bg-cyan-600/20 border-l-2 border-cyan-500'
           : 'bg-gray-900 border-l-2 border-gray-600'
       }`}
     >
-      <div className={`text-sm ${isUser ? 'text-gray-100' : 'text-gray-300'}`}>
+      <div className={`${isUser ? 'text-gray-100' : 'text-gray-300'}`}>
         {isUser ? (
-          message.content
+          <div className="text-base leading-relaxed">{message.content}</div>
         ) : (
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            components={{
-              code({ node, inline, className, children, ...props }: any) {
-                const match = /language-(\w+)/.exec(className || '')
-                const codeString = String(children).replace(/\n$/, '')
-                return !inline && match ? (
-                  <CodeBlock code={codeString} language={match[1]} />
-                ) : (
-                  <code
-                    className="bg-gray-800 px-1 py-0.5 rounded text-cyan-300 font-mono text-sm"
-                    {...props}
-                  >
-                    {children}
-                  </code>
-                )
-              },
-            }}
-          >
-            {message.content}
-          </ReactMarkdown>
+          <div className="prose prose-invert prose-sm max-w-none prose-p:text-base prose-p:leading-relaxed prose-p:my-3 prose-headings:text-gray-100 prose-strong:text-gray-100 prose-li:text-base prose-li:leading-relaxed">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                code({ node, inline, className, children, ...props }: any) {
+                  const match = /language-(\w+)/.exec(className || '')
+                  const codeString = String(children).replace(/\n$/, '')
+                  return !inline && match ? (
+                    <CodeBlock code={codeString} language={match[1]} />
+                  ) : (
+                    <code
+                      className="bg-gray-800 px-1.5 py-0.5 rounded text-cyan-300 font-mono text-sm"
+                      {...props}
+                    >
+                      {children}
+                    </code>
+                  )
+                },
+              }}
+            >
+              {message.content}
+            </ReactMarkdown>
+          </div>
         )}
       </div>
     </div>

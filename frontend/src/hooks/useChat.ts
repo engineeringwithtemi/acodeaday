@@ -74,8 +74,9 @@ export function useUpdateSession() {
     mutationFn: ({ sessionId, request }: { sessionId: string; request: UpdateSessionRequest }) =>
       apiPatch<ChatSession>(`/api/chat/session/${sessionId}`, request),
     onSuccess: (data) => {
-      // Invalidate this specific session
+      // Invalidate this specific session and sessions list (for title updates in dropdown)
       queryClient.invalidateQueries({ queryKey: ['chat', 'session', data.id] })
+      queryClient.invalidateQueries({ queryKey: ['chat', 'sessions'] })
     },
   })
 }
@@ -88,9 +89,11 @@ export function useDeleteSession() {
 
   return useMutation({
     mutationFn: (sessionId: string) => apiDelete(`/api/chat/session/${sessionId}`),
-    onSuccess: () => {
+    onSuccess: (_, sessionId) => {
       // Invalidate all sessions queries
       queryClient.invalidateQueries({ queryKey: ['chat', 'sessions'] })
+      // Remove the deleted session from cache
+      queryClient.removeQueries({ queryKey: ['chat', 'session', sessionId] })
     },
   })
 }
@@ -104,11 +107,19 @@ export function useWebSocketChat(sessionId: string | null) {
   const [streamingContent, setStreamingContent] = useState('')
   const [pendingMessage, setPendingMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [lastFailedMessage, setLastFailedMessage] = useState<{
+    content: string
+    code?: string
+    testResults?: any
+  } | null>(null)
 
   const wsRef = useRef<WebSocket | null>(null)
+  const isLLMErrorRef = useRef(false) // Track if error is from LLM (not connection)
+  const lastSentMessageRef = useRef<{ content: string; code?: string; testResults?: any } | null>(null)
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const reconnectAttemptsRef = useRef(0)
   const sessionIdRef = useRef(sessionId)
+  const intentionalCloseRef = useRef(false)
   const queryClient = useQueryClient()
 
   // Keep sessionId ref in sync
@@ -122,6 +133,7 @@ export function useWebSocketChat(sessionId: string | null) {
       reconnectTimeoutRef.current = null
     }
     if (wsRef.current) {
+      intentionalCloseRef.current = true
       wsRef.current.close()
       wsRef.current = null
     }
@@ -139,8 +151,9 @@ export function useWebSocketChat(sessionId: string | null) {
         return
       }
 
-      // Close existing connection
+      // Close existing connection (mark as intentional to prevent auto-reconnect)
       if (wsRef.current) {
+        intentionalCloseRef.current = true
         wsRef.current.close()
         wsRef.current = null
       }
@@ -150,8 +163,12 @@ export function useWebSocketChat(sessionId: string | null) {
 
       ws.onopen = () => {
         setIsConnected(true)
-        setError(null)
+        // Only clear connection errors, not LLM errors (user may want to retry with different model)
+        if (!isLLMErrorRef.current) {
+          setError(null)
+        }
         reconnectAttemptsRef.current = 0
+        intentionalCloseRef.current = false
       }
 
       ws.onmessage = (event) => {
@@ -167,6 +184,11 @@ export function useWebSocketChat(sessionId: string | null) {
           queryClient.invalidateQueries({ queryKey: ['chat', 'session', currentSessionId] })
         } else if (response.type === 'error') {
           setError(response.error || 'Unknown error')
+          isLLMErrorRef.current = true // Mark as LLM error so it persists across reconnect
+          // Save the failed message for retry
+          if (lastSentMessageRef.current) {
+            setLastFailedMessage(lastSentMessageRef.current)
+          }
           setIsStreaming(false)
           setStreamingContent('')
           setPendingMessage(null)
@@ -182,8 +204,9 @@ export function useWebSocketChat(sessionId: string | null) {
         setIsConnected(false)
         setIsStreaming(false)
 
-        // Only auto-reconnect if sessionId hasn't changed and not unauthorized
+        // Only auto-reconnect if not intentional close, sessionId hasn't changed, and not unauthorized
         if (
+          !intentionalCloseRef.current &&
           event.code !== 4001 &&
           reconnectAttemptsRef.current < 5 &&
           sessionIdRef.current === currentSessionId
@@ -220,11 +243,17 @@ export function useWebSocketChat(sessionId: string | null) {
         test_results: testResults,
       }
 
+      // Store message for potential retry
+      lastSentMessageRef.current = { content, code: currentCode, testResults }
+
       wsRef.current.send(JSON.stringify(message))
       setPendingMessage(content)
       setIsStreaming(true)
       setStreamingContent('')
+      // Clear previous error and failed message state
       setError(null)
+      isLLMErrorRef.current = false
+      setLastFailedMessage(null)
     },
     []
   )
@@ -240,6 +269,18 @@ export function useWebSocketChat(sessionId: string | null) {
     setIsStreaming(false)
     setStreamingContent('')
     setPendingMessage(null)
+  }, [])
+
+  const retry = useCallback(() => {
+    if (!lastFailedMessage) return
+
+    sendMessage(lastFailedMessage.content, lastFailedMessage.code, lastFailedMessage.testResults)
+  }, [lastFailedMessage, sendMessage])
+
+  const clearError = useCallback(() => {
+    setError(null)
+    isLLMErrorRef.current = false
+    setLastFailedMessage(null)
   }, [])
 
   // Connect when sessionId changes
@@ -263,8 +304,11 @@ export function useWebSocketChat(sessionId: string | null) {
     streamingContent,
     pendingMessage,
     error,
+    lastFailedMessage,
     sendMessage,
     cancelStream,
+    retry,
+    clearError,
     reconnect: connect,
   }
 }

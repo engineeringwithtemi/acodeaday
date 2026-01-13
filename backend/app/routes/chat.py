@@ -105,6 +105,7 @@ async def create_chat_session(
             problem_id=problem.id,
             mode=request.mode,
             model=request.model,
+            title=request.title,
         )
 
         return session

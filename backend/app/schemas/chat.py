@@ -16,6 +16,7 @@ class CreateSessionRequest(BaseModel):
     problem_slug: str
     mode: ChatMode = Field(default=ChatMode.SOCRATIC)
     model: str | None = Field(default=None, description="LLM model (uses default if None)")
+    title: str | None = Field(default=None, max_length=100, description="Optional session title")
 
 
 class UpdateSessionRequest(BaseModel):

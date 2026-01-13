@@ -34,6 +34,7 @@ class ProblemLanguageSchema(BaseModel):
     id: UUID
     language: Language
     starter_code: str
+    reference_solution: str
     function_signature: dict
 
     model_config = {"from_attributes": True}

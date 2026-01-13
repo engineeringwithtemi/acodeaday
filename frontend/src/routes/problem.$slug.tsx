@@ -10,6 +10,7 @@ import { TestResults } from '@/components/TestResults'
 import { SubmissionsPanel } from '@/components/SubmissionsPanel'
 import { SubmissionResultPanel } from '@/components/SubmissionResultPanel'
 import { ChatPanel } from '@/components/ChatPanel'
+import { SolutionsPanel } from '@/components/SolutionsPanel'
 import Editor from '@monaco-editor/react'
 import { useQueryClient } from '@tanstack/react-query'
 import type { RunCodeResponse, SubmitCodeResponse, SubmissionSchema, TestResult } from '@/types/api'
@@ -31,13 +32,15 @@ function ProblemSolver() {
   const [language] = useState('python')
   const [testResults, setTestResults] = useState<RunCodeResponse | SubmitCodeResponse | null>(null)
   const [isRunning, setIsRunning] = useState(false)
-  const [leftPaneTab, setLeftPaneTab] = useState<'description' | 'submissions'>('description')
+  const [leftPaneTab, setLeftPaneTab] = useState<'description' | 'submissions' | 'solutions'>('description')
   const [bottomPaneTab, setBottomPaneTab] = useState<'testcase' | 'result'>('testcase')
   const [customInputs, setCustomInputs] = useState<any[][]>([])
   const [showSubmissionResult, setShowSubmissionResult] = useState(false)
   const [submissionResult, setSubmissionResult] = useState<SubmitCodeResponse | null>(null)
   const [submittedCode, setSubmittedCode] = useState<string>('')
   const [showAIChat, setShowAIChat] = useState(false)
+  const [chatInitialMessage, setChatInitialMessage] = useState<string | null>(null)
+  const [chatInitialTitle, setChatInitialTitle] = useState<string | null>(null)
 
   // Get starter code from problem data
   const starterCode = problem?.languages?.[0]?.starter_code || ''
@@ -199,6 +202,36 @@ function ProblemSolver() {
     setShowSubmissionResult(true)
   }
 
+  // Handle loading reference solution to editor
+  const handleLoadSolutionToEditor = (solutionCode: string, solutionLanguage: string) => {
+    if (!confirm('Load reference solution to editor? Your current code will be replaced.')) return
+    setCode(solutionCode)
+    // Save to server
+    saveCode.mutate({
+      problem_slug: slug,
+      language: solutionLanguage,
+      code: solutionCode,
+    })
+  }
+
+  // Handle asking AI about a solution
+  const handleAskAIAboutSolution = (solutionCode: string, solutionLanguage: string) => {
+    const message = `Please explain this reference solution step by step. Help me understand the approach, time/space complexity, and any key insights:
+
+\`\`\`${solutionLanguage}
+${solutionCode}
+\`\`\``
+    setChatInitialMessage(message)
+    setChatInitialTitle('Reference Solution Help')
+    setShowAIChat(true)
+  }
+
+  // Clear initial message after it's been sent
+  const handleInitialMessageSent = () => {
+    setChatInitialMessage(null)
+    setChatInitialTitle(null)
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -253,16 +286,32 @@ function ProblemSolver() {
               >
                 Submissions
               </button>
+              <button
+                onClick={() => setLeftPaneTab('solutions')}
+                className={`px-4 py-2 text-sm font-semibold ${
+                  leftPaneTab === 'solutions'
+                    ? 'text-cyan-400 border-b-2 border-cyan-400'
+                    : 'text-gray-400 hover:text-gray-300'
+                }`}
+              >
+                Solutions
+              </button>
             </div>
 
             {/* Tab Content */}
             <div className="flex-1 overflow-hidden">
               {leftPaneTab === 'description' ? (
                 <ProblemDescription problem={problem} />
-              ) : (
+              ) : leftPaneTab === 'submissions' ? (
                 <SubmissionsPanel
                   problemId={problem.id}
                   onSubmissionClick={handleSubmissionClick}
+                />
+              ) : (
+                <SolutionsPanel
+                  languages={problem.languages || []}
+                  onLoadToEditor={handleLoadSolutionToEditor}
+                  onAskAI={handleAskAIAboutSolution}
                 />
               )}
             </div>
@@ -418,6 +467,9 @@ function ProblemSolver() {
               currentCode={code}
               testResults={testResults}
               onClose={() => setShowAIChat(false)}
+              initialMessage={chatInitialMessage}
+              initialSessionTitle={chatInitialTitle}
+              onInitialMessageSent={handleInitialMessageSent}
             />
           </Allotment.Pane>
         )}

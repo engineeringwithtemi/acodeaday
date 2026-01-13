@@ -21,6 +21,7 @@ async def create_session(
     problem_id: uuid.UUID,
     mode: ChatMode,
     model: str | None = None,
+    title: str | None = None,
 ) -> ChatSession:
     """
     Create a new chat session.
@@ -31,18 +32,20 @@ async def create_session(
         problem_id: Problem UUID
         mode: Chat mode (socratic or direct)
         model: LLM model to use (None = default)
+        title: Optional session title (auto-generated if None)
 
     Returns:
         Created ChatSession
     """
-    # Count existing sessions for this user/problem to generate title
-    result = await db.execute(
-        select(func.count(ChatSession.id))
-        .where(ChatSession.user_id == user_id)
-        .where(ChatSession.problem_id == problem_id)
-    )
-    session_count = result.scalar() or 0
-    default_title = f"acadAI Chat {session_count + 1}"
+    # Use provided title or generate default
+    if not title:
+        result = await db.execute(
+            select(func.count(ChatSession.id))
+            .where(ChatSession.user_id == user_id)
+            .where(ChatSession.problem_id == problem_id)
+        )
+        session_count = result.scalar() or 0
+        title = f"acadAI Chat {session_count + 1}"
 
     session = ChatSession(
         user_id=user_id,
@@ -50,13 +53,13 @@ async def create_session(
         mode=mode,
         model=model,
         is_active=True,
-        title=default_title,
+        title=title,
     )
     db.add(session)
     await db.commit()
     await db.refresh(session)
 
-    logger.info("chat_session_created", session_id=str(session.id), mode=mode, model=model, title=default_title)
+    logger.info("chat_session_created", session_id=str(session.id), mode=mode, model=model, title=title)
     return session
 
 
@@ -313,12 +316,12 @@ async def stream_response(
         history_messages: list[LLMMessage] = []
         messages = sorted(session.messages, key=lambda m: m.created_at)
 
-        # Add context as first user message if no prior messages (excluding the one we just added)
+        # First message: include context + user message
         if len(messages) == 1:  # Only the message we just added
-            history_messages.append(LLMMessage(role="user", content=context_msg))
-            history_messages.append(LLMMessage(role="user", content=user_message))
+            history_messages.append(LLMMessage(role="user", content=f"{context_msg}\n\n---\n\n{user_message}"))
         else:
-            # Add last 20 messages (excluding system messages and the one we just added)
+            # Subsequent messages: add conversation history, then current message
+            # The first message in history already contains the context
             for msg in messages[-21:-1]:  # -1 to exclude the message we just added
                 if msg.role != MessageRole.SYSTEM:
                     history_messages.append(
@@ -327,8 +330,8 @@ async def stream_response(
                             content=msg.content,
                         )
                     )
-            # Add current context and user message
-            history_messages.append(LLMMessage(role="user", content=f"{context_msg}\n\n---\n\n{user_message}"))
+            # Add current user message (no context needed, it's in the first message)
+            history_messages.append(LLMMessage(role="user", content=user_message))
 
         # Stream LLM response
         assistant_content = ""

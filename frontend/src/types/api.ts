@@ -275,6 +275,7 @@ export interface CreateSessionRequest {
   problem_slug: string
   mode?: ChatMode
   model?: string | null
+  title?: string | null
 }
 
 export interface UpdateSessionRequest {
