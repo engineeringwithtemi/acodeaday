@@ -5,9 +5,10 @@ from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.config.logging import get_logger
-from app.db.tables import Problem, UserProgress
+from app.db.tables import Problem, Submission, UserProgress
 
 logger = get_logger(__name__)
 
@@ -258,15 +259,47 @@ async def get_user_progress_stats(db: AsyncSession, user_id: str) -> dict:
     }
 
 
-async def get_mastered_problems(
+async def get_all_problems_with_progress(
     db: AsyncSession, user_id: str
-) -> list[tuple[Problem, UserProgress]]:
+) -> list[tuple[Problem, UserProgress | None]]:
     """
-    Get all mastered problems for a user.
+    Get all problems with their user progress (if any).
+
+    Returns all problems ordered by sequence_number, with user progress
+    joined where available (None for unsolved problems).
 
     Returns:
-        List of (Problem, UserProgress) tuples
+        List of (Problem, UserProgress | None) tuples
     """
+    # Get all problems
+    result = await db.execute(
+        select(Problem).order_by(Problem.sequence_number.asc())
+    )
+    all_problems = result.scalars().all()
+
+    # Get user's progress for all problems
+    result = await db.execute(
+        select(UserProgress).where(UserProgress.user_id == user_id)
+    )
+    progress_list = result.scalars().all()
+
+    # Create a lookup dict by problem_id
+    progress_by_problem = {p.problem_id: p for p in progress_list}
+
+    # Combine problems with their progress (None if not started)
+    return [(problem, progress_by_problem.get(problem.id)) for problem in all_problems]
+
+
+async def get_mastered_problems(
+    db: AsyncSession, user_id: str
+) -> list[tuple[Problem, UserProgress, Submission | None]]:
+    """
+    Get all mastered problems for a user with their last submission.
+
+    Returns:
+        List of (Problem, UserProgress, Submission | None) tuples
+    """
+    # Get mastered problems with progress
     result = await db.execute(
         select(Problem, UserProgress)
         .join(UserProgress, Problem.id == UserProgress.problem_id)
@@ -274,7 +307,34 @@ async def get_mastered_problems(
         .where(UserProgress.is_mastered.is_(True))
         .order_by(UserProgress.last_solved_at.desc())
     )
-    return result.all()
+    mastered_data = result.all()
+
+    if not mastered_data:
+        return []
+
+    # Get the last passing submission for each mastered problem
+    problem_ids = [problem.id for problem, _ in mastered_data]
+
+    # For each problem, get the most recent passing submission
+    submissions_by_problem = {}
+    for problem_id in problem_ids:
+        result = await db.execute(
+            select(Submission)
+            .where(Submission.user_id == user_id)
+            .where(Submission.problem_id == problem_id)
+            .where(Submission.passed.is_(True))
+            .order_by(Submission.submitted_at.desc())
+            .limit(1)
+        )
+        submission = result.scalar_one_or_none()
+        if submission:
+            submissions_by_problem[problem_id] = submission
+
+    # Combine into tuples
+    return [
+        (problem, progress, submissions_by_problem.get(problem.id))
+        for problem, progress in mastered_data
+    ]
 
 
 async def mark_show_again(

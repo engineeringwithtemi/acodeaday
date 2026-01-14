@@ -144,12 +144,60 @@ export interface SubmissionResult {
   user_progress: UserProgress
 }
 
-export interface MasteredProblem {
-  problem: Problem
-  user_progress: UserProgress
-  last_submission: Submission | null
+// --- Types for /api/progress and /api/mastered endpoints ---
+
+// Basic problem info (for progress/mastered lists)
+export interface ProblemBasic {
+  id: string
+  title: string
+  slug: string
+  difficulty: 'easy' | 'medium' | 'hard'
+  pattern: string
+  sequence_number: number
 }
 
+// Basic user progress info (for progress/mastered lists)
+export interface UserProgressBasic {
+  times_solved: number
+  last_solved_at: string | null
+  next_review_date: string | null
+  is_mastered: boolean
+  show_again: boolean
+}
+
+// Basic submission info (for mastered list)
+export interface SubmissionBasic {
+  id: string
+  code: string
+  language: string
+  passed: boolean
+  runtime_ms: number | null
+  memory_kb: number | null
+  submitted_at: string
+}
+
+// Problem with progress (for /api/progress)
+export interface ProblemWithProgress {
+  problem: ProblemBasic
+  user_progress: UserProgressBasic | null
+}
+
+// Response from /api/progress
+export interface ProgressResponse {
+  problems: ProblemWithProgress[]
+  total_problems: number
+  completed_problems: number
+  mastered_problems: number
+}
+
+// Mastered problem (for /api/mastered)
+export interface MasteredProblem {
+  problem: ProblemBasic
+  user_progress: UserProgressBasic
+  last_submission: SubmissionBasic | null
+}
+
+// Response from /api/mastered
 export interface MasteredProblemsResponse {
   mastered_problems: MasteredProblem[]
 }

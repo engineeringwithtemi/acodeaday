@@ -21,7 +21,7 @@ function MasteredProblems() {
   const queryClient = useQueryClient()
 
   const showAgainMutation = useMutation({
-    mutationFn: (problemId: number) =>
+    mutationFn: (problemId: string) =>
       apiPost(`/api/mastered/${problemId}/show-again`, {}),
     onSuccess: () => {
       // Invalidate both mastered and today queries to refresh the lists
@@ -30,7 +30,7 @@ function MasteredProblems() {
     },
   })
 
-  const handleShowAgain = async (problemId: number, e: React.MouseEvent) => {
+  const handleShowAgain = async (problemId: string, e: React.MouseEvent) => {
     e.preventDefault() // Prevent navigation to problem page
     try {
       await showAgainMutation.mutateAsync(problemId)
@@ -130,7 +130,7 @@ function MasteredProblems() {
 
 interface MasteredProblemCardProps {
   masteredProblem: MasteredProblem
-  onShowAgain: (problemId: number, e: React.MouseEvent) => Promise<void>
+  onShowAgain: (problemId: string, e: React.MouseEvent) => Promise<void>
   isLoading: boolean
 }
 

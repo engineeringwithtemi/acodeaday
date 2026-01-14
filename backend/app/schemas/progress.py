@@ -56,24 +56,11 @@ class TodaySessionResponse(BaseModel):
     total_solved: int = Field(..., description="Total problems solved at least once")
 
 
-class ProgressResponse(BaseModel):
-    """Overview of user's progress across all Blind 75."""
-
-    total_problems: int = Field(..., description="Total problems in dataset (75)")
-    solved_count: int = Field(..., description="Problems solved at least once")
-    mastered_count: int = Field(..., description="Problems mastered (solved 2x)")
-    in_progress_count: int = Field(..., description="Problems solved once, not mastered")
-    unsolved_count: int = Field(..., description="Problems never attempted")
-    due_for_review: int = Field(..., description="Problems due for review today")
-
-    problems_by_difficulty: dict[str, int] = Field(
-        ..., description="Breakdown by difficulty"
-    )
-    problems_by_pattern: dict[str, int] = Field(..., description="Breakdown by pattern")
+# --- Schemas for /api/progress endpoint ---
 
 
-class MasteredProblemSchema(BaseModel):
-    """Schema for mastered problems list."""
+class ProblemBasicSchema(BaseModel):
+    """Basic problem info for progress list."""
 
     id: UUID
     title: str
@@ -81,11 +68,66 @@ class MasteredProblemSchema(BaseModel):
     difficulty: Difficulty
     pattern: str
     sequence_number: int
-    times_solved: int
-    last_solved_at: datetime
-    show_again: bool  # Whether user wants to review again
 
     model_config = {"from_attributes": True}
+
+
+class UserProgressBasicSchema(BaseModel):
+    """User progress info for progress list."""
+
+    times_solved: int
+    last_solved_at: datetime | None
+    next_review_date: date | None
+    is_mastered: bool
+    show_again: bool
+
+    model_config = {"from_attributes": True}
+
+
+class ProblemWithProgressSchema(BaseModel):
+    """Problem with its user progress (nested structure for frontend)."""
+
+    problem: ProblemBasicSchema
+    user_progress: UserProgressBasicSchema | None
+
+
+class ProgressResponse(BaseModel):
+    """Overview of user's progress across all Blind 75."""
+
+    problems: list[ProblemWithProgressSchema] = Field(
+        ..., description="All problems with user progress"
+    )
+    total_problems: int = Field(..., description="Total problems in dataset (75)")
+    completed_problems: int = Field(..., description="Problems solved at least once")
+    mastered_problems: int = Field(..., description="Problems mastered (solved 2x)")
+
+
+class SubmissionBasicSchema(BaseModel):
+    """Basic submission info for mastered problems."""
+
+    id: UUID
+    code: str
+    language: str
+    passed: bool
+    runtime_ms: int | None
+    memory_kb: int | None
+    submitted_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class MasteredProblemSchema(BaseModel):
+    """Schema for mastered problems list (nested structure for frontend)."""
+
+    problem: ProblemBasicSchema
+    user_progress: UserProgressBasicSchema
+    last_submission: SubmissionBasicSchema | None
+
+
+class MasteredProblemsResponse(BaseModel):
+    """Response wrapper for mastered problems list."""
+
+    mastered_problems: list[MasteredProblemSchema]
 
 
 class SubmissionSchema(BaseModel):

@@ -9,12 +9,18 @@ from app.db.connection import get_db
 from app.middleware.auth import get_current_user
 from app.schemas.progress import (
     MasteredProblemSchema,
+    MasteredProblemsResponse,
+    ProblemBasicSchema,
     ProblemProgressSchema,
+    ProblemWithProgressSchema,
     ProgressResponse,
     ShowAgainResponse,
+    SubmissionBasicSchema,
     TodaySessionResponse,
+    UserProgressBasicSchema,
 )
 from app.services.progress import (
+    get_all_problems_with_progress,
     get_mastered_problems,
     get_todays_problems,
     get_user_progress_stats,
@@ -93,25 +99,58 @@ async def get_progress(
     """
     Get user's overall progress across all Blind 75 problems.
 
-    Returns counts, breakdowns by difficulty/pattern, and due for review count.
+    Returns all problems with user progress, plus summary counts.
     """
     user_id = user["id"]
 
-    stats = await get_user_progress_stats(db, user_id)
+    # Get all problems with progress
+    problems_with_progress = await get_all_problems_with_progress(db, user_id)
+
+    # Build problem list with nested structure
+    problems_list = []
+    completed_count = 0
+    mastered_count = 0
+
+    for problem, progress in problems_with_progress:
+        problem_schema = ProblemBasicSchema(
+            id=problem.id,
+            title=problem.title,
+            slug=problem.slug,
+            difficulty=problem.difficulty,
+            pattern=problem.pattern,
+            sequence_number=problem.sequence_number,
+        )
+
+        progress_schema = None
+        if progress:
+            progress_schema = UserProgressBasicSchema(
+                times_solved=progress.times_solved,
+                last_solved_at=progress.last_solved_at,
+                next_review_date=progress.next_review_date,
+                is_mastered=progress.is_mastered,
+                show_again=progress.show_again,
+            )
+            if progress.times_solved > 0:
+                completed_count += 1
+            if progress.is_mastered:
+                mastered_count += 1
+
+        problems_list.append(
+            ProblemWithProgressSchema(
+                problem=problem_schema,
+                user_progress=progress_schema,
+            )
+        )
 
     return ProgressResponse(
-        total_problems=stats["total_problems"],
-        solved_count=stats["solved_count"],
-        mastered_count=stats["mastered_count"],
-        in_progress_count=stats["in_progress_count"],
-        unsolved_count=stats["unsolved_count"],
-        due_for_review=stats["due_for_review"],
-        problems_by_difficulty=stats["problems_by_difficulty"],
-        problems_by_pattern=stats["problems_by_pattern"],
+        problems=problems_list,
+        total_problems=len(problems_with_progress),
+        completed_problems=completed_count,
+        mastered_problems=mastered_count,
     )
 
 
-@router.get("/mastered", response_model=list[MasteredProblemSchema])
+@router.get("/mastered", response_model=MasteredProblemsResponse)
 async def get_mastered(
     user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -119,26 +158,52 @@ async def get_mastered(
     """
     Get list of all mastered problems.
 
-    Returns problems with mastery info, sorted by most recently solved.
+    Returns problems with mastery info and last submission, sorted by most recently solved.
     """
     user_id = user["id"]
 
     mastered = await get_mastered_problems(db, user_id)
 
-    return [
-        MasteredProblemSchema(
+    mastered_list = []
+    for problem, progress, last_submission in mastered:
+        problem_schema = ProblemBasicSchema(
             id=problem.id,
             title=problem.title,
             slug=problem.slug,
             difficulty=problem.difficulty,
             pattern=problem.pattern,
             sequence_number=problem.sequence_number,
+        )
+
+        progress_schema = UserProgressBasicSchema(
             times_solved=progress.times_solved,
             last_solved_at=progress.last_solved_at,
+            next_review_date=progress.next_review_date,
+            is_mastered=progress.is_mastered,
             show_again=progress.show_again,
         )
-        for problem, progress in mastered
-    ]
+
+        submission_schema = None
+        if last_submission:
+            submission_schema = SubmissionBasicSchema(
+                id=last_submission.id,
+                code=last_submission.code,
+                language=last_submission.language.value,
+                passed=last_submission.passed,
+                runtime_ms=last_submission.runtime_ms,
+                memory_kb=last_submission.memory_kb,
+                submitted_at=last_submission.submitted_at,
+            )
+
+        mastered_list.append(
+            MasteredProblemSchema(
+                problem=problem_schema,
+                user_progress=progress_schema,
+                last_submission=submission_schema,
+            )
+        )
+
+    return MasteredProblemsResponse(mastered_problems=mastered_list)
 
 
 @router.post("/mastered/{problem_id}/show-again", response_model=ShowAgainResponse)

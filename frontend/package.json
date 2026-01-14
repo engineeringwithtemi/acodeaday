@@ -6,7 +6,8 @@
     "dev": "vite dev --port 3000",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "generate-types": "openapi-typescript http://localhost:8000/openapi.json -o src/types/api.generated.ts"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
@@ -34,6 +35,7 @@
     "vite-tsconfig-paths": "^6.0.2"
   },
   "devDependencies": {
+    "openapi-typescript": "^7.4.4",
     "@tanstack/devtools-vite": "^0.3.11",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/react": "^16.2.0",
