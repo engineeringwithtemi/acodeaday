@@ -4,7 +4,7 @@ import enum
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, Enum, ForeignKey, Index, Integer, String, Text, func
+from sqlalchemy import Boolean, Date, Enum, Float, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -177,12 +177,17 @@ class UserProgress(Base):
         ForeignKey("problems.id", ondelete="CASCADE"), nullable=False
     )
 
-    # Spaced repetition fields
+    # Spaced repetition fields (legacy - kept for backwards compatibility)
     times_solved: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     last_solved_at: Mapped[datetime | None] = mapped_column(nullable=True)
     next_review_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     is_mastered: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     show_again: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    # Anki SM-2 algorithm fields
+    ease_factor: Mapped[float] = mapped_column(Float, default=2.5, nullable=False)
+    interval_days: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    review_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 

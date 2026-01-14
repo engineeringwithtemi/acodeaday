@@ -23,11 +23,11 @@
       "Bash(ls:*)",
       "mcp__playwriter__execute",
       "mcp__playwriter__reset",
-      "Bash(/Users/to/.claude/plugins/marketplaces/claude-code-plugins/plugins/ralph-wiggum/scripts/*)",
       "Bash(lsof:*)",
       "Bash(pkill:*)",
       "Bash(grep:*)",
-      "Bash(git worktree:*)"
+      "Bash(git worktree:*)",
+      "Bash(npm run dev:*)"
     ],
     "deny": [],
     "ask": []

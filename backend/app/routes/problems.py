@@ -1,12 +1,14 @@
 """API routes for problems."""
 
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from app.db.connection import get_db
-from app.db.tables import Problem, UserCode
+from app.db.tables import Problem, UserCode, UserProgress
 from app.middleware.auth import get_current_user
 from app.schemas.problem import ProblemDetailSchema, ProblemSchema
 
@@ -53,7 +55,23 @@ async def get_problem(
     sorted_test_cases = sorted(problem.test_cases, key=lambda tc: tc.sequence)
     first_three_test_cases = sorted_test_cases[:3]
 
-    # Query user's saved code for this problem
+    # Check if problem is due for review
+    progress_result = await db.execute(
+        select(UserProgress).where(
+            UserProgress.user_id == user_id,
+            UserProgress.problem_id == problem.id,
+        )
+    )
+    progress = progress_result.scalar_one_or_none()
+
+    # Problem is "due" if user has progress AND not mastered AND next_review_date <= today
+    today = datetime.now(UTC).date()
+    is_due_for_review = False
+    if progress and not progress.is_mastered:
+        if progress.next_review_date and progress.next_review_date <= today:
+            is_due_for_review = True
+
+    # Query user's saved code for this problem (always return it, frontend decides display)
     user_code_result = await db.execute(
         select(UserCode).where(
             UserCode.user_id == user_id,
@@ -78,4 +96,5 @@ async def get_problem(
         languages=problem.languages,
         test_cases=first_three_test_cases,
         user_code=saved_code,
+        is_due=is_due_for_review,
     )

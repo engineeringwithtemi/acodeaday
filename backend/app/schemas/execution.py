@@ -65,7 +65,29 @@ class SubmitCodeResponse(BaseModel):
     compile_error: str | None = Field(None, description="Compilation errors if any")
     runtime_error: str | None = Field(None, description="Runtime errors if any")
 
-    # Progress update (if submission passed)
+    # Anki spaced repetition fields
+    needs_rating: bool = Field(False, description="Whether user needs to rate difficulty")
     times_solved: int | None = Field(None, description="Number of times solved")
-    is_mastered: bool | None = Field(None, description="Whether problem is now mastered")
+    is_mastered: bool | None = Field(None, description="Whether problem is mastered")
     next_review_date: str | None = Field(None, description="Next review date (ISO format)")
+    interval_days: int | None = Field(None, description="Current interval in days")
+    ease_factor: float | None = Field(None, description="Current ease factor")
+
+
+class RatingRequest(BaseModel):
+    """Request to rate a submission difficulty."""
+
+    problem_slug: str = Field(..., description="Problem slug identifier")
+    rating: str = Field(..., description="Difficulty rating: again, hard, good, or mastered")
+
+
+class RatingResponse(BaseModel):
+    """Response from rating a submission."""
+
+    success: bool = Field(..., description="Whether rating was applied")
+    interval_days: int = Field(..., description="New interval in days until next review")
+    ease_factor: float = Field(..., description="Updated ease factor")
+    next_review_date: str | None = Field(None, description="Next review date (ISO format)")
+    is_mastered: bool = Field(..., description="Whether problem is now mastered")
+    review_count: int = Field(..., description="Total number of reviews")
+    times_solved: int = Field(..., description="Total times solved")

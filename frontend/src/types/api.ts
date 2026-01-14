@@ -38,6 +38,8 @@ export interface Problem {
   updated_at?: string
   // User's saved code (from user_code table) - null means use starter_code
   user_code?: string | null
+  // Whether this problem is due for review (frontend uses this to decide initial code)
+  is_due?: boolean
 }
 
 export interface ProblemExample {
@@ -262,9 +264,31 @@ export interface SubmitCodeResponse {
   memory_kb?: number
   compile_error?: string
   runtime_error?: string
+  // Anki spaced repetition fields
+  needs_rating?: boolean      // If true, show rating buttons
   times_solved?: number
   is_mastered?: boolean
   next_review_date?: string
+  interval_days?: number
+  ease_factor?: number
+}
+
+// Rating types for Anki-style spaced repetition
+export type Rating = 'again' | 'hard' | 'good' | 'mastered'
+
+export interface RatingRequest {
+  problem_slug: string
+  rating: Rating
+}
+
+export interface RatingResponse {
+  success: boolean
+  interval_days: number
+  ease_factor: number
+  next_review_date: string | null
+  is_mastered: boolean
+  review_count: number
+  times_solved: number
 }
 
 // Submission history schema

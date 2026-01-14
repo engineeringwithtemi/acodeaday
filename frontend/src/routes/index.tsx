@@ -97,7 +97,7 @@ function Dashboard() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {reviewProblems.map((problem) => (
-                <ProblemCard key={problem.problem.id} problem={problem} type="review" />
+                <ProblemCard key={problem.id} problem={problem} type="review" />
               ))}
             </div>
           </div>
