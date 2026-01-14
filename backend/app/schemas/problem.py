@@ -78,6 +78,9 @@ class ProblemDetailSchema(BaseModel):
     # User's saved code (if any) - populated from user_code table
     user_code: str | None = None
 
+    # Whether this problem is due for review (frontend uses this to decide initial code)
+    is_due: bool = False
+
     model_config = {"from_attributes": True}
 
     @field_validator("examples", mode="before")

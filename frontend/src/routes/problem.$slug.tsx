@@ -45,8 +45,22 @@ function ProblemSolver() {
   // Get starter code from problem data
   const starterCode = problem?.languages?.[0]?.starter_code || ''
 
-  // Get initial code: user's saved code or starter code
-  const initialCode = problem?.user_code ?? starterCode
+  // Track if we've already handled the initial "due" state for this problem
+  // This prevents clearing the editor on subsequent refetches after user actions
+  const hasHandledDueState = useRef(false)
+
+  // Get initial code:
+  // - If problem is due for review, show starter code (spaced repetition: fresh start)
+  // - Otherwise, show user's saved code or starter code
+  const getInitialCode = () => {
+    if (!problem) return starterCode
+    if (problem.is_due && !hasHandledDueState.current) {
+      return starterCode
+    }
+    return problem.user_code ?? starterCode
+  }
+
+  const initialCode = getInitialCode()
 
   // Track code in state
   const [code, setCode] = useState(initialCode)
@@ -57,11 +71,21 @@ function ProblemSolver() {
   // Update code when problem data changes (e.g., after reset or load submission)
   useEffect(() => {
     if (problem) {
-      const newCode = problem.user_code ?? starterCode
-      setCode(newCode)
-      lastSavedCode.current = newCode // Track what was loaded from server
+      // On first load of a due problem, use starter code
+      if (problem.is_due && !hasHandledDueState.current) {
+        hasHandledDueState.current = true
+        setCode(starterCode)
+        lastSavedCode.current = starterCode
+      } else if (!hasHandledDueState.current) {
+        // First load of a non-due problem
+        hasHandledDueState.current = true
+        const newCode = problem.user_code ?? starterCode
+        setCode(newCode)
+        lastSavedCode.current = newCode
+      }
+      // After initial load, don't update code from query (user may have edited)
     }
-  }, [problem?.user_code, starterCode])
+  }, [problem?.id, problem?.is_due, problem?.user_code, starterCode])
 
   // Auto-save code to server with 500ms debounce
   useEffect(() => {
@@ -92,7 +116,9 @@ function ProblemSolver() {
         problem_slug: slug,
         language,
       })
-      // Code will update automatically when problem query is refetched
+      // Update local state directly (don't rely on query refetch)
+      setCode(starterCode)
+      lastSavedCode.current = starterCode
     } catch (err) {
       console.error('Reset code error:', err)
     }
@@ -106,8 +132,10 @@ function ProblemSolver() {
         code: submissionCode,
         language,
       })
+      // Update local state directly (don't rely on query refetch)
+      setCode(submissionCode)
+      lastSavedCode.current = submissionCode
       setShowSubmissionResult(false)
-      // Code will update automatically when problem query is refetched
     } catch (err) {
       console.error('Load submission code error:', err)
     }
@@ -481,6 +509,7 @@ ${solutionCode}
           result={submissionResult}
           code={submittedCode}
           language={language}
+          problemSlug={slug}
           functionSignature={problem.languages?.[0]?.function_signature}
           onClose={handleCloseSubmissionResult}
           onLoadCode={handleLoadSubmissionCode}

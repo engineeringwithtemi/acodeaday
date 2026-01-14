@@ -11,8 +11,65 @@ from app.db.tables import Problem, UserProgress
 
 logger = get_logger(__name__)
 
-# Spaced repetition constants
+# Spaced repetition constants (legacy)
 REVIEW_INTERVAL_DAYS = 7
+
+# Anki SM-2 algorithm constants
+DEFAULT_EASE_FACTOR = 2.5
+MIN_EASE_FACTOR = 1.3
+MASTERY_THRESHOLD_DAYS = 30  # Auto-master when interval reaches this
+
+# Valid ratings
+VALID_RATINGS = {"again", "hard", "good", "mastered"}
+
+
+def calculate_next_review(
+    current_interval: int,
+    ease_factor: float,
+    rating: str,
+) -> tuple[int, float, bool]:
+    """
+    Calculate next review interval using SM-2 algorithm.
+
+    Args:
+        current_interval: Current interval in days (0 for first review)
+        ease_factor: Current ease factor (default 2.5)
+        rating: User rating ("again", "hard", "good", "mastered")
+
+    Returns:
+        Tuple of (new_interval_days, new_ease_factor, is_mastered)
+    """
+    if rating == "mastered":
+        # Immediately mark as mastered, exit rotation
+        return 0, ease_factor, True
+
+    if rating == "again":
+        # Reset to 1 day, decrease ease
+        new_ease = max(MIN_EASE_FACTOR, ease_factor - 0.2)
+        return 1, new_ease, False
+
+    if current_interval == 0:
+        # First review - use fixed intervals
+        intervals = {"hard": 1, "good": 3}
+        return intervals[rating], ease_factor, False
+
+    if rating == "hard":
+        # Slower growth, decrease ease slightly
+        # Ensure interval always grows by at least 1 day
+        new_interval = max(current_interval + 1, int(current_interval * 1.2))
+        new_ease = max(MIN_EASE_FACTOR, ease_factor - 0.15)
+        return new_interval, new_ease, False
+
+    if rating == "good":
+        # Normal growth using ease factor
+        # Ensure interval always grows by at least 1 day (prevents stuck at 1 with low ease)
+        new_interval = max(current_interval + 1, int(current_interval * ease_factor))
+        # Auto-master if interval reaches threshold
+        is_mastered = new_interval >= MASTERY_THRESHOLD_DAYS
+        return new_interval, ease_factor, is_mastered
+
+    # Should never reach here
+    raise ValueError(f"Invalid rating: {rating}")
 
 
 def _utcnow() -> datetime:
@@ -29,12 +86,12 @@ async def update_user_progress(
     db: AsyncSession, user_id: str, problem_id: uuid.UUID, passed: bool
 ) -> dict:
     """
-    Update user progress after submission.
+    Update user progress after submission (Anki-style).
 
-    Spaced repetition logic:
-    - First solve (times_solved=0): Set times_solved=1, next_review_date = today + 7 days
-    - Second solve (times_solved=1): Set times_solved=2, is_mastered=True, next_review_date=None
-    - Already mastered: Do nothing (no state change)
+    On successful submission:
+    - Creates progress record if first time (doesn't set interval - that's done via rating)
+    - Returns current progress state + flag indicating rating is needed
+    - Only shows rating if problem is "due" (first time, or next_review_date <= today)
 
     Args:
         db: Database session
@@ -43,11 +100,11 @@ async def update_user_progress(
         passed: Whether submission passed all tests
 
     Returns:
-        Dict with updated progress info (times_solved, is_mastered, next_review_date)
+        Dict with progress info and needs_rating flag
     """
     if not passed:
         logger.info("submission_failed_no_progress_update", user_id=user_id, problem_id=str(problem_id))
-        return {}
+        return {"needs_rating": False}
 
     # Find or create UserProgress
     result = await db.execute(
@@ -58,91 +115,83 @@ async def update_user_progress(
     progress = result.scalar_one_or_none()
 
     if not progress:
-        # First time solving this problem
+        # First time solving - create progress record
+        # Don't set interval yet - that happens when user rates
         progress = UserProgress(
             user_id=user_id,
             problem_id=problem_id,
-            times_solved=1,
-            last_solved_at=_utcnow(),
-            next_review_date=_utc_date() + timedelta(days=REVIEW_INTERVAL_DAYS),
+            times_solved=0,  # Will be incremented when rating is applied
+            last_solved_at=None,
+            next_review_date=None,
             is_mastered=False,
             show_again=False,
+            ease_factor=DEFAULT_EASE_FACTOR,
+            interval_days=0,
+            review_count=0,
         )
         db.add(progress)
         logger.info(
-            "first_solve",
+            "first_solve_record_created",
             user_id=user_id,
             problem_id=str(problem_id),
-            next_review=str(progress.next_review_date),
         )
+        # First time - always show rating
         return {
-            "times_solved": 1,
+            "needs_rating": True,
+            "times_solved": 0,
             "is_mastered": False,
-            "next_review_date": progress.next_review_date.isoformat(),
+            "next_review_date": None,
+            "interval_days": 0,
+            "ease_factor": DEFAULT_EASE_FACTOR,
         }
 
     # Check if already mastered (and not flagged for show_again)
     if progress.is_mastered and not progress.show_again:
         logger.info(
-            "already_mastered_no_update",
+            "already_mastered",
             user_id=user_id,
             problem_id=str(problem_id),
-            times_solved=progress.times_solved,
         )
         return {
+            "needs_rating": False,
             "times_solved": progress.times_solved,
             "is_mastered": True,
             "next_review_date": None,
+            "interval_days": progress.interval_days,
+            "ease_factor": round(progress.ease_factor, 2),
         }
 
-    # Update based on current times_solved
-    if progress.times_solved == 0:
-        # First solve (edge case: progress exists but times_solved=0)
-        progress.times_solved = 1
-        progress.last_solved_at = _utcnow()
-        progress.next_review_date = _utc_date() + timedelta(days=REVIEW_INTERVAL_DAYS)
-        logger.info(
-            "first_solve_update",
-            user_id=user_id,
-            problem_id=str(problem_id),
-            next_review=str(progress.next_review_date),
-        )
-        return {
-            "times_solved": 1,
-            "is_mastered": False,
-            "next_review_date": progress.next_review_date.isoformat(),
-        }
-
-    elif progress.times_solved == 1 or (progress.show_again and progress.is_mastered):
-        # Second solve - mark as mastered
-        progress.times_solved = 2 if progress.times_solved == 1 else progress.times_solved + 1
-        progress.last_solved_at = _utcnow()
-        progress.is_mastered = True
-        progress.next_review_date = None
-        progress.show_again = False
-        logger.info(
-            "mastered",
-            user_id=user_id,
-            problem_id=str(problem_id),
-            times_solved=progress.times_solved,
-        )
-        return {
-            "times_solved": progress.times_solved,
-            "is_mastered": True,
-            "next_review_date": None,
-        }
-
-    # Already solved 2+ times (shouldn't reach here if mastered check works)
-    logger.info(
-        "already_solved_multiple_times",
-        user_id=user_id,
-        problem_id=str(problem_id),
-        times_solved=progress.times_solved,
+    # Check if problem is due for review
+    today = _utc_date()
+    is_due = (
+        progress.next_review_date is None  # Never rated yet
+        or progress.next_review_date <= today  # Due for review
     )
+
+    if not is_due:
+        logger.info(
+            "not_due_for_review",
+            user_id=user_id,
+            problem_id=str(problem_id),
+            next_review_date=str(progress.next_review_date),
+        )
+        return {
+            "needs_rating": False,
+            "times_solved": progress.times_solved,
+            "is_mastered": progress.is_mastered,
+            "next_review_date": progress.next_review_date.isoformat(),
+            "interval_days": progress.interval_days,
+            "ease_factor": round(progress.ease_factor, 2),
+        }
+
+    # Problem is due - show rating buttons
     return {
+        "needs_rating": True,
         "times_solved": progress.times_solved,
         "is_mastered": progress.is_mastered,
         "next_review_date": progress.next_review_date.isoformat() if progress.next_review_date else None,
+        "interval_days": progress.interval_days,
+        "ease_factor": round(progress.ease_factor, 2),
     }
 
 
@@ -298,15 +347,97 @@ async def mark_show_again(
     if not progress.is_mastered:
         raise ValueError("Problem is not mastered")
 
-    # Re-add to rotation
+    # Re-add to rotation and reset Anki fields
     progress.show_again = True
     progress.is_mastered = False
     progress.next_review_date = _utc_date()
+    progress.interval_days = 0
+    progress.ease_factor = DEFAULT_EASE_FACTOR
 
     logger.info(
         "marked_show_again",
         user_id=user_id,
         problem_id=str(problem_id),
         next_review=str(progress.next_review_date),
+        ease_factor_reset=DEFAULT_EASE_FACTOR,
     )
     # Note: Caller is responsible for committing the transaction
+
+
+async def apply_rating(
+    db: AsyncSession,
+    user_id: str,
+    problem_id: uuid.UUID,
+    rating: str,
+) -> dict:
+    """
+    Apply a user's difficulty rating after successful submission.
+
+    Uses the SM-2 algorithm to calculate the next review interval
+    and update the ease factor.
+
+    Args:
+        db: Database session
+        user_id: User identifier
+        problem_id: Problem UUID
+        rating: One of "again", "hard", "good", "mastered"
+
+    Returns:
+        Dict with updated progress info
+
+    Raises:
+        ValueError: If rating is invalid or no progress record exists
+    """
+    if rating not in VALID_RATINGS:
+        raise ValueError(f"Invalid rating: {rating}. Must be one of {VALID_RATINGS}")
+
+    # Find UserProgress record
+    result = await db.execute(
+        select(UserProgress)
+        .where(UserProgress.user_id == user_id)
+        .where(UserProgress.problem_id == problem_id)
+    )
+    progress = result.scalar_one_or_none()
+
+    if not progress:
+        raise ValueError("No progress record found. User must submit successfully first.")
+
+    # Calculate new values using SM-2 algorithm
+    new_interval, new_ease, is_mastered = calculate_next_review(
+        current_interval=progress.interval_days,
+        ease_factor=progress.ease_factor,
+        rating=rating,
+    )
+
+    # Update progress record
+    progress.interval_days = new_interval
+    progress.ease_factor = new_ease
+    progress.is_mastered = is_mastered
+    progress.review_count += 1
+    progress.times_solved += 1
+    progress.last_solved_at = _utcnow()
+
+    if is_mastered:
+        progress.next_review_date = None
+    else:
+        progress.next_review_date = _utc_date() + timedelta(days=new_interval)
+
+    logger.info(
+        "rating_applied",
+        user_id=user_id,
+        problem_id=str(problem_id),
+        rating=rating,
+        new_interval=new_interval,
+        new_ease=new_ease,
+        is_mastered=is_mastered,
+        next_review=str(progress.next_review_date),
+    )
+
+    return {
+        "interval_days": new_interval,
+        "ease_factor": round(new_ease, 2),
+        "next_review_date": progress.next_review_date.isoformat() if progress.next_review_date else None,
+        "is_mastered": is_mastered,
+        "review_count": progress.review_count,
+        "times_solved": progress.times_solved,
+    }

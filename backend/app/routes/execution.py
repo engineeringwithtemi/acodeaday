@@ -14,6 +14,8 @@ from app.db.connection import get_db
 from app.db.tables import Problem, ProblemLanguage, Submission, TestCase
 from app.middleware.auth import get_current_user
 from app.schemas.execution import (
+    RatingRequest,
+    RatingResponse,
     RunCodeRequest,
     RunCodeResponse,
     SubmitCodeRequest,
@@ -21,7 +23,7 @@ from app.schemas.execution import (
     TestResult,
 )
 from app.services.judge0 import get_judge0_service
-from app.services.progress import update_user_progress
+from app.services.progress import VALID_RATINGS, apply_rating, update_user_progress
 from app.services.wrapper import generate_python_wrapper
 
 logger = get_logger(__name__)
@@ -380,7 +382,77 @@ async def submit_code(
         memory_kb=submission.memory_kb,
         compile_error=execution_result.get("compile_error"),
         runtime_error=execution_result.get("runtime_error"),
+        # Anki spaced repetition fields
+        needs_rating=progress_info.get("needs_rating", False),
         times_solved=progress_info.get("times_solved"),
         is_mastered=progress_info.get("is_mastered"),
         next_review_date=progress_info.get("next_review_date"),
+        interval_days=progress_info.get("interval_days"),
+        ease_factor=progress_info.get("ease_factor"),
     )
+
+
+@router.post("/rate-submission", response_model=RatingResponse)
+async def rate_submission(
+    request: RatingRequest,
+    user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Rate the difficulty of a successfully solved problem.
+
+    After a successful submission, the user rates how difficult it felt:
+    - "again": Reset to 1 day, decrease ease factor
+    - "hard": Slow interval growth, decrease ease slightly
+    - "good": Normal interval growth using ease factor
+    - "mastered": Immediately mark as mastered, exit rotation
+
+    This implements the Anki SM-2 spaced repetition algorithm.
+    """
+    user_id = user["id"]
+
+    # Validate rating
+    if request.rating not in VALID_RATINGS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid rating '{request.rating}'. Must be one of: {', '.join(VALID_RATINGS)}",
+        )
+
+    # Get problem by slug
+    result = await db.execute(select(Problem).where(Problem.slug == request.problem_slug))
+    problem = result.scalar_one_or_none()
+
+    if not problem:
+        raise HTTPException(status_code=404, detail=f"Problem '{request.problem_slug}' not found")
+
+    try:
+        # Apply the rating using SM-2 algorithm
+        rating_result = await apply_rating(
+            db=db,
+            user_id=user_id,
+            problem_id=problem.id,
+            rating=request.rating,
+        )
+        await db.commit()
+
+        logger.info(
+            "rating_submitted",
+            user_id=user_id,
+            problem_slug=request.problem_slug,
+            rating=request.rating,
+            new_interval=rating_result["interval_days"],
+            is_mastered=rating_result["is_mastered"],
+        )
+
+        return RatingResponse(
+            success=True,
+            interval_days=rating_result["interval_days"],
+            ease_factor=rating_result["ease_factor"],
+            next_review_date=rating_result["next_review_date"],
+            is_mastered=rating_result["is_mastered"],
+            review_count=rating_result["review_count"],
+            times_solved=rating_result["times_solved"],
+        )
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

@@ -1,10 +1,13 @@
-import { X, CheckCircle2, XCircle, AlertCircle, Download } from 'lucide-react'
-import type { SubmitCodeResponse, FunctionSignature } from '../types/api'
+import { useState } from 'react'
+import { X, CheckCircle2, XCircle, AlertCircle, Download, RotateCcw, Frown, Smile, Trophy } from 'lucide-react'
+import type { SubmitCodeResponse, FunctionSignature, Rating, RatingResponse } from '../types/api'
+import { useRateSubmission } from '../hooks/useRateSubmission'
 
 interface SubmissionResultPanelProps {
   result: SubmitCodeResponse
   code: string
   language: string
+  problemSlug: string
   functionSignature?: FunctionSignature
   onClose?: () => void
   onLoadCode?: (code: string) => void
@@ -14,10 +17,33 @@ export function SubmissionResultPanel({
   result,
   code,
   language,
+  problemSlug,
   functionSignature,
   onClose,
   onLoadCode,
 }: SubmissionResultPanelProps) {
+  const [ratingResult, setRatingResult] = useState<RatingResponse | null>(null)
+  const [ratingError, setRatingError] = useState<string | null>(null)
+  const rateSubmission = useRateSubmission()
+
+  // Handle rating selection
+  const handleRating = async (rating: Rating) => {
+    setRatingError(null)
+    try {
+      const response = await rateSubmission.mutateAsync({
+        problem_slug: problemSlug,
+        rating,
+      })
+      setRatingResult(response)
+    } catch (error) {
+      console.error('Failed to submit rating:', error)
+      setRatingError('Failed to save rating. Please try again.')
+    }
+  }
+
+  // Show rating buttons if needed and not yet rated
+  const showRatingButtons = result.needs_rating && !ratingResult
+
   // Determine status
   const getStatus = () => {
     if (result.compile_error) return { text: 'Compile Error', color: 'red' }
@@ -207,8 +233,94 @@ export function SubmissionResultPanel({
             </div>
           </div>
 
-          {/* Progress Info */}
-          {result.times_solved !== undefined && (
+          {/* Rating Buttons (Anki-style) */}
+          {showRatingButtons && (
+            <div className="bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border border-cyan-500/30 rounded-lg p-6">
+              <h3 className="text-center text-lg font-semibold text-white mb-4">
+                How did that feel?
+              </h3>
+              <div className="grid grid-cols-4 gap-3">
+                <button
+                  onClick={() => handleRating('again')}
+                  disabled={rateSubmission.isPending}
+                  className="flex flex-col items-center gap-2 p-4 bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  <RotateCcw className="w-6 h-6 text-red-400" />
+                  <span className="text-red-400 font-semibold">Again</span>
+                  <span className="text-xs text-gray-400">1 day</span>
+                </button>
+                <button
+                  onClick={() => handleRating('hard')}
+                  disabled={rateSubmission.isPending}
+                  className="flex flex-col items-center gap-2 p-4 bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/40 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  <Frown className="w-6 h-6 text-orange-400" />
+                  <span className="text-orange-400 font-semibold">Hard</span>
+                  <span className="text-xs text-gray-400">
+                    {result.interval_days ? `${Math.max(1, Math.round(result.interval_days * 1.2))}d` : '1d'}
+                  </span>
+                </button>
+                <button
+                  onClick={() => handleRating('good')}
+                  disabled={rateSubmission.isPending}
+                  className="flex flex-col items-center gap-2 p-4 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/40 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  <Smile className="w-6 h-6 text-blue-400" />
+                  <span className="text-blue-400 font-semibold">Good</span>
+                  <span className="text-xs text-gray-400">
+                    {result.interval_days && result.ease_factor
+                      ? `${Math.round(result.interval_days * result.ease_factor)}d`
+                      : '3d'}
+                  </span>
+                </button>
+                <button
+                  onClick={() => handleRating('mastered')}
+                  disabled={rateSubmission.isPending}
+                  className="flex flex-col items-center gap-2 p-4 bg-green-500/20 hover:bg-green-500/30 border border-green-500/40 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  <Trophy className="w-6 h-6 text-green-400" />
+                  <span className="text-green-400 font-semibold">Mastered</span>
+                  <span className="text-xs text-gray-400">Done!</span>
+                </button>
+              </div>
+              {rateSubmission.isPending && (
+                <p className="text-center text-gray-400 mt-3 text-sm">Saving...</p>
+              )}
+              {ratingError && (
+                <p className="text-center text-red-400 mt-3 text-sm">{ratingError}</p>
+              )}
+            </div>
+          )}
+
+          {/* Rating Result (after rating submitted) */}
+          {ratingResult && (
+            <div className="bg-gradient-to-r from-green-500/10 to-cyan-500/10 border border-green-500/30 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <div className="text-sm text-gray-400">
+                    Times Solved: <span className="text-cyan-400 font-semibold">{ratingResult.times_solved}</span>
+                  </div>
+                  {ratingResult.is_mastered ? (
+                    <div className="text-green-400 font-semibold text-sm flex items-center gap-2">
+                      <Trophy className="w-4 h-4" />
+                      Mastered! Problem removed from rotation.
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-400">
+                      Next Review: <span className="text-cyan-400 font-semibold">
+                        {ratingResult.next_review_date
+                          ? new Date(ratingResult.next_review_date).toLocaleDateString()
+                          : `in ${ratingResult.interval_days} day${ratingResult.interval_days !== 1 ? 's' : ''}`}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Progress Info (for already mastered or failed submissions) */}
+          {!showRatingButtons && !ratingResult && result.times_solved !== undefined && (
             <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
@@ -243,12 +355,15 @@ export function SubmissionResultPanel({
               Load Code
             </button>
           )}
-          <button
-            onClick={onClose}
-            className="flex-1 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white font-semibold rounded-lg transition-colors"
-          >
-            Close
-          </button>
+          {/* Only show Close button if no rating is needed OR rating is done */}
+          {(!showRatingButtons || ratingResult) && (
+            <button
+              onClick={onClose}
+              className="flex-1 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white font-semibold rounded-lg transition-colors"
+            >
+              Close
+            </button>
+          )}
         </div>
       </div>
     </div>
