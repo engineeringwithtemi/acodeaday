@@ -1,0 +1,84 @@
+title: Longest Substring Without Repeating Characters
+sequence_number: 50
+difficulty: medium
+pattern:
+  - string
+  - sliding-window
+  - hash-table
+
+description: |
+  Given a string `s`, find the length of the **longest substring** without repeating characters.
+
+constraints:
+  - "0 <= s.length <= 5 * 10^4"
+  - "s consists of English letters, digits, symbols and spaces."
+
+examples:
+  - input: 's = "abcabcbb"'
+    output: "3"
+    explanation: "The answer is 'abc', with the length of 3."
+  - input: 's = "bbbbb"'
+    output: "1"
+    explanation: "The answer is 'b', with the length of 1."
+  - input: 's = "pwwkew"'
+    output: "3"
+    explanation: "The answer is 'wke', with the length of 3."
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def lengthOfLongestSubstring(self, s: str) -> int:
+              pass
+    reference_solution: |
+      class Solution:
+          def lengthOfLongestSubstring(self, s: str) -> int:
+              char_index = {}
+              max_length = 0
+              start = 0
+
+              for i, char in enumerate(s):
+                  if char in char_index and char_index[char] >= start:
+                      start = char_index[char] + 1
+                  char_index[char] = i
+                  max_length = max(max_length, i - start + 1)
+
+              return max_length
+    function_signature:
+      name: lengthOfLongestSubstring
+      params:
+        - name: s
+          type: str
+      return_type: int
+
+test_cases:
+  - input: ["abcabcbb"]
+    expected: 3
+  - input: ["bbbbb"]
+    expected: 1
+  - input: ["pwwkew"]
+    expected: 3
+  - input: [""]
+    expected: 0
+  - input: [" "]
+    expected: 1
+  - input: ["au"]
+    expected: 2
+  - input: ["aab"]
+    expected: 2
+  - input: ["dvdf"]
+    expected: 3
+  - input: ["abcdef"]
+    expected: 6
+  - input: ["abba"]
+    expected: 2
+  - input: ["tmmzuxt"]
+    expected: 5
+  - input: ["a"]
+    expected: 1
+  - input: ["aaaaaa"]
+    expected: 1
+  - input: ["abcdefghijklmnopqrstuvwxyz"]
+    expected: 26
+  - input: ["abcabcabc"]
+    expected: 3

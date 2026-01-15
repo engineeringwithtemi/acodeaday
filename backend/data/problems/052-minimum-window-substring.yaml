@@ -1,0 +1,112 @@
+title: Minimum Window Substring
+sequence_number: 52
+difficulty: hard
+pattern:
+  - string
+  - sliding-window
+  - hash-table
+
+description: |
+  Given two strings `s` and `t` of lengths `m` and `n` respectively, return the **minimum window substring** of `s` such that every character in `t` (**including duplicates**) is included in the window. If there is no such substring, return the empty string `""`.
+
+  The testcases will be generated such that the answer is **unique**.
+
+constraints:
+  - "m == s.length"
+  - "n == t.length"
+  - "1 <= m, n <= 10^5"
+  - "s and t consist of uppercase and lowercase English letters."
+
+examples:
+  - input: 's = "ADOBECODEBANC", t = "ABC"'
+    output: '"BANC"'
+    explanation: "The minimum window substring 'BANC' includes 'A', 'B', and 'C' from string t."
+  - input: 's = "a", t = "a"'
+    output: '"a"'
+  - input: 's = "a", t = "aa"'
+    output: '""'
+    explanation: "Both 'a's from t must be included in the window."
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def minWindow(self, s: str, t: str) -> str:
+              pass
+    reference_solution: |
+      class Solution:
+          def minWindow(self, s: str, t: str) -> str:
+              if not t or not s:
+                  return ""
+
+              from collections import Counter
+              t_count = Counter(t)
+              required = len(t_count)
+
+              left = 0
+              formed = 0
+              window_counts = {}
+              ans = float("inf"), None, None
+
+              for right in range(len(s)):
+                  char = s[right]
+                  window_counts[char] = window_counts.get(char, 0) + 1
+
+                  if char in t_count and window_counts[char] == t_count[char]:
+                      formed += 1
+
+                  while left <= right and formed == required:
+                      char = s[left]
+
+                      if right - left + 1 < ans[0]:
+                          ans = (right - left + 1, left, right)
+
+                      window_counts[char] -= 1
+                      if char in t_count and window_counts[char] < t_count[char]:
+                          formed -= 1
+
+                      left += 1
+
+              return "" if ans[0] == float("inf") else s[ans[1]:ans[2] + 1]
+    function_signature:
+      name: minWindow
+      params:
+        - name: s
+          type: str
+        - name: t
+          type: str
+      return_type: str
+
+test_cases:
+  - input: ["ADOBECODEBANC", "ABC"]
+    expected: "BANC"
+  - input: ["a", "a"]
+    expected: "a"
+  - input: ["a", "aa"]
+    expected: ""
+  - input: ["a", "b"]
+    expected: ""
+  - input: ["ab", "a"]
+    expected: "a"
+  - input: ["ab", "b"]
+    expected: "b"
+  - input: ["ab", "ab"]
+    expected: "ab"
+  - input: ["bba", "ab"]
+    expected: "ba"
+  - input: ["abc", "ac"]
+    expected: "abc"
+  - input: ["cabwefgewcwaefgcf", "cae"]
+    expected: "cwae"
+  - input: ["aa", "aa"]
+    expected: "aa"
+  - input: ["bdab", "ab"]
+    expected: "ab"
+  - input: ["aaaaaaaaaaaabbbbbcdd", "abcdd"]
+    expected: "abbbbbcdd"
+  - input: ["acbbaca", "aba"]
+    expected: "baca"
+  - input: ["wegdtzwabazduwwdysdetrrctotpcepalxdewzezbfewbabbseinxbqqplitpxtcwwhuyntbtzxwzyaufihclztckdwccpeyonumbpnuonsnnsjscrvpsqsftohvfnvtbphcgxyumqjzltspmphefzjypsvugqqjhzlnylhkdqmolggxvneaopadivzqnpzurmhpxqcaiqruwqduxrpoctylbaincngzcnsicozfbaozvfoakczxsmikkibgegcucfxrwe", "ozmmzgmgcnmolxpspseuazxjvonklzhnsbkasgatspriahzraoaxamygkzdhapzrdozmxaydrhwldfyxwgusklmsgdtrxwroygvoidptdalul"]
+    expected: ""
+  - input: ["ABC", "ABC"]
+    expected: "ABC"

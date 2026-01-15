@@ -1,0 +1,106 @@
+title: Number of Islands
+sequence_number: 30
+difficulty: medium
+pattern:
+  - graph
+  - bfs
+  - dfs
+  - matrix
+  - union-find
+
+description: |
+  Given an `m x n` 2D binary grid `grid` which represents a map of `'1'`s (land) and `'0'`s (water), return the number of islands.
+
+  An **island** is surrounded by water and is formed by connecting adjacent lands horizontally or vertically. You may assume all four edges of the grid are all surrounded by water.
+
+constraints:
+  - "m == grid.length"
+  - "n == grid[i].length"
+  - "1 <= m, n <= 300"
+  - "grid[i][j] is '0' or '1'."
+
+examples:
+  - input: 'grid = [["1","1","1","1","0"],["1","1","0","1","0"],["1","1","0","0","0"],["0","0","0","0","0"]]'
+    output: "1"
+  - input: 'grid = [["1","1","0","0","0"],["1","1","0","0","0"],["0","0","1","0","0"],["0","0","0","1","1"]]'
+    output: "3"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def numIslands(self, grid: List[List[str]]) -> int:
+              pass
+    reference_solution: |
+      class Solution:
+          def numIslands(self, grid: List[List[str]]) -> int:
+              if not grid:
+                  return 0
+
+              m, n = len(grid), len(grid[0])
+              count = 0
+
+              def dfs(r, c):
+                  if r < 0 or r >= m or c < 0 or c >= n or grid[r][c] != '1':
+                      return
+                  grid[r][c] = '0'  # Mark as visited
+                  dfs(r + 1, c)
+                  dfs(r - 1, c)
+                  dfs(r, c + 1)
+                  dfs(r, c - 1)
+
+              for r in range(m):
+                  for c in range(n):
+                      if grid[r][c] == '1':
+                          count += 1
+                          dfs(r, c)
+
+              return count
+    function_signature:
+      name: numIslands
+      params:
+        - name: grid
+          type: "List[List[str]]"
+      return_type: int
+
+test_cases:
+  - input: [[["1", "1", "1", "1", "0"], ["1", "1", "0", "1", "0"], ["1", "1", "0", "0", "0"], ["0", "0", "0", "0", "0"]]]
+    expected: 1
+  - input: [[["1", "1", "0", "0", "0"], ["1", "1", "0", "0", "0"], ["0", "0", "1", "0", "0"], ["0", "0", "0", "1", "1"]]]
+    expected: 3
+  - input: [[["1"]]]
+    expected: 1
+  - input: [[["0"]]]
+    expected: 0
+  - input: [[["1", "0"], ["0", "1"]]]
+    expected: 2
+  - input: [[["1", "1"], ["1", "1"]]]
+    expected: 1
+  - input: [[["0", "0"], ["0", "0"]]]
+    expected: 0
+  - input: [[["1", "0", "1"], ["0", "1", "0"], ["1", "0", "1"]]]
+    expected: 5
+  - input: [[["1", "1", "1"], ["0", "1", "0"], ["1", "1", "1"]]]
+    expected: 1
+  - input: [[["1", "0", "0", "1"], ["0", "0", "0", "0"], ["0", "0", "0", "0"], ["1", "0", "0", "1"]]]
+    expected: 4
+  - input: [[["1", "1", "0", "0", "0"], ["1", "1", "0", "0", "0"], ["0", "0", "0", "1", "1"], ["0", "0", "0", "1", "1"]]]
+    expected: 2
+  - input: [[["1", "0", "1", "0", "1"], ["0", "1", "0", "1", "0"], ["1", "0", "1", "0", "1"], ["0", "1", "0", "1", "0"]]]
+    expected: 10
+  - input: [[["1", "1", "1", "1", "1"], ["1", "0", "0", "0", "1"], ["1", "0", "1", "0", "1"], ["1", "0", "0", "0", "1"], ["1", "1", "1", "1", "1"]]]
+    expected: 2
+  - input: [[["0", "1", "0"], ["1", "0", "1"], ["0", "1", "0"]]]
+    expected: 4
+  - input: [[["1", "1", "1"], ["1", "1", "1"], ["1", "1", "1"]]]
+    expected: 1
+  - input: [[["1"], ["1"], ["1"], ["1"]]]
+    expected: 1
+  - input: [[["1", "1", "1", "1"]]]
+    expected: 1
+  - input: [[["0", "0", "0"], ["0", "0", "0"], ["0", "0", "0"]]]
+    expected: 0
+  - input: [[["1", "0"], ["0", "0"]]]
+    expected: 1
+  - input: [[["1", "1", "0", "1", "1"], ["1", "0", "0", "0", "1"], ["0", "0", "0", "0", "0"], ["1", "0", "0", "0", "1"], ["1", "1", "0", "1", "1"]]]
+    expected: 4

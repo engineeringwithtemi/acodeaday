@@ -1,0 +1,110 @@
+title: Number of Connected Components in an Undirected Graph
+sequence_number: 34
+difficulty: medium
+pattern:
+  - graph
+  - union-find
+  - dfs
+  - bfs
+
+description: |
+  You have a graph of `n` nodes. You are given an integer `n` and an array `edges` where `edges[i] = [ai, bi]` indicates that there is an edge between `ai` and `bi` in the graph.
+
+  Return the number of connected components in the graph.
+
+constraints:
+  - "1 <= n <= 2000"
+  - "1 <= edges.length <= 5000"
+  - "edges[i].length == 2"
+  - "0 <= ai, bi < n"
+  - "ai != bi"
+  - "There are no repeated edges."
+
+examples:
+  - input: "n = 5, edges = [[0,1],[1,2],[3,4]]"
+    output: "2"
+  - input: "n = 5, edges = [[0,1],[1,2],[2,3],[3,4]]"
+    output: "1"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def countComponents(self, n: int, edges: List[List[int]]) -> int:
+              pass
+    reference_solution: |
+      class Solution:
+          def countComponents(self, n: int, edges: List[List[int]]) -> int:
+              # Union-Find
+              parent = list(range(n))
+
+              def find(x):
+                  if parent[x] != x:
+                      parent[x] = find(parent[x])  # Path compression
+                  return parent[x]
+
+              def union(x, y):
+                  px, py = find(x), find(y)
+                  if px != py:
+                      parent[px] = py
+                      return True
+                  return False
+
+              # Start with n components
+              components = n
+
+              for a, b in edges:
+                  if union(a, b):
+                      components -= 1
+
+              return components
+    function_signature:
+      name: countComponents
+      params:
+        - name: n
+          type: int
+        - name: edges
+          type: "List[List[int]]"
+      return_type: int
+
+test_cases:
+  - input: [5, [[0, 1], [1, 2], [3, 4]]]
+    expected: 2
+  - input: [5, [[0, 1], [1, 2], [2, 3], [3, 4]]]
+    expected: 1
+  - input: [1, []]
+    expected: 1
+  - input: [2, []]
+    expected: 2
+  - input: [2, [[0, 1]]]
+    expected: 1
+  - input: [3, [[0, 1]]]
+    expected: 2
+  - input: [3, [[0, 1], [1, 2]]]
+    expected: 1
+  - input: [4, [[0, 1], [2, 3]]]
+    expected: 2
+  - input: [4, [[0, 1], [0, 2], [0, 3]]]
+    expected: 1
+  - input: [5, []]
+    expected: 5
+  - input: [6, [[0, 1], [2, 3], [4, 5]]]
+    expected: 3
+  - input: [6, [[0, 1], [1, 2], [3, 4], [4, 5]]]
+    expected: 2
+  - input: [4, [[0, 1], [1, 2], [2, 3], [0, 3]]]
+    expected: 1
+  - input: [5, [[0, 1], [0, 2], [0, 3], [0, 4]]]
+    expected: 1
+  - input: [7, [[0, 1], [2, 3], [4, 5]]]
+    expected: 4
+  - input: [8, [[0, 1], [0, 2], [3, 4], [5, 6], [6, 7]]]
+    expected: 3
+  - input: [10, [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]]]
+    expected: 5
+  - input: [3, [[0, 1], [0, 2], [1, 2]]]
+    expected: 1
+  - input: [6, [[0, 1], [1, 2], [2, 0], [3, 4], [4, 5], [5, 3]]]
+    expected: 2
+  - input: [4, [[0, 1], [2, 0], [3, 2]]]
+    expected: 1

@@ -1,0 +1,121 @@
+title: Binary Tree Level Order Traversal
+sequence_number: 64
+difficulty: medium
+pattern:
+  - tree
+  - bfs
+  - queue
+
+description: |
+  Given the `root` of a binary tree, return the **level order traversal** of its nodes' values. (i.e., from left to right, level by level).
+
+  For testing purposes, binary trees are represented as arrays in level-order (BFS), where `null` represents missing nodes.
+
+constraints:
+  - "The number of nodes in the tree is in the range [0, 2000]."
+  - "-1000 <= Node.val <= 1000"
+
+examples:
+  - input: "root = [3,9,20,null,null,15,7]"
+    output: "[[3],[9,20],[15,7]]"
+  - input: "root = [1]"
+    output: "[[1]]"
+  - input: "root = []"
+    output: "[]"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def levelOrder(self, root: List) -> List[List[int]]:
+              pass
+    reference_solution: |
+      class Solution:
+          def levelOrder(self, root: List) -> List[List[int]]:
+              if not root:
+                  return []
+
+              from collections import deque
+
+              class TreeNode:
+                  def __init__(self, val=0):
+                      self.val = val
+                      self.left = None
+                      self.right = None
+
+              def build_tree(arr):
+                  if not arr or arr[0] is None:
+                      return None
+                  root = TreeNode(arr[0])
+                  queue = deque([root])
+                  i = 1
+                  while queue and i < len(arr):
+                      node = queue.popleft()
+                      if i < len(arr) and arr[i] is not None:
+                          node.left = TreeNode(arr[i])
+                          queue.append(node.left)
+                      i += 1
+                      if i < len(arr) and arr[i] is not None:
+                          node.right = TreeNode(arr[i])
+                          queue.append(node.right)
+                      i += 1
+                  return root
+
+              tree = build_tree(root)
+              if not tree:
+                  return []
+
+              result = []
+              queue = deque([tree])
+
+              while queue:
+                  level_size = len(queue)
+                  level = []
+                  for _ in range(level_size):
+                      node = queue.popleft()
+                      level.append(node.val)
+                      if node.left:
+                          queue.append(node.left)
+                      if node.right:
+                          queue.append(node.right)
+                  result.append(level)
+
+              return result
+    function_signature:
+      name: levelOrder
+      params:
+        - name: root
+          type: List
+      return_type: "List[List[int]]"
+
+test_cases:
+  - input: [[3, 9, 20, null, null, 15, 7]]
+    expected: [[3], [9, 20], [15, 7]]
+  - input: [[1]]
+    expected: [[1]]
+  - input: [[]]
+    expected: []
+  - input: [[1, 2, 3]]
+    expected: [[1], [2, 3]]
+  - input: [[1, 2]]
+    expected: [[1], [2]]
+  - input: [[1, null, 2]]
+    expected: [[1], [2]]
+  - input: [[1, 2, 3, 4, 5, 6, 7]]
+    expected: [[1], [2, 3], [4, 5, 6, 7]]
+  - input: [[1, 2, 3, 4, 5]]
+    expected: [[1], [2, 3], [4, 5]]
+  - input: [[0]]
+    expected: [[0]]
+  - input: [[-1, -2, -3]]
+    expected: [[-1], [-2, -3]]
+  - input: [[1, null, 2, null, 3]]
+    expected: [[1], [2], [3]]
+  - input: [[1, 2, null, 3, null, 4]]
+    expected: [[1], [2], [3], [4]]
+  - input: [[5, 4, 8, 11, null, 13, 4]]
+    expected: [[5], [4, 8], [11, 13, 4]]
+  - input: [[1, 2, 3, null, null, 4, 5]]
+    expected: [[1], [2, 3], [4, 5]]
+  - input: [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]]
+    expected: [[1], [2, 3], [4, 5, 6, 7], [8, 9, 10, 11, 12, 13, 14, 15]]
