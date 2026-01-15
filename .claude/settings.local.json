@@ -27,7 +27,9 @@
       "Bash(pkill:*)",
       "Bash(grep:*)",
       "Bash(git worktree:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(docker build:*)",
+      "Bash(docker stop:*)"
     ],
     "deny": [],
     "ask": []

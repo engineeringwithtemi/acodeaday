@@ -1,8 +1,25 @@
+# =============================================================================
+# Production Docker Compose for acodeaday
+# =============================================================================
+# This file is for end users who want to run acodeaday using pre-built images
+# from Docker Hub or GitHub Container Registry.
+#
+# Usage:
+#   1. Copy .env.example to .env and configure your settings
+#   2. Run: docker compose -f docker-compose.prod.yml up -d
+#
+# Requirements:
+#   - Docker with privileged container support (for Judge0)
+#   - A PostgreSQL database (e.g., Supabase, or self-hosted)
+#
+# =============================================================================
+
 services:
   # ===========================================================================
   # Judge0 CE - Code Execution Engine
   # ===========================================================================
   # Judge0 requires: server, workers, redis, and its own postgres database
+  # NOTE: Judge0 requires privileged mode for sandboxed code execution
 
   judge0-server:
     image: judge0/judge0:1.13.1
@@ -43,9 +60,6 @@ services:
       # Enable per-process resource limits (avoids cgroups)
       - ENABLE_PER_PROCESS_AND_THREAD_MEMORY_LIMIT=true
       - ENABLE_PER_PROCESS_AND_THREAD_TIME_LIMIT=true
-
-      # Authentication (optional, enable if needed)
-      # - AUTHENTICATION_TOKEN=your-secret-token
 
     depends_on:
       judge0-db:
@@ -112,8 +126,6 @@ services:
       - POSTGRES_DB=judge0
     volumes:
       - judge0-postgres-data:/var/lib/postgresql/data
-    ports:
-      - "5434:5432"  # Exposed on 5434 (5433 used by aide project)
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U judge0"]
@@ -129,8 +141,6 @@ services:
     command: redis-server --appendonly yes
     volumes:
       - judge0-redis-data:/data
-    ports:
-      - "6380:6379"  # Exposed on 6380 to avoid conflicts
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -143,23 +153,22 @@ services:
   # ===========================================================================
   # Backend (FastAPI)
   # ===========================================================================
+  # Pull from Docker Hub: temidev/acodeaday-backend:latest
+  # Or from GHCR: ghcr.io/temidev/acodeaday-backend:latest
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    image: acodeaday-backend:latest
+    image: ${BACKEND_IMAGE:-ghcr.io/temidev/acodeaday-backend:latest}
     container_name: acodeaday-backend
     ports:
       - "8000:8000"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
-      # Database - set in .env file
+      # Database - REQUIRED: Set your Supabase/PostgreSQL connection string
       - DATABASE_URL=${DATABASE_URL}
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_KEY=${SUPABASE_KEY}
+      - SUPABASE_URL=${SUPABASE_URL:-}
+      - SUPABASE_KEY=${SUPABASE_KEY:-}
       - SUPABASE_JWT_SECRET=${SUPABASE_JWT_SECRET:-}
-      # Auth
+      # Auth credentials
       - AUTH_USERNAME=${AUTH_USERNAME:-admin}
       - AUTH_PASSWORD=${AUTH_PASSWORD:-changeme}
       # Judge0 - uses internal Docker network
@@ -169,12 +178,12 @@ services:
       - DEBUG=${DEBUG:-false}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - LOG_TO_FILE=${LOG_TO_FILE:-true}
-      # LLM API keys (optional)
+      # LLM API keys (optional - for AI features)
       - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
     volumes:
-      - ./backend/logs:/app/logs
+      - backend-logs:/app/logs
     depends_on:
       judge0-server:
         condition: service_started
@@ -185,17 +194,17 @@ services:
   # ===========================================================================
   # Frontend (TanStack Start with SSR)
   # ===========================================================================
+  # Pull from Docker Hub: temidev/acodeaday-frontend:latest
+  # Or from GHCR: ghcr.io/temidev/acodeaday-frontend:latest
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    image: acodeaday-frontend:latest
+    image: ${FRONTEND_IMAGE:-ghcr.io/temidev/acodeaday-frontend:latest}
     container_name: acodeaday-frontend
     ports:
       - "3000:3000"
     environment:
-      # Runtime env vars - injected at container start
-      - VITE_API_URL=${VITE_API_URL:-http://backend:8000}
+      # API URL - for browser requests (external URL users will access)
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:8000}
+      # Supabase (for auth, if using Supabase Auth)
       - VITE_SUPABASE_URL=${VITE_SUPABASE_URL:-}
       - VITE_SUPABASE_KEY=${VITE_SUPABASE_KEY:-}
     depends_on:
@@ -203,64 +212,6 @@ services:
     restart: unless-stopped
     networks:
       - acodeaday-network
-
-  # ===========================================================================
-  # Test Database (Separate from Supabase dev database)
-  # ===========================================================================
-  # Use: docker compose --profile test up -d postgres-test
-  postgres-test:
-    image: postgres:17-alpine
-    container_name: acodeaday-postgres-test
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: acodeaday_test
-    ports:
-      - "54325:5432"  # Different port from Supabase (54321-54324)
-    volumes:
-      # Use tmpfs for faster tests (in-memory, no disk I/O)
-      - type: tmpfs
-        target: /var/lib/postgresql/data
-    networks:
-      - acodeaday-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-    profiles:
-      - test
-
-  # ===========================================================================
-  # Test Runner Service
-  # ===========================================================================
-  # Use: docker compose --profile test up backend-test
-  backend-test:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: acodeaday-backend-test
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres-test:5432/acodeaday_test
-      - JUDGE0_URL=http://judge0-server:2358
-      - AUTH_USERNAME=admin
-      - AUTH_PASSWORD=changeme
-    volumes:
-      - ./backend:/app
-    depends_on:
-      postgres-test:
-        condition: service_healthy
-    networks:
-      - acodeaday-network
-    command: >
-      sh -c "
-        echo 'Running database migrations...' &&
-        uv run alembic upgrade head &&
-        echo 'Running tests...' &&
-        uv run pytest -v --tb=short
-      "
-    profiles:
-      - test
 
 # ===========================================================================
 # Networks
@@ -276,4 +227,6 @@ volumes:
   judge0-postgres-data:
     driver: local
   judge0-redis-data:
+    driver: local
+  backend-logs:
     driver: local

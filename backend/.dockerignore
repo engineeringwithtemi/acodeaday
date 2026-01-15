@@ -1,0 +1,40 @@
+# Virtual environment
+.venv
+venv
+
+# Python artifacts
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Testing
+.pytest_cache
+.coverage
+htmlcov/
+tests/
+
+# Linting
+.ruff_cache
+.mypy_cache
+
+# Logs (generated at runtime)
+logs/
+*.log
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode
+.idea
+
+# macOS
+.DS_Store
+
+# Documentation
+*.md

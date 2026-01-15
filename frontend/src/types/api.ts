@@ -362,18 +362,3 @@ export interface ModelInfo {
   display_name: string
   is_default: boolean
 }
-
-// WebSocket message types
-export interface ChatWSMessage {
-  type: 'message' | 'cancel'
-  content?: string
-  current_code?: string
-  test_results?: any
-}
-
-export interface ChatWSResponse {
-  type: 'chunk' | 'done' | 'error'
-  content?: string
-  message_id?: string
-  error?: string
-}

@@ -1,9 +1,11 @@
 """API routes for chat functionality."""
 
+import json
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.responses import StreamingResponse
 
 from app.config.logging import get_logger
 from app.db.connection import get_db
@@ -11,10 +13,9 @@ from app.middleware.auth import get_current_user
 from app.schemas.chat import (
     ChatSessionSchema,
     ChatSessionWithMessagesSchema,
-    ChatWSMessage,
-    ChatWSResponse,
     CreateSessionRequest,
     ModelInfo,
+    SendMessageRequest,
     UpdateSessionRequest,
 )
 from app.services.chat import (
@@ -22,7 +23,7 @@ from app.services.chat import (
     delete_session,
     get_session,
     get_sessions_for_problem,
-    stream_response,
+    process_message_and_stream,
     update_session,
 )
 from app.services.llm import get_available_models, get_default_model
@@ -245,111 +246,48 @@ async def delete_chat_session(
         raise HTTPException(status_code=500, detail="Failed to delete session")
 
 
-@router.websocket("/ws/{session_id}")
-async def websocket_chat(
-    websocket: WebSocket,
+@router.post("/session/{session_id}/message")
+async def send_message_stream(
     session_id: uuid.UUID,
-    token: str,
+    request: SendMessageRequest,
+    user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
-    WebSocket endpoint for streaming chat responses.
+    Send a message and stream AI response in a single request.
 
-    Authentication is via token query parameter (WebSockets don't support headers).
-    Client sends ChatWSMessage, server streams ChatWSResponse.
+    This endpoint:
+    1. Saves the user message to the database
+    2. Streams the AI response using Server-Sent Events format
+    3. Saves the complete AI response to the database
 
-    Message flow:
-    1. Client connects with ?token=jwt_token
-    2. Server validates token and accepts connection
-    3. Client sends {"type": "message", "content": "...", "current_code": "...", "test_results": {...}}
-    4. Server streams {"type": "chunk", "content": "..."}
-    5. Server sends {"type": "done", "message_id": "..."}
-    6. On error: {"type": "error", "error": "..."}
+    The response is a streaming response with SSE format:
+    - data: {"type": "chunk", "content": "..."}
+    - data: {"type": "done", "message_id": "..."}
+    - data: {"type": "error", "error": "..."}
     """
-    # Validate token
-    from app.config.settings import settings
 
-    try:
-        # Get supabase client from app state
-        supabase = websocket.app.state.supabase
-
-        # Validate token
-        response = await supabase.auth.get_user(token)
-
-        if not response or not response.user:
-            await websocket.close(code=4001, reason="Unauthorized")
-            return
-
-        user_id = response.user.id
-
-    except Exception as e:
-        logger.error("ws_auth_failed", error=str(e))
-        await websocket.close(code=4001, reason="Unauthorized")
-        return
-
-    # Accept WebSocket connection
-    await websocket.accept()
-    logger.info("ws_connected", session_id=str(session_id), user_id=user_id)
-
-    try:
-        # Get database session
-        async for db in get_db():
-            # Verify session belongs to user
-            session = await get_session(db=db, session_id=session_id, user_id=user_id)
-
-            if not session:
-                await websocket.send_json(
-                    ChatWSResponse(type="error", error="Session not found or unauthorized").model_dump()
-                )
-                await websocket.close()
-                return
-
-            # Listen for messages
-            while True:
-                try:
-                    # Receive message from client
-                    data = await websocket.receive_json()
-                    ws_message = ChatWSMessage(**data)
-
-                    if ws_message.type == "cancel":
-                        logger.info("ws_cancel_requested", session_id=str(session_id))
-                        # Just stop processing, client can reconnect
-                        break
-
-                    elif ws_message.type == "message":
-                        if not ws_message.content:
-                            await websocket.send_json(
-                                ChatWSResponse(type="error", error="Message content required").model_dump()
-                            )
-                            continue
-
-                        # Stream response
-                        async for response in stream_response(
-                            db=db,
-                            session_id=session_id,
-                            user_message=ws_message.content,
-                            current_code=ws_message.current_code,
-                            test_results=ws_message.test_results,
-                        ):
-                            await websocket.send_json(response.model_dump())
-
-                except WebSocketDisconnect:
-                    logger.info("ws_disconnected", session_id=str(session_id))
-                    break
-
-                except Exception as e:
-                    logger.error("ws_message_error", session_id=str(session_id), error=str(e))
-                    await websocket.send_json(
-                        ChatWSResponse(type="error", error=str(e)).model_dump()
-                    )
-
-            break  # Exit the async for db loop
-
-    except Exception as e:
-        logger.error("ws_error", session_id=str(session_id), error=str(e))
+    async def event_generator():
         try:
-            await websocket.send_json(
-                ChatWSResponse(type="error", error="Internal server error").model_dump()
-            )
-        except:
-            pass
-        await websocket.close()
+            async for event in process_message_and_stream(
+                db=db,
+                session_id=session_id,
+                user_id=user["id"],
+                user_message=request.content,
+                current_code=request.current_code,
+                test_results=request.test_results,
+            ):
+                yield f"data: {json.dumps(event)}\n\n"
+        except Exception as e:
+            logger.error("stream_error", session_id=str(session_id), error=str(e))
+            yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # Disable nginx buffering
+        },
+    )

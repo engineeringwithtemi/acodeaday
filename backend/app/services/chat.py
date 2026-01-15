@@ -9,7 +9,7 @@ from sqlalchemy.orm import selectinload
 
 from app.config.logging import get_logger
 from app.db.tables import ChatMessage, ChatMode, ChatSession, MessageRole, Problem
-from app.schemas.chat import ChatWSResponse, LLMMessage, LLMStreamChunk
+from app.schemas.chat import LLMMessage, LLMStreamChunk
 from app.services.llm import build_context_message, generate_session_title, stream_chat_completion
 
 logger = get_logger(__name__)
@@ -250,32 +250,26 @@ async def add_message(
     return message
 
 
-async def stream_response(
+async def process_message_and_stream(
     db: AsyncSession,
     session_id: uuid.UUID,
+    user_id: str,
     user_message: str,
     current_code: str | None = None,
     test_results: dict | None = None,
-) -> AsyncGenerator[ChatWSResponse, None]:
+) -> AsyncGenerator[dict, None]:
     """
-    Stream AI response for a user message.
+    Process user message and stream AI response.
 
     This function:
-    1. Saves the user message to DB
-    2. Loads problem context and conversation history
-    3. Streams LLM response
-    4. Saves complete assistant response to DB
-    5. Auto-generates title if first message
+    1. Validates the session belongs to the user
+    2. Saves the user message to DB
+    3. Builds problem context and conversation history
+    4. Streams LLM response
+    5. Saves complete assistant response to DB
+    6. Auto-generates title if first message
 
-    Args:
-        db: Database session
-        session_id: Session UUID
-        user_message: User's message content
-        current_code: User's current code
-        test_results: Test execution results
-
-    Yields:
-        ChatWSResponse objects (chunks, done, or error)
+    Yields dict events: {type: 'chunk'|'done'|'error', ...}
     """
     try:
         # Get session with problem data
@@ -284,14 +278,15 @@ async def stream_response(
             .options(selectinload(ChatSession.problem))
             .options(selectinload(ChatSession.messages))
             .where(ChatSession.id == session_id)
+            .where(ChatSession.user_id == user_id)
         )
         session = result.scalar_one_or_none()
 
         if not session:
-            yield ChatWSResponse(type="error", error="Session not found")
+            yield {"type": "error", "error": "Session not found or unauthorized"}
             return
 
-        # Save user message
+        # Save user message FIRST (before streaming)
         user_msg = await add_message(
             db=db,
             session_id=session_id,
@@ -301,7 +296,7 @@ async def stream_response(
             test_results_snapshot=test_results,
         )
 
-        # Build context from problem data
+        # Build problem context
         problem = session.problem
         context_msg = build_context_message(
             problem_title=problem.title,
@@ -312,26 +307,27 @@ async def stream_response(
             test_results=test_results,
         )
 
-        # Build conversation history (last 20 messages)
+        # Build conversation history with problem context
         history_messages: list[LLMMessage] = []
         messages = sorted(session.messages, key=lambda m: m.created_at)
 
-        # First message: include context + user message
-        if len(messages) == 1:  # Only the message we just added
-            history_messages.append(LLMMessage(role="user", content=f"{context_msg}\n\n---\n\n{user_message}"))
-        else:
-            # Subsequent messages: add conversation history, then current message
-            # The first message in history already contains the context
-            for msg in messages[-21:-1]:  # -1 to exclude the message we just added
-                if msg.role != MessageRole.SYSTEM:
-                    history_messages.append(
-                        LLMMessage(
-                            role=msg.role.value,
-                            content=msg.content,
-                        )
-                    )
-            # Add current user message (no context needed, it's in the first message)
-            history_messages.append(LLMMessage(role="user", content=user_message))
+        # Always include problem context (ensures AI knows the problem)
+        history_messages.append(LLMMessage(
+            role="user",
+            content=f"I'm working on the following coding problem:\n\n{context_msg}"
+        ))
+        history_messages.append(LLMMessage(
+            role="assistant",
+            content="I understand. I'm ready to help you with this problem. What would you like to know?"
+        ))
+
+        # Add conversation history (last 20 messages, excluding the one we just added)
+        for msg in messages[-21:-1]:
+            if msg.role != MessageRole.SYSTEM:
+                history_messages.append(LLMMessage(role=msg.role.value, content=msg.content))
+
+        # Add current user message
+        history_messages.append(LLMMessage(role="user", content=user_message))
 
         # Stream LLM response
         assistant_content = ""
@@ -341,12 +337,12 @@ async def stream_response(
             mode=session.mode.value,
         ):
             assistant_content += chunk.content
-            yield ChatWSResponse(type="chunk", content=chunk.content)
+            yield {"type": "chunk", "content": chunk.content}
 
             if chunk.finish_reason:
                 break
 
-        # Save complete assistant response
+        # Save assistant message
         assistant_msg = await add_message(
             db=db,
             session_id=session_id,
@@ -354,8 +350,8 @@ async def stream_response(
             content=assistant_content,
         )
 
-        # Generate title if this is the first exchange
-        if len(messages) == 1 and not session.title:
+        # Auto-generate title if first exchange (only user message + just added)
+        if len(messages) <= 1:
             try:
                 title = await generate_session_title(user_message)
                 session.title = title
@@ -363,8 +359,8 @@ async def stream_response(
             except Exception as e:
                 logger.warning("title_generation_failed", error=str(e))
 
-        yield ChatWSResponse(type="done", message_id=str(assistant_msg.id))
+        yield {"type": "done", "message_id": str(assistant_msg.id)}
 
     except Exception as e:
-        logger.error("stream_response_error", session_id=str(session_id), error=str(e))
-        yield ChatWSResponse(type="error", error=str(e))
+        logger.error("process_message_error", session_id=str(session_id), error=str(e))
+        yield {"type": "error", "error": str(e)}

@@ -16,5 +16,5 @@ export {
   useCreateSession,
   useUpdateSession,
   useDeleteSession,
-  useWebSocketChat,
+  useStreamChat,
 } from './useChat'

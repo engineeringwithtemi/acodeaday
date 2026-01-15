@@ -26,7 +26,7 @@ import {
   useCreateSession,
   useUpdateSession,
   useDeleteSession,
-  useWebSocketChat,
+  useStreamChat,
 } from '../hooks'
 import type { ChatMode, ChatMessage, ChatSession } from '../types/api'
 
@@ -78,9 +78,9 @@ export function ChatPanel({ problemSlug, currentCode, testResults, onClose, init
   const updateSession = useUpdateSession()
   const deleteSession = useDeleteSession()
 
-  // WebSocket
-  const { isConnected, isStreaming, streamingContent, pendingMessage, error, lastFailedMessage, sendMessage, cancelStream, retry, clearError, reconnect } =
-    useWebSocketChat(activeSessionId)
+  // Streaming POST chat (simpler than WebSocket - no connection state)
+  const { isStreaming, streamingContent, pendingMessage, error, lastFailedMessage, sendMessage, cancelStream, retry, clearError } =
+    useStreamChat(activeSessionId)
 
   // Auto-select first session if available (but not if we have an initial message to send)
   useEffect(() => {
@@ -109,12 +109,12 @@ export function ChatPanel({ problemSlug, currentCode, testResults, onClose, init
     }
   }, [initialMessage])
 
-  // Step 1: Create a new session when we have an initial message
+  // Create session and send initial message in one flow (no connection to wait for!)
   useEffect(() => {
     if (!initialMessage || initialMessageSentRef.current || isCreatingSessionRef.current) return
     if (!models) return // Wait for models to load
 
-    const createNewSession = async () => {
+    const createAndSend = async () => {
       isCreatingSessionRef.current = true
       try {
         // Use last selected model if available, otherwise use default
@@ -129,24 +129,22 @@ export function ChatPanel({ problemSlug, currentCode, testResults, onClose, init
           title: initialSessionTitle || undefined,
         })
         setActiveSessionId(session.id)
+
+        // Send immediately after session is created - no connection to wait for!
+        initialMessageSentRef.current = true
+        // Small delay to let state update propagate
+        setTimeout(() => {
+          sendMessage(initialMessage, currentCode, testResults)
+          onInitialMessageSent?.()
+        }, 50)
       } catch (err) {
         console.error('Failed to create session:', err)
         isCreatingSessionRef.current = false
       }
     }
 
-    createNewSession()
-  }, [initialMessage, initialSessionTitle, models, problemSlug, createSession])
-
-  // Step 2: Send message once connected
-  useEffect(() => {
-    if (!initialMessage || initialMessageSentRef.current || !isConnected || isStreaming) return
-
-    // Send the message
-    initialMessageSentRef.current = true
-    sendMessage(initialMessage, currentCode, testResults)
-    onInitialMessageSent?.()
-  }, [initialMessage, isConnected, isStreaming, sendMessage, currentCode, testResults, onInitialMessageSent])
+    createAndSend()
+  }, [initialMessage, initialSessionTitle, models, problemSlug, createSession, sendMessage, currentCode, testResults, onInitialMessageSent])
 
   const handleCreateSession = async (mode: ChatMode) => {
     // Use last selected model if available, otherwise use default
@@ -164,7 +162,7 @@ export function ChatPanel({ problemSlug, currentCode, testResults, onClose, init
   }
 
   const handleSendMessage = () => {
-    if (!inputValue.trim() || isStreaming || !isConnected) return
+    if (!inputValue.trim() || isStreaming) return
 
     sendMessage(inputValue, currentCode, testResults)
     setInputValue('')
@@ -203,18 +201,11 @@ export function ChatPanel({ problemSlug, currentCode, testResults, onClose, init
     // Save to localStorage for future sessions
     saveLastModel(model)
 
-    updateSession.mutate(
-      {
-        sessionId: activeSession.id,
-        request: { model },
-      },
-      {
-        onSuccess: () => {
-          // Reconnect WebSocket to pick up the new model
-          reconnect()
-        },
-      }
-    )
+    // With streaming POST, model change takes effect on next message (no reconnect needed)
+    updateSession.mutate({
+      sessionId: activeSession.id,
+      request: { model },
+    })
   }
 
   const handleStartEditTitle = (sessionId: string, currentTitle: string) => {
@@ -483,21 +474,13 @@ export function ChatPanel({ problemSlug, currentCode, testResults, onClose, init
           {lastFailedMessage && (
             <button
               onClick={retry}
-              disabled={!isConnected || isStreaming}
+              disabled={isStreaming}
               className="mt-2 flex items-center gap-2 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 text-sm font-medium rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <RefreshCw size={14} />
               Retry with current model
             </button>
           )}
-        </div>
-      )}
-
-      {/* Connection status */}
-      {activeSession && !isConnected && !error && (
-        <div className="mx-4 mb-2 flex items-center gap-2 text-gray-400">
-          <Loader2 className="w-4 h-4 animate-spin" />
-          <span className="text-sm">Connecting...</span>
         </div>
       )}
 
@@ -510,13 +493,13 @@ export function ChatPanel({ problemSlug, currentCode, testResults, onClose, init
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyPress}
             placeholder="Ask a question..."
-            disabled={!activeSession || isStreaming || !isConnected}
+            disabled={!activeSession || isStreaming}
             rows={2}
             className="flex-1 p-3 bg-gray-900 rounded-lg text-sm text-gray-100 font-mono focus:outline-none focus:ring-2 focus:ring-cyan-500 resize-none disabled:opacity-50 disabled:cursor-not-allowed"
           />
           <button
             onClick={isStreaming ? cancelStream : handleSendMessage}
-            disabled={!activeSession || (!inputValue.trim() && !isStreaming) || !isConnected}
+            disabled={!activeSession || (!inputValue.trim() && !isStreaming)}
             className="bg-cyan-600 hover:bg-cyan-700 text-white font-semibold rounded-lg px-4 py-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isStreaming ? (

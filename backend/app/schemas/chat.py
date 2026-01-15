@@ -28,6 +28,14 @@ class UpdateSessionRequest(BaseModel):
     is_active: bool | None = None
 
 
+class SendMessageRequest(BaseModel):
+    """Request to send a message and stream AI response."""
+
+    content: str = Field(..., min_length=1, description="User message content")
+    current_code: str | None = Field(default=None, description="User's current code")
+    test_results: dict | None = Field(default=None, description="Test execution results")
+
+
 class ChatMessageSchema(BaseModel):
     """Chat message schema."""
 
@@ -73,25 +81,6 @@ class ChatSessionWithMessagesSchema(BaseModel):
     messages: list[ChatMessageSchema]
 
     model_config = {"from_attributes": True}
-
-
-# WebSocket Communication Schemas
-class ChatWSMessage(BaseModel):
-    """Client → Server WebSocket message."""
-
-    type: Literal["message", "cancel"]
-    content: str | None = None
-    current_code: str | None = None
-    test_results: dict | None = None
-
-
-class ChatWSResponse(BaseModel):
-    """Server → Client WebSocket response."""
-
-    type: Literal["chunk", "done", "error"]
-    content: str | None = None  # Markdown content chunk
-    message_id: str | None = None  # Set on "done"
-    error: str | None = None  # Set on "error"
 
 
 # LLM Schemas (for internal use with LiteLLM)

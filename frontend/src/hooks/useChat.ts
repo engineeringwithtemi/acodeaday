@@ -1,4 +1,4 @@
-// Hook for chat functionality with WebSocket support
+// Hook for chat functionality with streaming POST
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { apiGet, apiPost, apiPatch, apiDelete } from '../lib/api-client'
@@ -9,12 +9,9 @@ import type {
   CreateSessionRequest,
   UpdateSessionRequest,
   ModelInfo,
-  ChatWSMessage,
-  ChatWSResponse,
 } from '../types/api'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
-const WS_BASE_URL = API_BASE_URL.replace('http://', 'ws://').replace('https://', 'wss://')
 
 /**
  * Get list of available LLM models
@@ -99,10 +96,12 @@ export function useDeleteSession() {
 }
 
 /**
- * WebSocket chat hook for streaming responses
+ * Streaming POST chat hook for streaming responses
+ *
+ * Uses a single HTTP request that both saves the user message and streams the AI response.
+ * No persistent connection, no race conditions.
  */
-export function useWebSocketChat(sessionId: string | null) {
-  const [isConnected, setIsConnected] = useState(false)
+export function useStreamChat(sessionId: string | null) {
   const [isStreaming, setIsStreaming] = useState(false)
   const [streamingContent, setStreamingContent] = useState('')
   const [pendingMessage, setPendingMessage] = useState<string | null>(null)
@@ -113,159 +112,103 @@ export function useWebSocketChat(sessionId: string | null) {
     testResults?: any
   } | null>(null)
 
-  const wsRef = useRef<WebSocket | null>(null)
-  const isLLMErrorRef = useRef(false) // Track if error is from LLM (not connection)
-  const lastSentMessageRef = useRef<{ content: string; code?: string; testResults?: any } | null>(null)
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const reconnectAttemptsRef = useRef(0)
-  const sessionIdRef = useRef(sessionId)
-  const intentionalCloseRef = useRef(false)
+  const abortControllerRef = useRef<AbortController | null>(null)
   const queryClient = useQueryClient()
 
-  // Keep sessionId ref in sync
-  useEffect(() => {
-    sessionIdRef.current = sessionId
-  }, [sessionId])
-
-  const disconnect = useCallback(() => {
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current)
-      reconnectTimeoutRef.current = null
-    }
-    if (wsRef.current) {
-      intentionalCloseRef.current = true
-      wsRef.current.close()
-      wsRef.current = null
-    }
-    setIsConnected(false)
-  }, [])
-
-  const connect = useCallback(async () => {
-    const currentSessionId = sessionIdRef.current
-    if (!currentSessionId) return
-
-    try {
-      const token = await getAccessToken()
-      if (!token) {
-        setError('Not authenticated')
-        return
-      }
-
-      // Close existing connection (mark as intentional to prevent auto-reconnect)
-      if (wsRef.current) {
-        intentionalCloseRef.current = true
-        wsRef.current.close()
-        wsRef.current = null
-      }
-
-      const ws = new WebSocket(`${WS_BASE_URL}/api/chat/ws/${currentSessionId}?token=${token}`)
-      wsRef.current = ws
-
-      ws.onopen = () => {
-        setIsConnected(true)
-        // Only clear connection errors, not LLM errors (user may want to retry with different model)
-        if (!isLLMErrorRef.current) {
-          setError(null)
-        }
-        reconnectAttemptsRef.current = 0
-        intentionalCloseRef.current = false
-      }
-
-      ws.onmessage = (event) => {
-        const response: ChatWSResponse = JSON.parse(event.data)
-
-        if (response.type === 'chunk') {
-          setStreamingContent((prev) => prev + (response.content || ''))
-        } else if (response.type === 'done') {
-          setIsStreaming(false)
-          setStreamingContent('')
-          setPendingMessage(null)
-          // Invalidate session to refresh messages
-          queryClient.invalidateQueries({ queryKey: ['chat', 'session', currentSessionId] })
-        } else if (response.type === 'error') {
-          setError(response.error || 'Unknown error')
-          isLLMErrorRef.current = true // Mark as LLM error so it persists across reconnect
-          // Save the failed message for retry
-          if (lastSentMessageRef.current) {
-            setLastFailedMessage(lastSentMessageRef.current)
-          }
-          setIsStreaming(false)
-          setStreamingContent('')
-          setPendingMessage(null)
-        }
-      }
-
-      ws.onerror = (event) => {
-        console.error('WebSocket error:', event)
-        setError('Connection error')
-      }
-
-      ws.onclose = (event) => {
-        setIsConnected(false)
-        setIsStreaming(false)
-
-        // Only auto-reconnect if not intentional close, sessionId hasn't changed, and not unauthorized
-        if (
-          !intentionalCloseRef.current &&
-          event.code !== 4001 &&
-          reconnectAttemptsRef.current < 5 &&
-          sessionIdRef.current === currentSessionId
-        ) {
-          const delay = Math.min(3000 * Math.pow(2, reconnectAttemptsRef.current), 30000)
-          reconnectAttemptsRef.current += 1
-
-          reconnectTimeoutRef.current = setTimeout(() => {
-            // Double-check sessionId hasn't changed before reconnecting
-            if (sessionIdRef.current === currentSessionId) {
-              connect()
-            }
-          }, delay)
-        } else if (event.code === 4001) {
-          setError('Unauthorized - please refresh the page')
-        }
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Connection failed')
-    }
-  }, [queryClient])
-
   const sendMessage = useCallback(
-    (content: string, currentCode?: string, testResults?: any) => {
-      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-        setError('Not connected')
-        return
-      }
+    async (content: string, currentCode?: string, testResults?: any) => {
+      if (!sessionId || isStreaming) return
 
-      const message: ChatWSMessage = {
-        type: 'message',
-        content,
-        current_code: currentCode,
-        test_results: testResults,
-      }
+      // Cancel any existing stream
+      abortControllerRef.current?.abort()
 
-      // Store message for potential retry
-      lastSentMessageRef.current = { content, code: currentCode, testResults }
-
-      wsRef.current.send(JSON.stringify(message))
-      setPendingMessage(content)
       setIsStreaming(true)
       setStreamingContent('')
-      // Clear previous error and failed message state
+      setPendingMessage(content)
       setError(null)
-      isLLMErrorRef.current = false
       setLastFailedMessage(null)
+
+      const abortController = new AbortController()
+      abortControllerRef.current = abortController
+
+      try {
+        const token = await getAccessToken()
+
+        const response = await fetch(`${API_BASE_URL}/api/chat/session/${sessionId}/message`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            content,
+            current_code: currentCode,
+            test_results: testResults,
+          }),
+          signal: abortController.signal,
+        })
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+        }
+
+        const reader = response.body?.getReader()
+        if (!reader) throw new Error('No response body')
+
+        const decoder = new TextDecoder()
+        let buffer = ''
+
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+
+          buffer += decoder.decode(value, { stream: true })
+
+          // Parse SSE format: "data: {...}\n\n"
+          const lines = buffer.split('\n\n')
+          buffer = lines.pop() || '' // Keep incomplete line in buffer
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const jsonStr = line.slice(6)
+              try {
+                const event = JSON.parse(jsonStr)
+
+                if (event.type === 'chunk') {
+                  setStreamingContent((prev) => prev + (event.content || ''))
+                } else if (event.type === 'done') {
+                  // Success - refresh messages
+                  queryClient.invalidateQueries({ queryKey: ['chat', 'session', sessionId] })
+                } else if (event.type === 'error') {
+                  setError(event.error || 'Unknown error')
+                  setLastFailedMessage({ content, code: currentCode, testResults })
+                }
+              } catch (e) {
+                console.error('Failed to parse SSE event:', e)
+              }
+            }
+          }
+        }
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') {
+          // Cancelled by user - not an error
+          console.log('Stream cancelled')
+        } else {
+          const errorMessage = err instanceof Error ? err.message : 'Stream failed'
+          setError(errorMessage)
+          setLastFailedMessage({ content, code: currentCode, testResults })
+        }
+      } finally {
+        setIsStreaming(false)
+        setStreamingContent('')
+        setPendingMessage(null)
+      }
     },
-    []
+    [sessionId, isStreaming, queryClient]
   )
 
   const cancelStream = useCallback(() => {
-    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return
-
-    const message: ChatWSMessage = {
-      type: 'cancel',
-    }
-
-    wsRef.current.send(JSON.stringify(message))
+    abortControllerRef.current?.abort()
     setIsStreaming(false)
     setStreamingContent('')
     setPendingMessage(null)
@@ -273,33 +216,23 @@ export function useWebSocketChat(sessionId: string | null) {
 
   const retry = useCallback(() => {
     if (!lastFailedMessage) return
-
     sendMessage(lastFailedMessage.content, lastFailedMessage.code, lastFailedMessage.testResults)
   }, [lastFailedMessage, sendMessage])
 
   const clearError = useCallback(() => {
     setError(null)
-    isLLMErrorRef.current = false
     setLastFailedMessage(null)
   }, [])
 
-  // Connect when sessionId changes
+  // Cleanup on unmount
   useEffect(() => {
-    if (sessionId) {
-      // Reset reconnect attempts when sessionId changes
-      reconnectAttemptsRef.current = 0
-      connect()
-    } else {
-      disconnect()
-    }
-
     return () => {
-      disconnect()
+      abortControllerRef.current?.abort()
     }
-  }, [sessionId]) // Only depend on sessionId, not on connect/disconnect
+  }, [])
 
   return {
-    isConnected,
+    isConnected: true, // No persistent connection needed - always "connected"
     isStreaming,
     streamingContent,
     pendingMessage,
@@ -309,6 +242,6 @@ export function useWebSocketChat(sessionId: string | null) {
     cancelStream,
     retry,
     clearError,
-    reconnect: connect,
+    reconnect: () => {}, // No-op for API compatibility
   }
 }
