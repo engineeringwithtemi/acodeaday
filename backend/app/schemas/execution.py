@@ -29,7 +29,6 @@ class TestResult(BaseModel):
     error: str | None = None
     error_type: str | None = None
     stdout: str | None = None  # Captured print() output from user code
-    is_hidden: bool = False
 
 
 class RunCodeResponse(BaseModel):
@@ -45,7 +44,7 @@ class RunCodeResponse(BaseModel):
 
 
 class SubmitCodeRequest(BaseModel):
-    """Request to submit code (runs all test cases including hidden)."""
+    """Request to submit code (runs all test cases)."""
 
     problem_slug: str = Field(..., description="Problem slug identifier")
     code: str = Field(..., description="User's code to execute")
@@ -56,7 +55,7 @@ class SubmitCodeResponse(BaseModel):
     """Response from code submission."""
 
     success: bool = Field(..., description="Whether all tests passed")
-    results: list[TestResult] = Field(..., description="All test results (including hidden)")
+    results: list[TestResult] = Field(..., description="All test results")
     summary: dict = Field(..., description="Summary stats (total executed, passed, failed)")
     total_test_cases: int = Field(..., description="Total test cases in problem (for X/Y display)")
     submission_id: str = Field(..., description="Submission record ID")

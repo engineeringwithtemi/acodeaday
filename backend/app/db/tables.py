@@ -147,9 +147,6 @@ class TestCase(Base):
     # Expected output as JSONB: [0,1] or "hello" or {"key": "value"}
     expected: Mapped[dict] = mapped_column(JSONB, nullable=False)
 
-    # Hidden test cases only shown on submit (not on "Run Code")
-    is_hidden: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-
     # Sequence determines order of test case execution
     sequence: Mapped[int] = mapped_column(Integer, nullable=False)
 
@@ -230,7 +227,6 @@ class Submission(Base):
     failed_input: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     failed_output: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     failed_expected: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    failed_is_hidden: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     submitted_at: Mapped[datetime] = mapped_column(server_default=func.now())
 

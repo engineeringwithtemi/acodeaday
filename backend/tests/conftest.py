@@ -210,14 +210,12 @@ async def sample_problem(test_db: AsyncSession) -> Problem:
             problem_id=problem.id,
             input=[[2, 7, 11, 15], 9],
             expected=[0, 1],
-            is_hidden=False,
             sequence=1,
         ),
         TestCase(
             problem_id=problem.id,
             input=[[3, 2, 4], 6],
             expected=[1, 2],
-            is_hidden=True,
             sequence=2,
         ),
     ]
