@@ -1,0 +1,67 @@
+title: Counting Bits
+sequence_number: 144
+difficulty: easy
+pattern:
+  - bit-manipulation
+  - dynamic-programming
+
+description: |
+  Given an integer `n`, return an array `ans` of length `n + 1` such that for each `i` (`0 <= i <= n`), `ans[i]` is the **number of 1's** in the binary representation of `i`.
+
+constraints:
+  - "0 <= n <= 10^5"
+
+examples:
+  - input: "n = 2"
+    output: "[0,1,1]"
+    explanation: "0 --> 0, 1 --> 1, 2 --> 10"
+  - input: "n = 5"
+    output: "[0,1,1,2,1,2]"
+    explanation: "0 --> 0, 1 --> 1, 2 --> 10, 3 --> 11, 4 --> 100, 5 --> 101"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def countBits(self, n: int) -> List[int]:
+              pass
+    reference_solution: |
+      class Solution:
+          def countBits(self, n: int) -> List[int]:
+              dp = [0] * (n + 1)
+              offset = 1
+
+              for i in range(1, n + 1):
+                  if offset * 2 == i:
+                      offset = i
+                  dp[i] = 1 + dp[i - offset]
+
+              return dp
+    function_signature:
+      name: countBits
+      params:
+        - name: n
+          type: int
+      return_type: "List[int]"
+
+test_cases:
+  - input: [2]
+    expected: [0,1,1]
+  - input: [5]
+    expected: [0,1,1,2,1,2]
+  - input: [0]
+    expected: [0]
+  - input: [1]
+    expected: [0,1]
+  - input: [3]
+    expected: [0,1,1,2]
+  - input: [4]
+    expected: [0,1,1,2,1]
+  - input: [7]
+    expected: [0,1,1,2,1,2,2,3]
+  - input: [8]
+    expected: [0,1,1,2,1,2,2,3,1]
+  - input: [10]
+    expected: [0,1,1,2,1,2,2,3,1,2,2]
+  - input: [15]
+    expected: [0,1,1,2,1,2,2,3,1,2,2,3,2,3,3,4]

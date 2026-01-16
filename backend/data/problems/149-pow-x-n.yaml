@@ -1,0 +1,84 @@
+title: Pow(x, n)
+sequence_number: 149
+difficulty: medium
+pattern:
+  - math
+  - recursion
+  - binary-search
+
+description: |
+  Implement `pow(x, n)`, which calculates `x` raised to the power `n` (i.e., `x^n`).
+
+constraints:
+  - "-100.0 < x < 100.0"
+  - "-2^31 <= n <= 2^31 - 1"
+  - "n is an integer."
+  - "Either x is not zero or n > 0."
+  - "-10^4 <= x^n <= 10^4"
+
+examples:
+  - input: "x = 2.00000, n = 10"
+    output: "1024.00000"
+  - input: "x = 2.10000, n = 3"
+    output: "9.26100"
+  - input: "x = 2.00000, n = -2"
+    output: "0.25000"
+    explanation: "2^-2 = 1/2^2 = 1/4 = 0.25"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def myPow(self, x: float, n: int) -> float:
+              pass
+    reference_solution: |
+      class Solution:
+          def myPow(self, x: float, n: int) -> float:
+              if n == 0:
+                  return 1.0
+              if n < 0:
+                  x = 1 / x
+                  n = -n
+
+              result = 1.0
+              while n:
+                  if n & 1:
+                      result *= x
+                  x *= x
+                  n >>= 1
+
+              return result
+    function_signature:
+      name: myPow
+      params:
+        - name: x
+          type: float
+        - name: n
+          type: int
+      return_type: float
+
+test_cases:
+  - input: [2.0, 10]
+    expected: 1024.0
+  - input: [2.1, 3]
+    expected: 9.261000000000001
+  - input: [2.0, -2]
+    expected: 0.25
+  - input: [1.0, 100]
+    expected: 1.0
+  - input: [0.0, 5]
+    expected: 0.0
+  - input: [2.0, 0]
+    expected: 1.0
+  - input: [3.0, 2]
+    expected: 9.0
+  - input: [2.0, 3]
+    expected: 8.0
+  - input: [-2.0, 2]
+    expected: 4.0
+  - input: [-2.0, 3]
+    expected: -8.0
+  - input: [0.5, 2]
+    expected: 0.25
+  - input: [2.0, -1]
+    expected: 0.5
