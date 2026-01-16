@@ -1,0 +1,101 @@
+title: Car Fleet
+sequence_number: 80
+difficulty: medium
+pattern:
+  - stack
+  - sorting
+  - monotonic-stack
+
+description: |
+  There are `n` cars going to the same destination along a one-lane road. The destination is `target` miles away.
+
+  You are given two integer arrays `position` and `speed`, both of length `n`, where `position[i]` is the position of the `ith` car and `speed[i]` is the speed of the `ith` car (in miles per hour).
+
+  A car can never pass another car ahead of it, but it can catch up to it and drive bumper to bumper at the same speed. The faster car will slow down to match the slower car's speed. The distance between these two cars is ignored (i.e., they are assumed to have the same position).
+
+  A **car fleet** is some non-empty set of cars driving at the same position and same speed. Note that a single car is also a car fleet.
+
+  If a car catches up to a car fleet right at the destination point, it will still be considered as one car fleet.
+
+  Return the **number of car fleets** that will arrive at the destination.
+
+constraints:
+  - "n == position.length == speed.length"
+  - "1 <= n <= 10^5"
+  - "0 < target <= 10^6"
+  - "0 <= position[i] < target"
+  - "All the values of position are unique."
+  - "0 < speed[i] <= 10^6"
+
+examples:
+  - input: "target = 12, position = [10,8,0,5,3], speed = [2,4,1,1,3]"
+    output: "3"
+  - input: "target = 10, position = [3], speed = [3]"
+    output: "1"
+  - input: "target = 100, position = [0,2,4], speed = [4,2,1]"
+    output: "1"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def carFleet(self, target: int, position: List[int], speed: List[int]) -> int:
+              pass
+    reference_solution: |
+      class Solution:
+          def carFleet(self, target: int, position: List[int], speed: List[int]) -> int:
+              # Pair up position and speed, sort by position (descending)
+              cars = sorted(zip(position, speed), reverse=True)
+
+              fleets = 0
+              prev_time = 0
+
+              for pos, spd in cars:
+                  time_to_reach = (target - pos) / spd
+                  if time_to_reach > prev_time:
+                      fleets += 1
+                      prev_time = time_to_reach
+
+              return fleets
+    function_signature:
+      name: carFleet
+      params:
+        - name: target
+          type: int
+        - name: position
+          type: "List[int]"
+        - name: speed
+          type: "List[int]"
+      return_type: int
+
+test_cases:
+  - input: [12, [10, 8, 0, 5, 3], [2, 4, 1, 1, 3]]
+    expected: 3
+  - input: [10, [3], [3]]
+    expected: 1
+  - input: [100, [0, 2, 4], [4, 2, 1]]
+    expected: 1
+  - input: [10, [6, 8], [3, 2]]
+    expected: 2
+  - input: [10, [0, 4, 2], [2, 1, 3]]
+    expected: 1
+  - input: [20, [5, 10, 15], [5, 5, 5]]
+    expected: 3
+  - input: [10, [0, 5], [10, 1]]
+    expected: 1
+  - input: [10, [8, 3, 7, 4, 6, 5], [4, 4, 4, 4, 4, 4]]
+    expected: 6
+  - input: [12, [4, 0, 5, 3, 1, 2], [6, 10, 9, 6, 7, 2]]
+    expected: 4
+  - input: [10, [0, 2, 4, 6, 8], [5, 4, 3, 2, 1]]
+    expected: 1
+  - input: [100, [10, 20, 30, 40, 50], [10, 10, 10, 10, 10]]
+    expected: 5
+  - input: [15, [0, 5, 10], [3, 3, 3]]
+    expected: 3
+  - input: [10, [9], [1]]
+    expected: 1
+  - input: [50, [0, 10, 20, 30, 40], [10, 8, 6, 4, 2]]
+    expected: 1
+  - input: [20, [0, 5, 10, 15], [4, 3, 2, 1]]
+    expected: 1
