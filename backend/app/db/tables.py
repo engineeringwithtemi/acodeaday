@@ -61,9 +61,8 @@ class Problem(Base):
     slug: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     difficulty: Mapped[Difficulty] = mapped_column(Enum(Difficulty), nullable=False)
-    pattern: Mapped[str] = mapped_column(
-        String(50), nullable=False
-    )  # e.g., "hash-map", "two-pointers"
+    # Patterns as ARRAY of strings (e.g., ["hash-map", "arrays", "complement-search"])
+    pattern: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False)
 
     # SEQUENCE_NUMBER: Determines order in Blind 75 (1-75)
     # Used to find "next unsolved problem": SELECT * WHERE sequence_number = (min unsolved)

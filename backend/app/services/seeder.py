@@ -93,12 +93,16 @@ async def insert_problem(db: AsyncSession, data: dict) -> Problem:
     slug = title_to_slug(data["title"])
 
     # Create the problem
+    # Handle pattern as either a list or single string
+    pattern = data["pattern"]
+    if isinstance(pattern, str):
+        pattern = [pattern]
     problem = Problem(
         title=data["title"],
         slug=slug,
         description=data["description"],
         difficulty=Difficulty(data["difficulty"]),
-        pattern=data["pattern"],
+        pattern=pattern,
         sequence_number=data["sequence_number"],
         constraints=data["constraints"],
         examples={"examples": data["examples"]},
@@ -152,10 +156,14 @@ async def upsert_problem(db: AsyncSession, data: dict) -> Problem:
 
     if existing:
         # Update existing problem
+        # Handle pattern as either a list or single string
+        pattern = data["pattern"]
+        if isinstance(pattern, str):
+            pattern = [pattern]
         existing.title = data["title"]
         existing.description = data["description"]
         existing.difficulty = Difficulty(data["difficulty"])
-        existing.pattern = data["pattern"]
+        existing.pattern = pattern
         existing.sequence_number = data["sequence_number"]
         existing.constraints = data["constraints"]
         existing.examples = {"examples": data["examples"]}
