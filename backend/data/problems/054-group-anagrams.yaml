@@ -1,0 +1,83 @@
+title: Group Anagrams
+sequence_number: 54
+difficulty: medium
+pattern:
+  - string
+  - hash-table
+  - sorting
+
+description: |
+  Given an array of strings `strs`, group the **anagrams** together. You can return the answer in **any order**.
+
+  An **Anagram** is a word or phrase formed by rearranging the letters of a different word or phrase, typically using all the original letters exactly once.
+
+constraints:
+  - "1 <= strs.length <= 10^4"
+  - "0 <= strs[i].length <= 100"
+  - "strs[i] consists of lowercase English letters."
+
+examples:
+  - input: 'strs = ["eat","tea","tan","ate","nat","bat"]'
+    output: '[["bat"],["nat","tan"],["ate","eat","tea"]]'
+  - input: 'strs = [""]'
+    output: '[[""]]'
+  - input: 'strs = ["a"]'
+    output: '[["a"]]'
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def groupAnagrams(self, strs: List[str]) -> List[List[str]]:
+              pass
+    reference_solution: |
+      class Solution:
+          def groupAnagrams(self, strs: List[str]) -> List[List[str]]:
+              from collections import defaultdict
+              anagrams = defaultdict(list)
+
+              for s in strs:
+                  key = ''.join(sorted(s))
+                  anagrams[key].append(s)
+
+              # Sort each group and sort the result for consistent output
+              result = [sorted(group) for group in anagrams.values()]
+              return sorted(result, key=lambda x: (len(x), x[0] if x else ""))
+    function_signature:
+      name: groupAnagrams
+      params:
+        - name: strs
+          type: "List[str]"
+      return_type: "List[List[str]]"
+
+test_cases:
+  - input: [["eat", "tea", "tan", "ate", "nat", "bat"]]
+    expected: [["bat"], ["nat", "tan"], ["ate", "eat", "tea"]]
+  - input: [[""]]
+    expected: [[""]]
+  - input: [["a"]]
+    expected: [["a"]]
+  - input: [["ab", "ba"]]
+    expected: [["ab", "ba"]]
+  - input: [["abc", "bca", "cab"]]
+    expected: [["abc", "bca", "cab"]]
+  - input: [["a", "b", "c"]]
+    expected: [["a"], ["b"], ["c"]]
+  - input: [["aa", "aa"]]
+    expected: [["aa", "aa"]]
+  - input: [["abc", "def", "ghi"]]
+    expected: [["abc"], ["def"], ["ghi"]]
+  - input: [["listen", "silent", "enlist"]]
+    expected: [["enlist", "listen", "silent"]]
+  - input: [["dog", "god", "cat", "act", "tac"]]
+    expected: [["dog", "god"], ["act", "cat", "tac"]]
+  - input: [["a", "a", "a"]]
+    expected: [["a", "a", "a"]]
+  - input: [["ab", "cd", "ba", "dc"]]
+    expected: [["ab", "ba"], ["cd", "dc"]]
+  - input: [["", "", ""]]
+    expected: [["", "", ""]]
+  - input: [["abc"]]
+    expected: [["abc"]]
+  - input: [["z", "y", "x"]]
+    expected: [["x"], ["y"], ["z"]]

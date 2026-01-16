@@ -1,0 +1,72 @@
+title: Sum of Two Integers
+sequence_number: 147
+difficulty: medium
+pattern:
+  - bit-manipulation
+  - math
+
+description: |
+  Given two integers `a` and `b`, return the sum of the two integers without using the operators `+` and `-`.
+
+constraints:
+  - "-1000 <= a, b <= 1000"
+
+examples:
+  - input: "a = 1, b = 2"
+    output: "3"
+  - input: "a = 2, b = 3"
+    output: "5"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def getSum(self, a: int, b: int) -> int:
+              pass
+    reference_solution: |
+      class Solution:
+          def getSum(self, a: int, b: int) -> int:
+              MASK = 0xFFFFFFFF  # 32-bit mask
+              MAX = 0x7FFFFFFF   # Max positive int
+
+              while b != 0:
+                  carry = ((a & b) << 1) & MASK
+                  a = (a ^ b) & MASK
+                  b = carry
+
+              # Handle negative numbers
+              return a if a <= MAX else ~(a ^ MASK)
+    function_signature:
+      name: getSum
+      params:
+        - name: a
+          type: int
+        - name: b
+          type: int
+      return_type: int
+
+test_cases:
+  - input: [1, 2]
+    expected: 3
+  - input: [2, 3]
+    expected: 5
+  - input: [0, 0]
+    expected: 0
+  - input: [1, 0]
+    expected: 1
+  - input: [0, 1]
+    expected: 1
+  - input: [-1, 1]
+    expected: 0
+  - input: [-1, -1]
+    expected: -2
+  - input: [5, -3]
+    expected: 2
+  - input: [-5, 3]
+    expected: -2
+  - input: [100, 200]
+    expected: 300
+  - input: [-100, -200]
+    expected: -300
+  - input: [1000, -1000]
+    expected: 0

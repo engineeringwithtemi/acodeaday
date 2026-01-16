@@ -1,0 +1,90 @@
+title: Palindromic Substrings
+sequence_number: 58
+difficulty: medium
+pattern:
+  - string
+  - dynamic-programming
+  - expand-around-center
+
+description: |
+  Given a string `s`, return the number of **palindromic substrings** in it.
+
+  A string is a **palindrome** when it reads the same backward as forward.
+
+  A **substring** is a contiguous sequence of characters within the string.
+
+constraints:
+  - "1 <= s.length <= 1000"
+  - "s consists of lowercase English letters."
+
+examples:
+  - input: 's = "abc"'
+    output: "3"
+    explanation: "Three palindromic strings: 'a', 'b', 'c'."
+  - input: 's = "aaa"'
+    output: "6"
+    explanation: "Six palindromic strings: 'a', 'a', 'a', 'aa', 'aa', 'aaa'."
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def countSubstrings(self, s: str) -> int:
+              pass
+    reference_solution: |
+      class Solution:
+          def countSubstrings(self, s: str) -> int:
+              count = 0
+
+              def expand_around_center(left, right):
+                  nonlocal count
+                  while left >= 0 and right < len(s) and s[left] == s[right]:
+                      count += 1
+                      left -= 1
+                      right += 1
+
+              for i in range(len(s)):
+                  # Odd length palindromes
+                  expand_around_center(i, i)
+                  # Even length palindromes
+                  expand_around_center(i, i + 1)
+
+              return count
+    function_signature:
+      name: countSubstrings
+      params:
+        - name: s
+          type: str
+      return_type: int
+
+test_cases:
+  - input: ["abc"]
+    expected: 3
+  - input: ["aaa"]
+    expected: 6
+  - input: ["a"]
+    expected: 1
+  - input: ["aa"]
+    expected: 3
+  - input: ["ab"]
+    expected: 2
+  - input: ["aba"]
+    expected: 4
+  - input: ["abba"]
+    expected: 6
+  - input: ["abcd"]
+    expected: 4
+  - input: ["racecar"]
+    expected: 10
+  - input: ["aaaa"]
+    expected: 10
+  - input: ["abcba"]
+    expected: 7
+  - input: ["fdsklf"]
+    expected: 6
+  - input: ["aabb"]
+    expected: 6
+  - input: ["abab"]
+    expected: 6
+  - input: ["madam"]
+    expected: 7

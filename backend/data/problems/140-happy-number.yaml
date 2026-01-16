@@ -1,0 +1,87 @@
+title: Happy Number
+sequence_number: 140
+difficulty: easy
+pattern:
+  - math
+  - hash-table
+  - two-pointers
+
+description: |
+  Write an algorithm to determine if a number `n` is happy.
+
+  A **happy number** is a number defined by the following process:
+  - Starting with any positive integer, replace the number by the sum of the squares of its digits.
+  - Repeat the process until the number equals 1 (where it will stay), or it **loops endlessly in a cycle** which does not include 1.
+  - Those numbers for which this process **ends in 1** are happy.
+
+  Return `true` if `n` is a happy number, and `false` if not.
+
+constraints:
+  - "1 <= n <= 2^31 - 1"
+
+examples:
+  - input: "n = 19"
+    output: "true"
+    explanation: "1^2 + 9^2 = 82, 8^2 + 2^2 = 68, 6^2 + 8^2 = 100, 1^2 + 0^2 + 0^2 = 1"
+  - input: "n = 2"
+    output: "false"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def isHappy(self, n: int) -> bool:
+              pass
+    reference_solution: |
+      class Solution:
+          def isHappy(self, n: int) -> bool:
+              def get_next(num):
+                  total = 0
+                  while num > 0:
+                      digit = num % 10
+                      total += digit * digit
+                      num //= 10
+                  return total
+
+              seen = set()
+              while n != 1 and n not in seen:
+                  seen.add(n)
+                  n = get_next(n)
+
+              return n == 1
+    function_signature:
+      name: isHappy
+      params:
+        - name: n
+          type: int
+      return_type: bool
+
+test_cases:
+  - input: [19]
+    expected: true
+  - input: [2]
+    expected: false
+  - input: [1]
+    expected: true
+  - input: [7]
+    expected: true
+  - input: [10]
+    expected: true
+  - input: [13]
+    expected: true
+  - input: [4]
+    expected: false
+  - input: [100]
+    expected: true
+  - input: [89]
+    expected: false
+  - input: [44]
+    expected: true
+  - input: [82]
+    expected: true
+  - input: [68]
+    expected: true
+  - input: [11]
+    expected: false
+  - input: [111]
+    expected: false

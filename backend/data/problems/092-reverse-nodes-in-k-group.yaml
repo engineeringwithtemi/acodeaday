@@ -1,0 +1,93 @@
+title: Reverse Nodes in K-Group
+sequence_number: 92
+difficulty: hard
+pattern:
+  - linked-list
+  - recursion
+
+description: |
+  Given the `head` of a linked list, reverse the nodes of the list `k` at a time, and return the modified list.
+
+  `k` is a positive integer and is less than or equal to the length of the linked list. If the number of nodes is not a multiple of `k` then left-out nodes, in the end, should remain as it is.
+
+  You may not alter the values in the list's nodes, only nodes themselves may be changed.
+
+  The linked list is represented as an array of values.
+
+constraints:
+  - "The number of nodes in the list is n."
+  - "1 <= k <= n <= 5000"
+  - "0 <= Node.val <= 1000"
+
+examples:
+  - input: "head = [1,2,3,4,5], k = 2"
+    output: "[2,1,4,3,5]"
+  - input: "head = [1,2,3,4,5], k = 3"
+    output: "[3,2,1,4,5]"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def reverseKGroup(self, head: List[int], k: int) -> List[int]:
+              pass
+    reference_solution: |
+      class Solution:
+          def reverseKGroup(self, head: List[int], k: int) -> List[int]:
+              if not head or k == 1:
+                  return head
+
+              result = []
+              n = len(head)
+              i = 0
+
+              while i + k <= n:
+                  # Reverse k elements
+                  group = head[i:i+k]
+                  result.extend(group[::-1])
+                  i += k
+
+              # Add remaining elements (less than k)
+              result.extend(head[i:])
+
+              return result
+    function_signature:
+      name: reverseKGroup
+      params:
+        - name: head
+          type: "List[int]"
+        - name: k
+          type: int
+      return_type: "List[int]"
+
+test_cases:
+  - input: [[1, 2, 3, 4, 5], 2]
+    expected: [2, 1, 4, 3, 5]
+  - input: [[1, 2, 3, 4, 5], 3]
+    expected: [3, 2, 1, 4, 5]
+  - input: [[1], 1]
+    expected: [1]
+  - input: [[1, 2], 2]
+    expected: [2, 1]
+  - input: [[1, 2, 3], 1]
+    expected: [1, 2, 3]
+  - input: [[1, 2, 3, 4], 2]
+    expected: [2, 1, 4, 3]
+  - input: [[1, 2, 3, 4], 4]
+    expected: [4, 3, 2, 1]
+  - input: [[1, 2, 3, 4, 5, 6], 2]
+    expected: [2, 1, 4, 3, 6, 5]
+  - input: [[1, 2, 3, 4, 5, 6], 3]
+    expected: [3, 2, 1, 6, 5, 4]
+  - input: [[1, 2, 3, 4, 5, 6, 7], 3]
+    expected: [3, 2, 1, 6, 5, 4, 7]
+  - input: [[1, 2, 3, 4, 5, 6, 7, 8], 4]
+    expected: [4, 3, 2, 1, 8, 7, 6, 5]
+  - input: [[1, 2, 3, 4, 5, 6, 7, 8, 9], 3]
+    expected: [3, 2, 1, 6, 5, 4, 9, 8, 7]
+  - input: [[5, 4, 3, 2, 1], 5]
+    expected: [1, 2, 3, 4, 5]
+  - input: [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 5]
+    expected: [5, 4, 3, 2, 1, 10, 9, 8, 7, 6]
+  - input: [[0, 0, 0, 0], 2]
+    expected: [0, 0, 0, 0]

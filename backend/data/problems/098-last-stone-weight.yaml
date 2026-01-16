@@ -1,0 +1,88 @@
+title: Last Stone Weight
+sequence_number: 98
+difficulty: easy
+pattern:
+  - heap
+
+description: |
+  You are given an array of integers `stones` where `stones[i]` is the weight of the `ith` stone.
+
+  We are playing a game with the stones. On each turn, we choose the **heaviest two stones** and smash them together. Suppose the heaviest two stones have weights `x` and `y` with `x <= y`. The result of this smash is:
+  - If `x == y`, both stones are destroyed, and
+  - If `x != y`, the stone of weight `x` is destroyed, and the stone of weight `y` has new weight `y - x`.
+
+  At the end of the game, there is **at most one** stone left.
+
+  Return the weight of the last remaining stone. If there are no stones left, return `0`.
+
+constraints:
+  - "1 <= stones.length <= 30"
+  - "1 <= stones[i] <= 1000"
+
+examples:
+  - input: "stones = [2,7,4,1,8,1]"
+    output: "1"
+    explanation: "We combine 7 and 8 to get 1 so the array becomes [2,4,1,1,1]. Then we combine 2 and 4 to get 2 so the array becomes [2,1,1,1]. Then we combine 2 and 1 to get 1 so the array becomes [1,1,1]. Then we combine 1 and 1 to get 0 so the array becomes [1]. That's the last stone."
+  - input: "stones = [1]"
+    output: "1"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def lastStoneWeight(self, stones: List[int]) -> int:
+              pass
+    reference_solution: |
+      class Solution:
+          def lastStoneWeight(self, stones: List[int]) -> int:
+              import heapq
+
+              # Max heap (negate values)
+              heap = [-s for s in stones]
+              heapq.heapify(heap)
+
+              while len(heap) > 1:
+                  y = -heapq.heappop(heap)
+                  x = -heapq.heappop(heap)
+                  if x != y:
+                      heapq.heappush(heap, -(y - x))
+
+              return -heap[0] if heap else 0
+    function_signature:
+      name: lastStoneWeight
+      params:
+        - name: stones
+          type: "List[int]"
+      return_type: int
+
+test_cases:
+  - input: [[2, 7, 4, 1, 8, 1]]
+    expected: 1
+  - input: [[1]]
+    expected: 1
+  - input: [[2, 2]]
+    expected: 0
+  - input: [[1, 3]]
+    expected: 2
+  - input: [[3, 7, 2]]
+    expected: 2
+  - input: [[1, 1, 1, 1]]
+    expected: 0
+  - input: [[5, 5, 5, 5, 5]]
+    expected: 5
+  - input: [[10, 4, 2, 10]]
+    expected: 2
+  - input: [[1, 2, 3, 4, 5]]
+    expected: 1
+  - input: [[100, 50, 25]]
+    expected: 25
+  - input: [[31, 26, 33, 21, 40]]
+    expected: 9
+  - input: [[7, 6, 7, 6, 9]]
+    expected: 3
+  - input: [[1, 1000]]
+    expected: 999
+  - input: [[4, 3, 4, 3, 2]]
+    expected: 2
+  - input: [[9, 3, 2, 10]]
+    expected: 0

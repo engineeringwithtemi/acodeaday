@@ -1,0 +1,121 @@
+title: Word Search II
+sequence_number: 73
+difficulty: hard
+pattern:
+  - trie
+  - backtracking
+  - dfs
+  - matrix
+
+description: |
+  Given an `m x n` `board` of characters and a list of strings `words`, return all words on the board.
+
+  Each word must be constructed from letters of sequentially adjacent cells, where adjacent cells are horizontally or vertically neighboring. The same letter cell may not be used more than once in a word.
+
+constraints:
+  - "m == board.length"
+  - "n == board[i].length"
+  - "1 <= m, n <= 12"
+  - "board[i][j] is a lowercase English letter."
+  - "1 <= words.length <= 3 * 10^4"
+  - "1 <= words[i].length <= 10"
+  - "words[i] consists of lowercase English letters."
+  - "All the strings of words are unique."
+
+examples:
+  - input: 'board = [["o","a","a","n"],["e","t","a","e"],["i","h","k","r"],["i","f","l","v"]], words = ["oath","pea","eat","rain"]'
+    output: '["eat","oath"]'
+  - input: 'board = [["a","b"],["c","d"]], words = ["abcb"]'
+    output: "[]"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def findWords(self, board: List[List[str]], words: List[str]) -> List[str]:
+              pass
+    reference_solution: |
+      class Solution:
+          def findWords(self, board: List[List[str]], words: List[str]) -> List[str]:
+              class TrieNode:
+                  def __init__(self):
+                      self.children = {}
+                      self.word = None
+
+              # Build Trie
+              root = TrieNode()
+              for word in words:
+                  node = root
+                  for char in word:
+                      if char not in node.children:
+                          node.children[char] = TrieNode()
+                      node = node.children[char]
+                  node.word = word
+
+              m, n = len(board), len(board[0])
+              result = []
+
+              def dfs(i, j, node):
+                  char = board[i][j]
+                  if char not in node.children:
+                      return
+
+                  next_node = node.children[char]
+                  if next_node.word:
+                      result.append(next_node.word)
+                      next_node.word = None  # Avoid duplicates
+
+                  board[i][j] = '#'  # Mark visited
+
+                  for di, dj in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+                      ni, nj = i + di, j + dj
+                      if 0 <= ni < m and 0 <= nj < n and board[ni][nj] != '#':
+                          dfs(ni, nj, next_node)
+
+                  board[i][j] = char  # Restore
+
+              for i in range(m):
+                  for j in range(n):
+                      dfs(i, j, root)
+
+              return sorted(result)
+    function_signature:
+      name: findWords
+      params:
+        - name: board
+          type: "List[List[str]]"
+        - name: words
+          type: "List[str]"
+      return_type: "List[str]"
+
+test_cases:
+  - input: [[["o", "a", "a", "n"], ["e", "t", "a", "e"], ["i", "h", "k", "r"], ["i", "f", "l", "v"]], ["oath", "pea", "eat", "rain"]]
+    expected: ["eat", "oath"]
+  - input: [[["a", "b"], ["c", "d"]], ["abcb"]]
+    expected: []
+  - input: [[["a"]], ["a"]]
+    expected: ["a"]
+  - input: [[["a"]], ["b"]]
+    expected: []
+  - input: [[["a", "b"], ["c", "d"]], ["ab", "cd", "ac", "bd"]]
+    expected: ["ab", "ac", "bd", "cd"]
+  - input: [[["a", "b"], ["c", "d"]], ["abcd"]]
+    expected: []
+  - input: [[["a", "b", "c"], ["d", "e", "f"], ["g", "h", "i"]], ["abc", "cfi", "beh"]]
+    expected: ["abc", "beh", "cfi"]
+  - input: [[["a", "a", "a"], ["a", "a", "a"], ["a", "a", "a"]], ["a", "aa", "aaa"]]
+    expected: ["a", "aa", "aaa"]
+  - input: [[["o", "a", "b", "n"], ["o", "t", "a", "e"], ["a", "h", "k", "r"], ["a", "f", "l", "v"]], ["oa", "oaa"]]
+    expected: ["oa", "oaa"]
+  - input: [[["a", "a"], ["a", "a"]], ["aaaa"]]
+    expected: ["aaaa"]
+  - input: [[["a", "b", "c", "e"], ["s", "f", "c", "s"], ["a", "d", "e", "e"]], ["abcced", "see", "abcb"]]
+    expected: ["abcced", "see"]
+  - input: [[["x", "y"], ["z", "w"]], ["xy", "xz", "yw", "zw"]]
+    expected: ["xy", "xz", "yw", "zw"]
+  - input: [[["a"]], ["a", "a"]]
+    expected: ["a"]
+  - input: [[["a", "b"], ["c", "d"]], ["a", "b", "c", "d", "ab", "ac", "bd", "cd", "abcd"]]
+    expected: ["a", "ab", "ac", "b", "bd", "c", "cd", "d"]
+  - input: [[["b", "a", "b", "a"], ["b", "a", "b", "a"], ["b", "a", "b", "a"], ["b", "a", "b", "a"]], ["bab"]]
+    expected: ["bab"]

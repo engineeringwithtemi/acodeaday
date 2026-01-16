@@ -1,0 +1,91 @@
+title: Longest Palindromic Substring
+sequence_number: 57
+difficulty: medium
+pattern:
+  - string
+  - dynamic-programming
+  - expand-around-center
+
+description: |
+  Given a string `s`, return the **longest palindromic substring** in `s`.
+
+constraints:
+  - "1 <= s.length <= 1000"
+  - "s consist of only digits and English letters."
+
+examples:
+  - input: 's = "babad"'
+    output: '"bab"'
+    explanation: '"aba" is also a valid answer.'
+  - input: 's = "cbbd"'
+    output: '"bb"'
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def longestPalindrome(self, s: str) -> str:
+              pass
+    reference_solution: |
+      class Solution:
+          def longestPalindrome(self, s: str) -> str:
+              if not s:
+                  return ""
+
+              def expand_around_center(left, right):
+                  while left >= 0 and right < len(s) and s[left] == s[right]:
+                      left -= 1
+                      right += 1
+                  return s[left + 1:right]
+
+              result = ""
+              for i in range(len(s)):
+                  # Odd length palindrome
+                  p1 = expand_around_center(i, i)
+                  # Even length palindrome
+                  p2 = expand_around_center(i, i + 1)
+
+                  if len(p1) > len(result):
+                      result = p1
+                  if len(p2) > len(result):
+                      result = p2
+
+              return result
+    function_signature:
+      name: longestPalindrome
+      params:
+        - name: s
+          type: str
+      return_type: str
+
+test_cases:
+  - input: ["babad"]
+    expected: "bab"
+  - input: ["cbbd"]
+    expected: "bb"
+  - input: ["a"]
+    expected: "a"
+  - input: ["ac"]
+    expected: "a"
+  - input: ["bb"]
+    expected: "bb"
+  - input: ["ccc"]
+    expected: "ccc"
+  - input: ["aaaa"]
+    expected: "aaaa"
+  - input: ["abcba"]
+    expected: "abcba"
+  - input: ["aacabdkacaa"]
+    expected: "aca"
+  - input: ["forgeeksskeegfor"]
+    expected: "geeksskeeg"
+  - input: ["racecar"]
+    expected: "racecar"
+  - input: ["abcd"]
+    expected: "a"
+  - input: ["xabayx"]
+    expected: "aba"
+  - input: ["bananas"]
+    expected: "anana"
+  - input: ["abb"]
+    expected: "bb"

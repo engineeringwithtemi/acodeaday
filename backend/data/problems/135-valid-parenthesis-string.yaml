@@ -1,0 +1,95 @@
+title: Valid Parenthesis String
+sequence_number: 135
+difficulty: medium
+pattern:
+  - greedy
+  - string
+  - dynamic-programming
+
+description: |
+  Given a string `s` containing only three types of characters: `'('`, `')'` and `'*'`, return `true` if `s` is **valid**.
+
+  The following rules define a **valid** string:
+  - Any left parenthesis `'('` must have a corresponding right parenthesis `')'`.
+  - Any right parenthesis `')'` must have a corresponding left parenthesis `'('`.
+  - Left parenthesis `'('` must go before the corresponding right parenthesis `')'`.
+  - `'*'` could be treated as a single right parenthesis `')'` or a single left parenthesis `'('` or an empty string `""`.
+
+constraints:
+  - "1 <= s.length <= 100"
+  - "s[i] is '(', ')' or '*'."
+
+examples:
+  - input: 's = "()"'
+    output: "true"
+  - input: 's = "(*)"'
+    output: "true"
+  - input: 's = "(*))"'
+    output: "true"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def checkValidString(self, s: str) -> bool:
+              pass
+    reference_solution: |
+      class Solution:
+          def checkValidString(self, s: str) -> bool:
+              # Track range of possible open parentheses count
+              lo = hi = 0
+
+              for c in s:
+                  if c == '(':
+                      lo += 1
+                      hi += 1
+                  elif c == ')':
+                      lo -= 1
+                      hi -= 1
+                  else:  # '*'
+                      lo -= 1  # treat as ')'
+                      hi += 1  # treat as '('
+
+                  if hi < 0:  # too many ')' even if all '*' are '('
+                      return False
+                  lo = max(lo, 0)  # can't have negative open count
+
+              return lo == 0
+    function_signature:
+      name: checkValidString
+      params:
+        - name: s
+          type: str
+      return_type: bool
+
+test_cases:
+  - input: ["()"]
+    expected: true
+  - input: ["(*)"]
+    expected: true
+  - input: ["(*))"]
+    expected: true
+  - input: ["("]
+    expected: false
+  - input: [")"]
+    expected: false
+  - input: ["*"]
+    expected: true
+  - input: ["**"]
+    expected: true
+  - input: ["()()"]
+    expected: true
+  - input: ["(())"]
+    expected: true
+  - input: ["(*()"]
+    expected: true
+  - input: ["()*()"]
+    expected: true
+  - input: ["((*)"]
+    expected: true
+  - input: ["((*))"]
+    expected: true
+  - input: ["())"]
+    expected: false
+  - input: ["(((((*))"]
+    expected: false

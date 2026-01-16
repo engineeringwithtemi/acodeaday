@@ -1,0 +1,104 @@
+title: Longest Increasing Subsequence
+sequence_number: 18
+difficulty: medium
+pattern:
+  - dynamic-programming
+  - binary-search
+  - subsequence
+  - patience-sort
+
+description: |
+  Given an integer array `nums`, return the length of the longest strictly increasing subsequence.
+
+  A **subsequence** is an array that can be derived from another array by deleting some or no elements without changing the order of the remaining elements.
+
+constraints:
+  - "1 <= nums.length <= 2500"
+  - "-10^4 <= nums[i] <= 10^4"
+
+examples:
+  - input: "nums = [10,9,2,5,3,7,101,18]"
+    output: "4"
+    explanation: "The longest increasing subsequence is [2,3,7,101], therefore the length is 4."
+  - input: "nums = [0,1,0,3,2,3]"
+    output: "4"
+  - input: "nums = [7,7,7,7,7,7,7]"
+    output: "1"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def lengthOfLIS(self, nums: List[int]) -> int:
+              pass
+    reference_solution: |
+      class Solution:
+          def lengthOfLIS(self, nums: List[int]) -> int:
+              # dp[i] = length of LIS ending at index i
+              n = len(nums)
+              dp = [1] * n
+
+              for i in range(1, n):
+                  for j in range(i):
+                      if nums[j] < nums[i]:
+                          dp[i] = max(dp[i], dp[j] + 1)
+
+              return max(dp)
+    function_signature:
+      name: lengthOfLIS
+      params:
+        - name: nums
+          type: "List[int]"
+      return_type: int
+
+test_cases:
+  - input: [[10, 9, 2, 5, 3, 7, 101, 18]]
+    expected: 4
+  - input: [[0, 1, 0, 3, 2, 3]]
+    expected: 4
+  - input: [[7, 7, 7, 7, 7, 7, 7]]
+    expected: 1
+  - input: [[1]]
+    expected: 1
+  - input: [[1, 2]]
+    expected: 2
+  - input: [[2, 1]]
+    expected: 1
+  - input: [[1, 2, 3]]
+    expected: 3
+  - input: [[3, 2, 1]]
+    expected: 1
+  - input: [[1, 3, 6, 7, 9, 4, 10, 5, 6]]
+    expected: 6
+  - input: [[4, 10, 4, 3, 8, 9]]
+    expected: 3
+  - input: [[1, 2, 3, 4, 5]]
+    expected: 5
+  - input: [[5, 4, 3, 2, 1]]
+    expected: 1
+  - input: [[1, 3, 2, 4, 3, 5]]
+    expected: 4
+  - input: [[10, 22, 9, 33, 21, 50, 41, 60, 80]]
+    expected: 6
+  - input: [[-1, 3, 4, 5, 2, 2, 2, 2]]
+    expected: 4
+  - input: [[0, 8, 4, 12, 2, 10, 6, 14, 1, 9, 5, 13, 3, 11, 7, 15]]
+    expected: 6
+  - input: [[1, 1, 1, 1, 1]]
+    expected: 1
+  - input: [[-2, -1, 0, 1, 2]]
+    expected: 5
+  - input: [[2, -1, 0, 1, 2]]
+    expected: 4
+  - input: [[1, 5, 2, 3, 4]]
+    expected: 4
+  - input: [[3, 10, 2, 1, 20]]
+    expected: 3
+  - input: [[50, 3, 10, 7, 40, 80]]
+    expected: 4
+  - input: [[4, 2, 3, 6, 10, 1, 12]]
+    expected: 5
+  - input: [[1, 101, 2, 3, 100, 4, 5]]
+    expected: 5
+  - input: [[0]]
+    expected: 1

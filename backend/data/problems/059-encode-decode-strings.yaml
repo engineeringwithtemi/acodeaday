@@ -1,0 +1,93 @@
+title: Encode and Decode Strings
+sequence_number: 59
+difficulty: medium
+pattern:
+  - string
+  - design
+
+description: |
+  Design an algorithm to encode a list of strings to a single string. The encoded string is then decoded back to the original list of strings.
+
+  Implement the `encode` and `decode` methods.
+
+  For this problem, we'll simplify to just the encode function that returns an encoded string which can be uniquely decoded.
+
+constraints:
+  - "1 <= strs.length <= 200"
+  - "0 <= strs[i].length <= 200"
+  - "strs[i] contains any possible characters out of 256 valid ASCII characters."
+
+examples:
+  - input: 'strs = ["Hello","World"]'
+    output: '["Hello","World"]'
+    explanation: "encode then decode returns the original list."
+  - input: 'strs = [""]'
+    output: '[""]'
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def encodeAndDecode(self, strs: List[str]) -> List[str]:
+              pass
+    reference_solution: |
+      class Solution:
+          def encodeAndDecode(self, strs: List[str]) -> List[str]:
+              # Encode: length#string format
+              def encode(strs):
+                  return ''.join(f"{len(s)}#{s}" for s in strs)
+
+              # Decode: parse length#string format
+              def decode(s):
+                  result = []
+                  i = 0
+                  while i < len(s):
+                      j = i
+                      while s[j] != '#':
+                          j += 1
+                      length = int(s[i:j])
+                      result.append(s[j + 1:j + 1 + length])
+                      i = j + 1 + length
+                  return result
+
+              # Encode and decode to verify round-trip
+              encoded = encode(strs)
+              return decode(encoded)
+    function_signature:
+      name: encodeAndDecode
+      params:
+        - name: strs
+          type: "List[str]"
+      return_type: "List[str]"
+
+test_cases:
+  - input: [["Hello", "World"]]
+    expected: ["Hello", "World"]
+  - input: [[""]]
+    expected: [""]
+  - input: [["a"]]
+    expected: ["a"]
+  - input: [["a", "b", "c"]]
+    expected: ["a", "b", "c"]
+  - input: [["abc", "def", "ghi"]]
+    expected: ["abc", "def", "ghi"]
+  - input: [["", "", ""]]
+    expected: ["", "", ""]
+  - input: [["hello world"]]
+    expected: ["hello world"]
+  - input: [["#", "##", "###"]]
+    expected: ["#", "##", "###"]
+  - input: [["1#2", "3#4"]]
+    expected: ["1#2", "3#4"]
+  - input: [["a", "", "b"]]
+    expected: ["a", "", "b"]
+  - input: [["test", "with", "multiple", "words"]]
+    expected: ["test", "with", "multiple", "words"]
+  - input: [["123", "456"]]
+    expected: ["123", "456"]
+  - input: [["special!@#$%"]]
+    expected: ["special!@#$%"]
+  - input: [["line1\nline2"]]
+    expected: ["line1\nline2"]
+  - input: [["a", "ab", "abc", "abcd"]]
+    expected: ["a", "ab", "abc", "abcd"]

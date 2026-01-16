@@ -1,0 +1,93 @@
+title: Add Two Numbers
+sequence_number: 89
+difficulty: medium
+pattern:
+  - linked-list
+  - math
+
+description: |
+  You are given two **non-empty** linked lists representing two non-negative integers. The digits are stored in **reverse order**, and each of their nodes contains a single digit. Add the two numbers and return the sum as a linked list.
+
+  You may assume the two numbers do not contain any leading zero, except the number 0 itself.
+
+  The linked lists are represented as arrays of digits in reverse order.
+
+constraints:
+  - "The number of nodes in each linked list is in the range [1, 100]."
+  - "0 <= Node.val <= 9"
+  - "It is guaranteed that the list represents a number that does not have leading zeros."
+
+examples:
+  - input: "l1 = [2,4,3], l2 = [5,6,4]"
+    output: "[7,0,8]"
+    explanation: "342 + 465 = 807."
+  - input: "l1 = [0], l2 = [0]"
+    output: "[0]"
+  - input: "l1 = [9,9,9,9,9,9,9], l2 = [9,9,9,9]"
+    output: "[8,9,9,9,0,0,0,1]"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def addTwoNumbers(self, l1: List[int], l2: List[int]) -> List[int]:
+              pass
+    reference_solution: |
+      class Solution:
+          def addTwoNumbers(self, l1: List[int], l2: List[int]) -> List[int]:
+              result = []
+              carry = 0
+              i, j = 0, 0
+
+              while i < len(l1) or j < len(l2) or carry:
+                  val1 = l1[i] if i < len(l1) else 0
+                  val2 = l2[j] if j < len(l2) else 0
+
+                  total = val1 + val2 + carry
+                  carry = total // 10
+                  result.append(total % 10)
+
+                  i += 1
+                  j += 1
+
+              return result
+    function_signature:
+      name: addTwoNumbers
+      params:
+        - name: l1
+          type: "List[int]"
+        - name: l2
+          type: "List[int]"
+      return_type: "List[int]"
+
+test_cases:
+  - input: [[2, 4, 3], [5, 6, 4]]
+    expected: [7, 0, 8]
+  - input: [[0], [0]]
+    expected: [0]
+  - input: [[9, 9, 9, 9, 9, 9, 9], [9, 9, 9, 9]]
+    expected: [8, 9, 9, 9, 0, 0, 0, 1]
+  - input: [[1], [9, 9, 9]]
+    expected: [0, 0, 0, 1]
+  - input: [[5], [5]]
+    expected: [0, 1]
+  - input: [[1, 2, 3], [4, 5, 6]]
+    expected: [5, 7, 9]
+  - input: [[9], [1]]
+    expected: [0, 1]
+  - input: [[1, 8], [0]]
+    expected: [1, 8]
+  - input: [[0], [7, 3]]
+    expected: [7, 3]
+  - input: [[9, 9], [1]]
+    expected: [0, 0, 1]
+  - input: [[2, 4, 3, 2, 4, 3, 2, 4, 3, 2], [5, 6, 4, 2, 4, 3, 2, 4, 3, 2]]
+    expected: [7, 0, 8, 4, 8, 6, 4, 8, 6, 4]
+  - input: [[1], [1]]
+    expected: [2]
+  - input: [[5, 6, 4], [2, 4, 3]]
+    expected: [7, 0, 8]
+  - input: [[9, 9, 9, 9], [9, 9, 9, 9]]
+    expected: [8, 9, 9, 9, 1]
+  - input: [[0, 0, 1], [0, 0, 2]]
+    expected: [0, 0, 3]
