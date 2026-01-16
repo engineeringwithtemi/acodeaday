@@ -43,9 +43,8 @@ async def test_get_problem_by_slug(client: AsyncClient, sample_problem: Problem)
     assert len(data["languages"]) == 1
     assert data["languages"][0]["language"] == "python"
 
-    # Check test cases (only non-hidden)
-    assert len(data["test_cases"]) == 1
-    assert data["test_cases"][0]["is_hidden"] is False
+    # Check test cases
+    assert len(data["test_cases"]) == 2
 
 
 @pytest.mark.asyncio

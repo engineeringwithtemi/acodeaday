@@ -68,7 +68,6 @@ def generate_python_wrapper(
         {
             "input": tc.input if isinstance(tc.input, list) else [tc.input],
             "expected": tc.expected,
-            "is_hidden": tc.is_hidden if hasattr(tc, 'is_hidden') else False,
         }
         for tc in test_cases
     ]
@@ -113,7 +112,6 @@ if __name__ == "__main__":
                 "input": test["input"],
                 "output": result,
                 "expected": test["expected"],
-                "is_hidden": test["is_hidden"],
                 "stdout": stdout_content if stdout_content else None
             }})
 
@@ -133,7 +131,6 @@ if __name__ == "__main__":
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "expected": test["expected"],
-                "is_hidden": test["is_hidden"],
                 "stdout": stdout_content if stdout_content else None
             }})
 
@@ -180,42 +177,6 @@ def parse_judge0_output(stdout: str) -> list[dict[str, Any]]:
     except json.JSONDecodeError as e:
         logger.error("judge0_output_parse_error", error=str(e), output=stdout)
         raise ValueError(f"Could not parse Judge0 output as JSON: {e}")
-
-
-def filter_hidden_tests(
-    results: list[dict[str, Any]], show_hidden: bool = False
-) -> list[dict[str, Any]]:
-    """
-    Filter out hidden test cases from results.
-
-    Used for "Run Code" endpoint where we don't show hidden tests.
-    For "Submit" endpoint, show_hidden=True to reveal all failures.
-
-    Args:
-        results: List of test results from parse_judge0_output()
-        show_hidden: Whether to include hidden test results
-
-    Returns:
-        Filtered list of test results
-
-    Example:
-        results = [
-            {"test_number": 1, "passed": True, "is_hidden": False},
-            {"test_number": 2, "passed": False, "is_hidden": True}
-        ]
-
-        # For "Run Code" - hide test 2:
-        filter_hidden_tests(results, show_hidden=False)
-        # Returns: [{"test_number": 1, ...}]
-
-        # For "Submit" - show all:
-        filter_hidden_tests(results, show_hidden=True)
-        # Returns: [both tests]
-    """
-    if show_hidden:
-        return results
-
-    return [r for r in results if not r.get("is_hidden", False)]
 
 
 def get_execution_summary(results: list[dict[str, Any]]) -> dict[str, Any]:
