@@ -153,10 +153,10 @@ services:
   # ===========================================================================
   # Backend (FastAPI)
   # ===========================================================================
-  # Pull from Docker Hub: temidev/acodeaday-backend:latest
-  # Or from GHCR: ghcr.io/temidev/acodeaday-backend:latest
+  # Pull from Docker Hub: engineeringwithtemi/acodeaday-backend:latest
+  # Or from GHCR: ghcr.io/engineeringwithtemi/acodeaday-backend:latest
   backend:
-    image: ${BACKEND_IMAGE:-ghcr.io/temidev/acodeaday-backend:latest}
+    image: ${BACKEND_IMAGE:-ghcr.io/engineeringwithtemi/acodeaday-backend:latest}
     container_name: acodeaday-backend
     ports:
       - "8000:8000"
@@ -167,7 +167,6 @@ services:
       - DATABASE_URL=${DATABASE_URL}
       - SUPABASE_URL=${SUPABASE_URL:-}
       - SUPABASE_KEY=${SUPABASE_KEY:-}
-      - SUPABASE_JWT_SECRET=${SUPABASE_JWT_SECRET:-}
       # Auth credentials
       - AUTH_USERNAME=${AUTH_USERNAME:-admin}
       - AUTH_PASSWORD=${AUTH_PASSWORD:-changeme}
@@ -194,10 +193,10 @@ services:
   # ===========================================================================
   # Frontend (TanStack Start with SSR)
   # ===========================================================================
-  # Pull from Docker Hub: temidev/acodeaday-frontend:latest
-  # Or from GHCR: ghcr.io/temidev/acodeaday-frontend:latest
+  # Pull from Docker Hub: engineeringwithtemi/acodeaday-frontend:latest
+  # Or from GHCR: ghcr.io/engineeringwithtemi/acodeaday-frontend:latest
   frontend:
-    image: ${FRONTEND_IMAGE:-ghcr.io/temidev/acodeaday-frontend:latest}
+    image: ${FRONTEND_IMAGE:-ghcr.io/engineeringwithtemi/acodeaday-frontend:latest}
     container_name: acodeaday-frontend
     ports:
       - "3000:3000"

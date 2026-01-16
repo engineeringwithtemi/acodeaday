@@ -298,3 +298,10 @@ Focus on understanding through consistent practice, not cramming. One problem at
 
  <!-- todos -->
  - USE anki style flashcard to determine the frequency of the user seeing the ones to retry 
+
+
+ - docker compose file missing my hub name
+ - backend doesn't have env file
+ - docker compose file should be sufficient to run everything 
+ - redirects when not authenticated should happen
+ - default user not working 

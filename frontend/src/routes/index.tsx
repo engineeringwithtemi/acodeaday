@@ -159,7 +159,7 @@ function ProblemCard({ problem, type }: ProblemCardProps) {
           </div>
           <h3 className="text-xl font-bold text-white mb-2">{problem.title}</h3>
           <p className="text-sm text-gray-400 mb-3">
-            Pattern: <span className="text-cyan-400">{problem.pattern}</span>
+            Pattern: <span className="text-cyan-400">{problem.pattern.join(', ')}</span>
           </p>
         </div>
       </div>

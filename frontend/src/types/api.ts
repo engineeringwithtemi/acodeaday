@@ -28,7 +28,7 @@ export interface Problem {
   sequence_number: number
   title: string
   difficulty: 'easy' | 'medium' | 'hard'
-  pattern: string
+  pattern: string[]
   description: string
   constraints: string[]
   examples: ProblemExample[]
@@ -108,7 +108,7 @@ export interface TodayProblem {
   title: string
   slug: string
   difficulty: 'easy' | 'medium' | 'hard'
-  pattern: string
+  pattern: string[]
   sequence_number: number
   times_solved: number
   last_solved_at: string | null
@@ -153,7 +153,7 @@ export interface ProblemBasic {
   title: string
   slug: string
   difficulty: 'easy' | 'medium' | 'hard'
-  pattern: string
+  pattern: string[]
   sequence_number: number
 }
 

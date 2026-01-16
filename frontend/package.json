@@ -3,8 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite dev --port 3000",
-    "build": "vite build",
+    "dev": "npm run generate-types && vite dev --port 3000",
+    "build": "npm run generate-types && vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "generate-types": "openapi-typescript http://localhost:8000/openapi.json -o src/types/api.generated.ts"

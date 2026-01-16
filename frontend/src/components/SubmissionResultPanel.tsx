@@ -155,7 +155,7 @@ export function SubmissionResultPanel({
           )}
 
           {/* Failed Test Case Details */}
-          {firstFailedTest && !firstFailedTest.is_hidden && (
+          {firstFailedTest && (
             <div className="space-y-3">
               {/* Test Case Number */}
               {firstFailedTest.test_number && (

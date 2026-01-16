@@ -1,9 +1,10 @@
-import { HeadContent, Scripts, createRootRoute, Outlet, redirect, useLocation } from '@tanstack/react-router'
+import { HeadContent, Scripts, createRootRoute, redirect, useLocation } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 import { QueryClientProvider } from '@tanstack/react-query'
 
 import Header from '../components/Header'
+import { AuthErrorHandler } from '../components/AuthErrorHandler'
 import { queryClient } from '../lib/query-client'
 import { isAuthenticated } from '../lib/api-client'
 
@@ -68,8 +69,10 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body>
         <QueryClientProvider client={queryClient}>
-          {!isLoginPage && <Header />}
-          {children}
+          <AuthErrorHandler>
+            {!isLoginPage && <Header />}
+            {children}
+          </AuthErrorHandler>
           <TanStackDevtools
             config={{
               position: 'bottom-right',
