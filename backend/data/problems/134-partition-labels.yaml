@@ -1,0 +1,83 @@
+title: Partition Labels
+sequence_number: 134
+difficulty: medium
+pattern:
+  - greedy
+  - hash-table
+  - two-pointers
+  - string
+
+description: |
+  You are given a string `s`. We want to partition the string into as many parts as possible so that each letter appears in at most one part.
+
+  Note that the partition is done so that after concatenating all the parts in order, the resultant string should be `s`.
+
+  Return a list of integers representing the size of these parts.
+
+constraints:
+  - "1 <= s.length <= 500"
+  - "s consists of lowercase English letters."
+
+examples:
+  - input: 's = "ababcbacadefegdehijhklij"'
+    output: "[9,7,8]"
+    explanation: 'The partition is "ababcbaca", "defegde", "hijhklij". This is a partition so that each letter appears in at most one part.'
+  - input: 's = "eccbbbbdec"'
+    output: "[10]"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def partitionLabels(self, s: str) -> List[int]:
+              pass
+    reference_solution: |
+      class Solution:
+          def partitionLabels(self, s: str) -> List[int]:
+              # Find last occurrence of each character
+              last = {c: i for i, c in enumerate(s)}
+
+              result = []
+              start = end = 0
+
+              for i, c in enumerate(s):
+                  end = max(end, last[c])
+                  if i == end:
+                      result.append(end - start + 1)
+                      start = end + 1
+
+              return result
+    function_signature:
+      name: partitionLabels
+      params:
+        - name: s
+          type: str
+      return_type: "List[int]"
+
+test_cases:
+  - input: ["ababcbacadefegdehijhklij"]
+    expected: [9, 7, 8]
+  - input: ["eccbbbbdec"]
+    expected: [10]
+  - input: ["a"]
+    expected: [1]
+  - input: ["ab"]
+    expected: [1, 1]
+  - input: ["aa"]
+    expected: [2]
+  - input: ["abc"]
+    expected: [1, 1, 1]
+  - input: ["aba"]
+    expected: [3]
+  - input: ["abab"]
+    expected: [4]
+  - input: ["abcabc"]
+    expected: [6]
+  - input: ["aabbcc"]
+    expected: [2, 2, 2]
+  - input: ["vhaagbqkaq"]
+    expected: [1, 1, 8]
+  - input: ["caedbdedda"]
+    expected: [1, 9]
+  - input: ["qiejxqfnqceocmy"]
+    expected: [13, 1, 1]
