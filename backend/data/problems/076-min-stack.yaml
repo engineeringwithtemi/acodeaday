@@ -1,0 +1,113 @@
+title: Min Stack
+sequence_number: 76
+difficulty: medium
+pattern:
+  - stack
+  - design
+
+description: |
+  Design a stack that supports push, pop, top, and retrieving the minimum element in constant time.
+
+  Implement the `MinStack` class:
+  - `MinStack()` initializes the stack object.
+  - `void push(int val)` pushes the element `val` onto the stack.
+  - `void pop()` removes the element on the top of the stack.
+  - `int top()` gets the top element of the stack.
+  - `int getMin()` retrieves the minimum element in the stack.
+
+  You must implement a solution with `O(1)` time complexity for each function.
+
+constraints:
+  - "-2^31 <= val <= 2^31 - 1"
+  - "Methods pop, top and getMin operations will always be called on non-empty stacks."
+  - "At most 3 * 10^4 calls will be made to push, pop, top, and getMin."
+
+examples:
+  - input: '["MinStack","push","push","push","getMin","pop","top","getMin"] [[],[-2],[0],[-3],[],[],[],[]]'
+    output: "[null,null,null,null,-3,null,0,-2]"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def executeMinStackOperations(self, operations: List[List]) -> List:
+              pass
+    reference_solution: |
+      class Solution:
+          def executeMinStackOperations(self, operations: List[List]) -> List:
+              class MinStack:
+                  def __init__(self):
+                      self.stack = []
+                      self.min_stack = []
+
+                  def push(self, val):
+                      self.stack.append(val)
+                      if not self.min_stack or val <= self.min_stack[-1]:
+                          self.min_stack.append(val)
+
+                  def pop(self):
+                      if self.stack:
+                          val = self.stack.pop()
+                          if val == self.min_stack[-1]:
+                              self.min_stack.pop()
+
+                  def top(self):
+                      return self.stack[-1] if self.stack else None
+
+                  def getMin(self):
+                      return self.min_stack[-1] if self.min_stack else None
+
+              ms = MinStack()
+              results = []
+
+              for op in operations:
+                  if op[0] == "push":
+                      ms.push(op[1])
+                      results.append(None)
+                  elif op[0] == "pop":
+                      ms.pop()
+                      results.append(None)
+                  elif op[0] == "top":
+                      results.append(ms.top())
+                  elif op[0] == "getMin":
+                      results.append(ms.getMin())
+
+              return results
+    function_signature:
+      name: executeMinStackOperations
+      params:
+        - name: operations
+          type: "List[List]"
+      return_type: List
+
+test_cases:
+  - input: [[["push", -2], ["push", 0], ["push", -3], ["getMin"], ["pop"], ["top"], ["getMin"]]]
+    expected: [null, null, null, -3, null, 0, -2]
+  - input: [[["push", 1], ["getMin"]]]
+    expected: [null, 1]
+  - input: [[["push", 5], ["push", 3], ["push", 7], ["getMin"]]]
+    expected: [null, null, null, 3]
+  - input: [[["push", 1], ["push", 2], ["push", 3], ["top"], ["pop"], ["top"]]]
+    expected: [null, null, null, 3, null, 2]
+  - input: [[["push", 0], ["push", 1], ["push", 0], ["getMin"], ["pop"], ["getMin"]]]
+    expected: [null, null, null, 0, null, 0]
+  - input: [[["push", 2], ["push", 0], ["push", 3], ["push", 0], ["getMin"], ["pop"], ["getMin"], ["pop"], ["getMin"]]]
+    expected: [null, null, null, null, 0, null, 0, null, 0]
+  - input: [[["push", -1], ["top"], ["getMin"]]]
+    expected: [null, -1, -1]
+  - input: [[["push", 10], ["push", 20], ["pop"], ["getMin"]]]
+    expected: [null, null, null, 10]
+  - input: [[["push", 5], ["push", 5], ["push", 5], ["getMin"], ["pop"], ["getMin"]]]
+    expected: [null, null, null, 5, null, 5]
+  - input: [[["push", 100], ["push", -100], ["getMin"], ["pop"], ["getMin"]]]
+    expected: [null, null, -100, null, 100]
+  - input: [[["push", 1], ["push", 2], ["push", 3], ["push", 4], ["push", 5], ["getMin"]]]
+    expected: [null, null, null, null, null, 1]
+  - input: [[["push", 5], ["push", 4], ["push", 3], ["push", 2], ["push", 1], ["getMin"]]]
+    expected: [null, null, null, null, null, 1]
+  - input: [[["push", 3], ["push", 1], ["push", 2], ["getMin"], ["pop"], ["getMin"]]]
+    expected: [null, null, null, 1, null, 1]
+  - input: [[["push", 0], ["getMin"], ["pop"]]]
+    expected: [null, 0, null]
+  - input: [[["push", -5], ["push", -10], ["push", -3], ["getMin"], ["pop"], ["pop"], ["getMin"]]]
+    expected: [null, null, null, -10, null, null, -5]

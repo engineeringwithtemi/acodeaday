@@ -1,0 +1,115 @@
+title: Time Based Key-Value Store
+sequence_number: 85
+difficulty: medium
+pattern:
+  - binary-search
+  - design
+  - hash-table
+
+description: |
+  Design a time-based key-value data structure that can store multiple values for the same key at different time stamps and retrieve the key's value at a certain timestamp.
+
+  Implement the `TimeMap` class:
+  - `TimeMap()` Initializes the object of the data structure.
+  - `void set(String key, String value, int timestamp)` Stores the key `key` with the value `value` at the given time `timestamp`.
+  - `String get(String key, int timestamp)` Returns a value such that `set` was called previously, with `timestamp_prev <= timestamp`. If there are multiple such values, it returns the value associated with the largest `timestamp_prev`. If there are no values, it returns `""`.
+
+constraints:
+  - "1 <= key.length, value.length <= 100"
+  - "key and value consist of lowercase English letters and digits."
+  - "1 <= timestamp <= 10^7"
+  - "All the timestamps timestamp of set are strictly increasing."
+  - "At most 2 * 10^5 calls will be made to set and get."
+
+examples:
+  - input: '["TimeMap", "set", "get", "get", "set", "get", "get"]
+[[], ["foo", "bar", 1], ["foo", 1], ["foo", 3], ["foo", "bar2", 4], ["foo", 4], ["foo", 5]]'
+    output: '[null, null, "bar", "bar", null, "bar2", "bar2"]'
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def executeTimeMapOperations(self, operations: List[List]) -> List:
+              pass
+    reference_solution: |
+      class Solution:
+          def executeTimeMapOperations(self, operations: List[List]) -> List:
+              from collections import defaultdict
+              import bisect
+
+              class TimeMap:
+                  def __init__(self):
+                      self.store = defaultdict(list)
+
+                  def set(self, key, value, timestamp):
+                      self.store[key].append((timestamp, value))
+
+                  def get(self, key, timestamp):
+                      if key not in self.store:
+                          return ""
+
+                      values = self.store[key]
+                      # Binary search for largest timestamp <= given timestamp
+                      left, right = 0, len(values) - 1
+                      result = ""
+
+                      while left <= right:
+                          mid = (left + right) // 2
+                          if values[mid][0] <= timestamp:
+                              result = values[mid][1]
+                              left = mid + 1
+                          else:
+                              right = mid - 1
+
+                      return result
+
+              tm = TimeMap()
+              results = []
+
+              for op in operations:
+                  if op[0] == "set":
+                      tm.set(op[1], op[2], op[3])
+                      results.append(None)
+                  elif op[0] == "get":
+                      results.append(tm.get(op[1], op[2]))
+
+              return results
+    function_signature:
+      name: executeTimeMapOperations
+      params:
+        - name: operations
+          type: "List[List]"
+      return_type: List
+
+test_cases:
+  - input: [[["set", "foo", "bar", 1], ["get", "foo", 1], ["get", "foo", 3], ["set", "foo", "bar2", 4], ["get", "foo", 4], ["get", "foo", 5]]]
+    expected: [null, "bar", "bar", null, "bar2", "bar2"]
+  - input: [[["set", "a", "b", 1], ["get", "a", 1]]]
+    expected: [null, "b"]
+  - input: [[["get", "a", 1]]]
+    expected: [""]
+  - input: [[["set", "a", "v1", 1], ["set", "a", "v2", 2], ["get", "a", 1], ["get", "a", 2], ["get", "a", 3]]]
+    expected: [null, null, "v1", "v2", "v2"]
+  - input: [[["set", "key", "val1", 10], ["get", "key", 5], ["get", "key", 10], ["get", "key", 15]]]
+    expected: [null, "", "val1", "val1"]
+  - input: [[["set", "x", "a", 1], ["set", "x", "b", 5], ["set", "x", "c", 10], ["get", "x", 3], ["get", "x", 7], ["get", "x", 12]]]
+    expected: [null, null, null, "a", "b", "c"]
+  - input: [[["set", "love", "high", 10], ["set", "love", "low", 20], ["get", "love", 5], ["get", "love", 10], ["get", "love", 15], ["get", "love", 20], ["get", "love", 25]]]
+    expected: [null, null, "", "high", "high", "low", "low"]
+  - input: [[["set", "a", "1", 1], ["set", "b", "2", 2], ["get", "a", 2], ["get", "b", 1]]]
+    expected: [null, null, "1", ""]
+  - input: [[["set", "test", "one", 100], ["get", "test", 99], ["get", "test", 100], ["get", "test", 101]]]
+    expected: [null, "", "one", "one"]
+  - input: [[["set", "k", "v", 1000000]]]
+    expected: [null]
+  - input: [[["set", "key", "first", 1], ["set", "key", "second", 10], ["set", "key", "third", 100], ["get", "key", 50]]]
+    expected: [null, null, null, "second"]
+  - input: [[["set", "a", "apple", 1], ["set", "b", "banana", 1], ["get", "a", 1], ["get", "b", 1]]]
+    expected: [null, null, "apple", "banana"]
+  - input: [[["set", "x", "y", 5], ["get", "x", 4], ["get", "x", 5], ["get", "x", 6]]]
+    expected: [null, "", "y", "y"]
+  - input: [[["get", "missing", 100]]]
+    expected: [""]
+  - input: [[["set", "same", "val", 1], ["set", "same", "val", 2], ["get", "same", 1], ["get", "same", 2]]]
+    expected: [null, null, "val", "val"]

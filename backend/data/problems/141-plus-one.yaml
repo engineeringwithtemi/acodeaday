@@ -1,0 +1,78 @@
+title: Plus One
+sequence_number: 141
+difficulty: easy
+pattern:
+  - math
+  - array
+
+description: |
+  You are given a **large integer** represented as an integer array `digits`, where each `digits[i]` is the `ith` digit of the integer. The digits are ordered from most significant to least significant in left-to-right order. The large integer does not contain any leading `0`'s.
+
+  Increment the large integer by one and return the resulting array of digits.
+
+constraints:
+  - "1 <= digits.length <= 100"
+  - "0 <= digits[i] <= 9"
+  - "digits does not contain any leading 0's."
+
+examples:
+  - input: "digits = [1,2,3]"
+    output: "[1,2,4]"
+    explanation: "The array represents the integer 123. Incrementing by one gives 123 + 1 = 124. Thus, the result should be [1,2,4]."
+  - input: "digits = [4,3,2,1]"
+    output: "[4,3,2,2]"
+    explanation: "The array represents the integer 4321. Incrementing by one gives 4321 + 1 = 4322. Thus, the result should be [4,3,2,2]."
+  - input: "digits = [9]"
+    output: "[1,0]"
+    explanation: "The array represents the integer 9. Incrementing by one gives 9 + 1 = 10. Thus, the result should be [1,0]."
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def plusOne(self, digits: List[int]) -> List[int]:
+              pass
+    reference_solution: |
+      class Solution:
+          def plusOne(self, digits: List[int]) -> List[int]:
+              n = len(digits)
+
+              for i in range(n - 1, -1, -1):
+                  if digits[i] < 9:
+                      digits[i] += 1
+                      return digits
+                  digits[i] = 0
+
+              return [1] + digits
+    function_signature:
+      name: plusOne
+      params:
+        - name: digits
+          type: "List[int]"
+      return_type: "List[int]"
+
+test_cases:
+  - input: [[1,2,3]]
+    expected: [1,2,4]
+  - input: [[4,3,2,1]]
+    expected: [4,3,2,2]
+  - input: [[9]]
+    expected: [1,0]
+  - input: [[0]]
+    expected: [1]
+  - input: [[1]]
+    expected: [2]
+  - input: [[9,9]]
+    expected: [1,0,0]
+  - input: [[9,9,9]]
+    expected: [1,0,0,0]
+  - input: [[1,9,9]]
+    expected: [2,0,0]
+  - input: [[8,9,9]]
+    expected: [9,0,0]
+  - input: [[1,2,9]]
+    expected: [1,3,0]
+  - input: [[5,5,5]]
+    expected: [5,5,6]
+  - input: [[1,0,0,0]]
+    expected: [1,0,0,1]

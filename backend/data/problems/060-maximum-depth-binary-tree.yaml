@@ -1,0 +1,110 @@
+title: Maximum Depth of Binary Tree
+sequence_number: 60
+difficulty: easy
+pattern:
+  - tree
+  - dfs
+  - bfs
+  - recursion
+
+description: |
+  Given the `root` of a binary tree, return its maximum depth.
+
+  A binary tree's **maximum depth** is the number of nodes along the longest path from the root node down to the farthest leaf node.
+
+  For testing purposes, the binary tree is represented as an array in level-order (BFS), where `null` represents missing nodes.
+
+constraints:
+  - "The number of nodes in the tree is in the range [0, 10^4]."
+  - "-100 <= Node.val <= 100"
+
+examples:
+  - input: "root = [3,9,20,null,null,15,7]"
+    output: "3"
+  - input: "root = [1,null,2]"
+    output: "2"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def maxDepth(self, root: List) -> int:
+              pass
+    reference_solution: |
+      class Solution:
+          def maxDepth(self, root: List) -> int:
+              if not root:
+                  return 0
+
+              # Build tree from array
+              from collections import deque
+
+              class TreeNode:
+                  def __init__(self, val=0):
+                      self.val = val
+                      self.left = None
+                      self.right = None
+
+              def build_tree(arr):
+                  if not arr or arr[0] is None:
+                      return None
+                  root = TreeNode(arr[0])
+                  queue = deque([root])
+                  i = 1
+                  while queue and i < len(arr):
+                      node = queue.popleft()
+                      if i < len(arr) and arr[i] is not None:
+                          node.left = TreeNode(arr[i])
+                          queue.append(node.left)
+                      i += 1
+                      if i < len(arr) and arr[i] is not None:
+                          node.right = TreeNode(arr[i])
+                          queue.append(node.right)
+                      i += 1
+                  return root
+
+              def depth(node):
+                  if not node:
+                      return 0
+                  return 1 + max(depth(node.left), depth(node.right))
+
+              tree = build_tree(root)
+              return depth(tree)
+    function_signature:
+      name: maxDepth
+      params:
+        - name: root
+          type: List
+      return_type: int
+
+test_cases:
+  - input: [[3, 9, 20, null, null, 15, 7]]
+    expected: 3
+  - input: [[1, null, 2]]
+    expected: 2
+  - input: [[]]
+    expected: 0
+  - input: [[1]]
+    expected: 1
+  - input: [[1, 2]]
+    expected: 2
+  - input: [[1, 2, 3]]
+    expected: 2
+  - input: [[1, 2, 3, 4]]
+    expected: 3
+  - input: [[1, 2, 3, 4, 5, 6, 7]]
+    expected: 3
+  - input: [[1, null, 2, null, 3]]
+    expected: 3
+  - input: [[1, 2, null, 3, null, 4]]
+    expected: 4
+  - input: [[1, 2, 3, null, null, null, 4]]
+    expected: 3
+  - input: [[0]]
+    expected: 1
+  - input: [[-1, -2, -3]]
+    expected: 2
+  - input: [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]]
+    expected: 4
+  - input: [[5, 4, 8, 11, null, 13, 4, 7, 2, null, null, null, 1]]
+    expected: 4

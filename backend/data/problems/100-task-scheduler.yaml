@@ -1,0 +1,86 @@
+title: Task Scheduler
+sequence_number: 100
+difficulty: medium
+pattern:
+  - heap
+  - greedy
+  - array
+
+description: |
+  You are given an array of CPU `tasks`, each represented by letters A to Z, and a cooling time `n`. Each cycle or interval allows the completion of one task. Tasks can be completed in any order, but there's a constraint: **identical** tasks must be separated by at least `n` intervals due to cooling time.
+
+  Return the **minimum number of intervals** required to complete all tasks.
+
+constraints:
+  - "1 <= tasks.length <= 10^4"
+  - "tasks[i] is an uppercase English letter."
+  - "0 <= n <= 100"
+
+examples:
+  - input: 'tasks = ["A","A","A","B","B","B"], n = 2'
+    output: "8"
+    explanation: "A possible sequence is: A -> B -> idle -> A -> B -> idle -> A -> B."
+  - input: 'tasks = ["A","C","A","B","D","B"], n = 1'
+    output: "6"
+    explanation: "A possible sequence is: A -> B -> C -> D -> A -> B."
+  - input: 'tasks = ["A","A","A","B","B","B"], n = 3'
+    output: "10"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def leastInterval(self, tasks: List[str], n: int) -> int:
+              pass
+    reference_solution: |
+      class Solution:
+          def leastInterval(self, tasks: List[str], n: int) -> int:
+              from collections import Counter
+
+              task_counts = Counter(tasks)
+              max_count = max(task_counts.values())
+              max_count_tasks = sum(1 for count in task_counts.values() if count == max_count)
+
+              # Formula: (max_count - 1) * (n + 1) + max_count_tasks
+              # Or just the length of tasks if all can be scheduled without idle
+              return max(len(tasks), (max_count - 1) * (n + 1) + max_count_tasks)
+    function_signature:
+      name: leastInterval
+      params:
+        - name: tasks
+          type: "List[str]"
+        - name: n
+          type: int
+      return_type: int
+
+test_cases:
+  - input: [["A", "A", "A", "B", "B", "B"], 2]
+    expected: 8
+  - input: [["A", "C", "A", "B", "D", "B"], 1]
+    expected: 6
+  - input: [["A", "A", "A", "B", "B", "B"], 3]
+    expected: 10
+  - input: [["A"], 0]
+    expected: 1
+  - input: [["A", "A"], 0]
+    expected: 2
+  - input: [["A", "A"], 1]
+    expected: 3
+  - input: [["A", "A"], 2]
+    expected: 4
+  - input: [["A", "B", "C", "D"], 2]
+    expected: 4
+  - input: [["A", "A", "A", "A"], 3]
+    expected: 13
+  - input: [["A", "B", "A", "B"], 0]
+    expected: 4
+  - input: [["A", "A", "A", "B", "B", "B", "C", "C", "C"], 2]
+    expected: 9
+  - input: [["A", "A", "B", "B", "C", "C", "D", "D"], 1]
+    expected: 8
+  - input: [["A", "A", "A", "B", "C"], 1]
+    expected: 5
+  - input: [["A", "A", "A", "B", "B", "C"], 2]
+    expected: 7
+  - input: [["A", "B"], 100]
+    expected: 2

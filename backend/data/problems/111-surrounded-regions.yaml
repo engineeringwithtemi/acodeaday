@@ -1,0 +1,99 @@
+title: Surrounded Regions
+sequence_number: 111
+difficulty: medium
+pattern:
+  - graph
+  - depth-first-search
+  - breadth-first-search
+  - matrix
+
+description: |
+  Given an `m x n` matrix `board` containing `'X'` and `'O'`, capture all regions that are 4-directionally surrounded by `'X'`.
+
+  A region is captured by flipping all `'O'`s into `'X'`s in that surrounded region.
+
+constraints:
+  - "m == board.length"
+  - "n == board[i].length"
+  - "1 <= m, n <= 200"
+  - "board[i][j] is 'X' or 'O'."
+
+examples:
+  - input: 'board = [["X","X","X","X"],["X","O","O","X"],["X","X","O","X"],["X","O","X","X"]]'
+    output: '[["X","X","X","X"],["X","X","X","X"],["X","X","X","X"],["X","O","X","X"]]'
+    explanation: "Notice that an 'O' should not be flipped if: It is on the border, or It is adjacent to an 'O' that should not be flipped."
+  - input: 'board = [["X"]]'
+    output: '[["X"]]'
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def solve(self, board: List[List[str]]) -> List[List[str]]:
+              pass
+    reference_solution: |
+      class Solution:
+          def solve(self, board: List[List[str]]) -> List[List[str]]:
+              if not board or not board[0]:
+                  return board
+
+              m, n = len(board), len(board[0])
+
+              def dfs(i, j):
+                  if i < 0 or i >= m or j < 0 or j >= n or board[i][j] != 'O':
+                      return
+                  board[i][j] = 'T'  # Temporarily mark
+                  dfs(i+1, j)
+                  dfs(i-1, j)
+                  dfs(i, j+1)
+                  dfs(i, j-1)
+
+              # Mark all 'O's connected to border
+              for i in range(m):
+                  dfs(i, 0)
+                  dfs(i, n-1)
+              for j in range(n):
+                  dfs(0, j)
+                  dfs(m-1, j)
+
+              # Flip remaining 'O's to 'X', restore 'T' to 'O'
+              for i in range(m):
+                  for j in range(n):
+                      if board[i][j] == 'O':
+                          board[i][j] = 'X'
+                      elif board[i][j] == 'T':
+                          board[i][j] = 'O'
+
+              return board
+    function_signature:
+      name: solve
+      params:
+        - name: board
+          type: "List[List[str]]"
+      return_type: "List[List[str]]"
+
+test_cases:
+  - input: [[["X","X","X","X"],["X","O","O","X"],["X","X","O","X"],["X","O","X","X"]]]
+    expected: [["X","X","X","X"],["X","X","X","X"],["X","X","X","X"],["X","O","X","X"]]
+  - input: [[["X"]]]
+    expected: [["X"]]
+  - input: [[["O"]]]
+    expected: [["O"]]
+  - input: [[["X","O","X"],["O","X","O"],["X","O","X"]]]
+    expected: [["X","O","X"],["O","X","O"],["X","O","X"]]
+  - input: [[["O","O"],["O","O"]]]
+    expected: [["O","O"],["O","O"]]
+  - input: [[["X","X","X"],["X","O","X"],["X","X","X"]]]
+    expected: [["X","X","X"],["X","X","X"],["X","X","X"]]
+  - input: [[["O","X","O"],["X","O","X"],["O","X","O"]]]
+    expected: [["O","X","O"],["X","X","X"],["O","X","O"]]
+  - input: [[["X","X","X","X"],["X","O","O","X"],["X","O","O","X"],["X","X","X","X"]]]
+    expected: [["X","X","X","X"],["X","X","X","X"],["X","X","X","X"],["X","X","X","X"]]
+  - input: [[["O","O","O"],["O","O","O"],["O","O","O"]]]
+    expected: [["O","O","O"],["O","O","O"],["O","O","O"]]
+  - input: [[["X","O","X","X"],["O","X","O","X"],["X","O","X","O"],["O","X","O","X"]]]
+    expected: [["X","O","X","X"],["O","X","X","X"],["X","X","X","O"],["O","X","O","X"]]
+  - input: [[["X","X","X","O","X"],["X","O","O","O","X"],["X","O","X","O","X"],["X","O","O","O","X"],["X","X","X","X","X"]]]
+    expected: [["X","X","X","O","X"],["X","O","O","O","X"],["X","O","X","O","X"],["X","O","O","O","X"],["X","X","X","X","X"]]
+  - input: [[["O","X","X","O","X"],["X","X","X","X","O"],["X","X","X","X","X"],["O","X","X","X","X"],["X","X","O","X","O"]]]
+    expected: [["O","X","X","O","X"],["X","X","X","X","O"],["X","X","X","X","X"],["O","X","X","X","X"],["X","X","O","X","O"]]

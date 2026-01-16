@@ -1,0 +1,114 @@
+title: Longest Common Subsequence
+sequence_number: 19
+difficulty: medium
+pattern:
+  - dynamic-programming
+  - 2d-dp
+  - subsequence
+  - string-matching
+
+description: |
+  Given two strings `text1` and `text2`, return the length of their longest common subsequence. If there is no common subsequence, return `0`.
+
+  A **subsequence** of a string is a new string generated from the original string with some characters (can be none) deleted without changing the relative order of the remaining characters.
+
+  For example, `"ace"` is a subsequence of `"abcde"`.
+
+  A **common subsequence** of two strings is a subsequence that is common to both strings.
+
+constraints:
+  - "1 <= text1.length, text2.length <= 1000"
+  - "text1 and text2 consist of only lowercase English characters."
+
+examples:
+  - input: 'text1 = "abcde", text2 = "ace"'
+    output: "3"
+    explanation: 'The longest common subsequence is "ace" and its length is 3.'
+  - input: 'text1 = "abc", text2 = "abc"'
+    output: "3"
+    explanation: 'The longest common subsequence is "abc" and its length is 3.'
+  - input: 'text1 = "abc", text2 = "def"'
+    output: "0"
+    explanation: "There is no such common subsequence, so the result is 0."
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def longestCommonSubsequence(self, text1: str, text2: str) -> int:
+              pass
+    reference_solution: |
+      class Solution:
+          def longestCommonSubsequence(self, text1: str, text2: str) -> int:
+              m, n = len(text1), len(text2)
+              # dp[i][j] = LCS of text1[:i] and text2[:j]
+              dp = [[0] * (n + 1) for _ in range(m + 1)]
+
+              for i in range(1, m + 1):
+                  for j in range(1, n + 1):
+                      if text1[i - 1] == text2[j - 1]:
+                          dp[i][j] = dp[i - 1][j - 1] + 1
+                      else:
+                          dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
+
+              return dp[m][n]
+    function_signature:
+      name: longestCommonSubsequence
+      params:
+        - name: text1
+          type: str
+        - name: text2
+          type: str
+      return_type: int
+
+test_cases:
+  - input: ["abcde", "ace"]
+    expected: 3
+  - input: ["abc", "abc"]
+    expected: 3
+  - input: ["abc", "def"]
+    expected: 0
+  - input: ["a", "a"]
+    expected: 1
+  - input: ["a", "b"]
+    expected: 0
+  - input: ["abcd", "abcd"]
+    expected: 4
+  - input: ["abcdef", "fedcba"]
+    expected: 1
+  - input: ["aaa", "aa"]
+    expected: 2
+  - input: ["bsbininm", "jmjkbkjkv"]
+    expected: 1
+  - input: ["oxcpqrsvwf", "shmtulqrypy"]
+    expected: 2
+  - input: ["ezupkr", "ubmrapg"]
+    expected: 2
+  - input: ["hofubmnylkra", "pqhgxgdofcvmr"]
+    expected: 5
+  - input: ["abcba", "abcbcba"]
+    expected: 5
+  - input: ["pmjghexybyrgzczy", "hafcdqbgncrcbihkd"]
+    expected: 4
+  - input: ["ab", "ba"]
+    expected: 1
+  - input: ["aaaa", "aaaa"]
+    expected: 4
+  - input: ["abcdefg", "gfedcba"]
+    expected: 1
+  - input: ["xyzabc", "abcxyz"]
+    expected: 3
+  - input: ["bl", "yby"]
+    expected: 1
+  - input: ["mhunuzqrkzsnidwbun", "szulspmhwpazoxijwbq"]
+    expected: 6
+  - input: ["psnw", "vozsh"]
+    expected: 1
+  - input: ["aggtab", "gxtxayb"]
+    expected: 4
+  - input: ["abc", ""]
+    expected: 0
+  - input: ["", "abc"]
+    expected: 0
+  - input: ["", ""]
+    expected: 0

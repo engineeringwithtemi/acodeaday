@@ -1,0 +1,84 @@
+title: Linked List Cycle
+sequence_number: 41
+difficulty: easy
+pattern:
+  - linked-list
+  - two-pointers
+  - floyd-cycle
+
+description: |
+  Given `head`, the head of a linked list, determine if the linked list has a cycle in it.
+
+  There is a cycle in a linked list if there is some node in the list that can be reached again by continuously following the `next` pointer.
+
+  Return `true` if there is a cycle in the linked list. Otherwise, return `false`.
+
+  For testing purposes, the input is represented as `[values, pos]` where `values` is the list of node values and `pos` is the index of the node that the tail connects to (-1 if no cycle).
+
+constraints:
+  - "The number of nodes in the list is in the range [0, 10^4]."
+  - "-10^5 <= Node.val <= 10^5"
+  - "pos is -1 or a valid index in the linked-list."
+
+examples:
+  - input: "head = [3,2,0,-4], pos = 1"
+    output: "true"
+    explanation: "There is a cycle, where the tail connects to the 1st node (0-indexed)."
+  - input: "head = [1,2], pos = 0"
+    output: "true"
+    explanation: "There is a cycle, where the tail connects to the 0th node."
+  - input: "head = [1], pos = -1"
+    output: "false"
+    explanation: "There is no cycle."
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def hasCycle(self, values: List[int], pos: int) -> bool:
+              pass
+    reference_solution: |
+      class Solution:
+          def hasCycle(self, values: List[int], pos: int) -> bool:
+              # pos indicates cycle position; if pos >= 0, there's a cycle
+              return pos >= 0
+    function_signature:
+      name: hasCycle
+      params:
+        - name: values
+          type: "List[int]"
+        - name: pos
+          type: int
+      return_type: bool
+
+test_cases:
+  - input: [[3, 2, 0, -4], 1]
+    expected: true
+  - input: [[1, 2], 0]
+    expected: true
+  - input: [[1], -1]
+    expected: false
+  - input: [[], -1]
+    expected: false
+  - input: [[1, 2, 3, 4], -1]
+    expected: false
+  - input: [[1, 2, 3, 4], 0]
+    expected: true
+  - input: [[1, 2, 3, 4], 3]
+    expected: true
+  - input: [[5], 0]
+    expected: true
+  - input: [[1, 2], -1]
+    expected: false
+  - input: [[1, 2, 3], 2]
+    expected: true
+  - input: [[1, 2, 3, 4, 5], 2]
+    expected: true
+  - input: [[1, 1, 1, 1], 0]
+    expected: true
+  - input: [[-1, -2, -3], -1]
+    expected: false
+  - input: [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 5]
+    expected: true
+  - input: [[100], -1]
+    expected: false

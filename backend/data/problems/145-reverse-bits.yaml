@@ -1,0 +1,66 @@
+title: Reverse Bits
+sequence_number: 145
+difficulty: easy
+pattern:
+  - bit-manipulation
+
+description: |
+  Reverse bits of a given 32 bits unsigned integer.
+
+  **Note:**
+  - Note that in some languages, such as Java, there is no unsigned integer type. In this case, both input and output will be given as a signed integer type.
+  - The input is a **32-bit** integer.
+
+constraints:
+  - "The input must be a 32 bits unsigned integer"
+
+examples:
+  - input: "n = 43261596"
+    output: "964176192"
+    explanation: "The input binary is 00000010100101000001111010011100. Reversed, it's 00111001011110000010100101000000, which is 964176192."
+  - input: "n = 4294967293"
+    output: "3221225471"
+    explanation: "The input binary is 11111111111111111111111111111101. Reversed, it's 10111111111111111111111111111111, which is 3221225471."
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def reverseBits(self, n: int) -> int:
+              pass
+    reference_solution: |
+      class Solution:
+          def reverseBits(self, n: int) -> int:
+              result = 0
+              for i in range(32):
+                  bit = (n >> i) & 1
+                  result |= (bit << (31 - i))
+              return result
+    function_signature:
+      name: reverseBits
+      params:
+        - name: n
+          type: int
+      return_type: int
+
+test_cases:
+  - input: [43261596]
+    expected: 964176192
+  - input: [4294967293]
+    expected: 3221225471
+  - input: [0]
+    expected: 0
+  - input: [1]
+    expected: 2147483648
+  - input: [2147483648]
+    expected: 1
+  - input: [4294967295]
+    expected: 4294967295
+  - input: [2]
+    expected: 1073741824
+  - input: [3]
+    expected: 3221225472
+  - input: [256]
+    expected: 8388608
+  - input: [65535]
+    expected: 4294901760

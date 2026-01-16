@@ -1,0 +1,92 @@
+title: Copy List with Random Pointer
+sequence_number: 88
+difficulty: medium
+pattern:
+  - linked-list
+  - hash-map
+
+description: |
+  A linked list of length `n` is given such that each node contains an additional random pointer, which could point to any node in the list, or `null`.
+
+  Construct a **deep copy** of the list. The deep copy should consist of exactly `n` brand new nodes, where each new node has its value set to the value of its corresponding original node. Both the `next` and `random` pointer of the new nodes should point to new nodes in the copied list such that the pointers in the original list and copied list represent the same list state.
+
+  Return the head of the copied linked list.
+
+  The linked list is represented in the input as a list of pairs `[val, random_index]` where:
+  - `val` is the value of the current node
+  - `random_index` is the index of the node that the random pointer points to (0-indexed), or `null` if it points to nothing
+
+constraints:
+  - "0 <= n <= 1000"
+  - "-10^4 <= Node.val <= 10^4"
+  - "random_index is null or in the range [0, n-1]"
+
+examples:
+  - input: "head = [[7,null],[13,0],[11,4],[10,2],[1,0]]"
+    output: "[[7,null],[13,0],[11,4],[10,2],[1,0]]"
+  - input: "head = [[1,1],[2,1]]"
+    output: "[[1,1],[2,1]]"
+  - input: "head = [[3,null],[3,0],[3,null]]"
+    output: "[[3,null],[3,0],[3,null]]"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def copyRandomList(self, head: List[List]) -> List[List]:
+              pass
+    reference_solution: |
+      class Solution:
+          def copyRandomList(self, head: List[List]) -> List[List]:
+              # Input is list of [val, random_index] pairs
+              if not head:
+                  return []
+
+              n = len(head)
+              # Create copies with values
+              copies = [[head[i][0], None] for i in range(n)]
+
+              # Set random pointers
+              for i in range(n):
+                  if head[i][1] is not None:
+                      copies[i][1] = head[i][1]
+
+              return copies
+    function_signature:
+      name: copyRandomList
+      params:
+        - name: head
+          type: "List[List]"
+      return_type: "List[List]"
+
+test_cases:
+  - input: [[[7, null], [13, 0], [11, 4], [10, 2], [1, 0]]]
+    expected: [[7, null], [13, 0], [11, 4], [10, 2], [1, 0]]
+  - input: [[[1, 1], [2, 1]]]
+    expected: [[1, 1], [2, 1]]
+  - input: [[[3, null], [3, 0], [3, null]]]
+    expected: [[3, null], [3, 0], [3, null]]
+  - input: [[]]
+    expected: []
+  - input: [[[1, null]]]
+    expected: [[1, null]]
+  - input: [[[1, 0]]]
+    expected: [[1, 0]]
+  - input: [[[1, null], [2, null]]]
+    expected: [[1, null], [2, null]]
+  - input: [[[1, 1], [2, 0]]]
+    expected: [[1, 1], [2, 0]]
+  - input: [[[5, 2], [4, 2], [3, null]]]
+    expected: [[5, 2], [4, 2], [3, null]]
+  - input: [[[1, 0], [2, 1], [3, 2]]]
+    expected: [[1, 0], [2, 1], [3, 2]]
+  - input: [[[10, 4], [20, 3], [30, 2], [40, 1], [50, 0]]]
+    expected: [[10, 4], [20, 3], [30, 2], [40, 1], [50, 0]]
+  - input: [[[1, null], [2, null], [3, null], [4, null]]]
+    expected: [[1, null], [2, null], [3, null], [4, null]]
+  - input: [[[-1, null]]]
+    expected: [[-1, null]]
+  - input: [[[0, 0]]]
+    expected: [[0, 0]]
+  - input: [[[100, 1], [-100, 0]]]
+    expected: [[100, 1], [-100, 0]]

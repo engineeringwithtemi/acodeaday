@@ -1,0 +1,73 @@
+title: Reverse Linked List
+sequence_number: 40
+difficulty: easy
+pattern:
+  - linked-list
+  - recursion
+  - iteration
+
+description: |
+  Given the `head` of a singly linked list, reverse the list, and return the reversed list.
+
+  For testing purposes, the linked list is represented as an array where `head[0]` is the head node.
+
+constraints:
+  - "The number of nodes in the list is the range [0, 5000]."
+  - "-5000 <= Node.val <= 5000"
+
+examples:
+  - input: "head = [1,2,3,4,5]"
+    output: "[5,4,3,2,1]"
+  - input: "head = [1,2]"
+    output: "[2,1]"
+  - input: "head = []"
+    output: "[]"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def reverseList(self, head: List[int]) -> List[int]:
+              pass
+    reference_solution: |
+      class Solution:
+          def reverseList(self, head: List[int]) -> List[int]:
+              return head[::-1]
+    function_signature:
+      name: reverseList
+      params:
+        - name: head
+          type: "List[int]"
+      return_type: "List[int]"
+
+test_cases:
+  - input: [[1, 2, 3, 4, 5]]
+    expected: [5, 4, 3, 2, 1]
+  - input: [[1, 2]]
+    expected: [2, 1]
+  - input: [[]]
+    expected: []
+  - input: [[1]]
+    expected: [1]
+  - input: [[1, 2, 3]]
+    expected: [3, 2, 1]
+  - input: [[-1, -2, -3]]
+    expected: [-3, -2, -1]
+  - input: [[0]]
+    expected: [0]
+  - input: [[1, 1, 1, 1]]
+    expected: [1, 1, 1, 1]
+  - input: [[5, 4, 3, 2, 1]]
+    expected: [1, 2, 3, 4, 5]
+  - input: [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]]
+    expected: [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
+  - input: [[-5000, 5000]]
+    expected: [5000, -5000]
+  - input: [[100, 200, 300]]
+    expected: [300, 200, 100]
+  - input: [[1, -1, 2, -2, 3, -3]]
+    expected: [-3, 3, -2, 2, -1, 1]
+  - input: [[0, 0, 0]]
+    expected: [0, 0, 0]
+  - input: [[7, 14, 21, 28, 35, 42]]
+    expected: [42, 35, 28, 21, 14, 7]

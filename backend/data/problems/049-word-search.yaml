@@ -1,0 +1,106 @@
+title: Word Search
+sequence_number: 49
+difficulty: medium
+pattern:
+  - matrix
+  - backtracking
+  - dfs
+
+description: |
+  Given an `m x n` grid of characters `board` and a string `word`, return `true` if `word` exists in the grid.
+
+  The word can be constructed from letters of sequentially adjacent cells, where adjacent cells are horizontally or vertically neighboring. The same letter cell may not be used more than once.
+
+constraints:
+  - "m == board.length"
+  - "n = board[i].length"
+  - "1 <= m, n <= 6"
+  - "1 <= word.length <= 15"
+  - "board and word consists of only lowercase and uppercase English letters."
+
+examples:
+  - input: 'board = [["A","B","C","E"],["S","F","C","S"],["A","D","E","E"]], word = "ABCCED"'
+    output: "true"
+  - input: 'board = [["A","B","C","E"],["S","F","C","S"],["A","D","E","E"]], word = "SEE"'
+    output: "true"
+  - input: 'board = [["A","B","C","E"],["S","F","C","S"],["A","D","E","E"]], word = "ABCB"'
+    output: "false"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def exist(self, board: List[List[str]], word: str) -> bool:
+              pass
+    reference_solution: |
+      class Solution:
+          def exist(self, board: List[List[str]], word: str) -> bool:
+              if not board or not board[0]:
+                  return False
+
+              m, n = len(board), len(board[0])
+
+              def dfs(i, j, k):
+                  if k == len(word):
+                      return True
+                  if i < 0 or i >= m or j < 0 or j >= n:
+                      return False
+                  if board[i][j] != word[k]:
+                      return False
+
+                  temp = board[i][j]
+                  board[i][j] = '#'  # Mark as visited
+
+                  found = (dfs(i + 1, j, k + 1) or
+                           dfs(i - 1, j, k + 1) or
+                           dfs(i, j + 1, k + 1) or
+                           dfs(i, j - 1, k + 1))
+
+                  board[i][j] = temp  # Restore
+                  return found
+
+              for i in range(m):
+                  for j in range(n):
+                      if dfs(i, j, 0):
+                          return True
+              return False
+    function_signature:
+      name: exist
+      params:
+        - name: board
+          type: "List[List[str]]"
+        - name: word
+          type: str
+      return_type: bool
+
+test_cases:
+  - input: [[["A", "B", "C", "E"], ["S", "F", "C", "S"], ["A", "D", "E", "E"]], "ABCCED"]
+    expected: true
+  - input: [[["A", "B", "C", "E"], ["S", "F", "C", "S"], ["A", "D", "E", "E"]], "SEE"]
+    expected: true
+  - input: [[["A", "B", "C", "E"], ["S", "F", "C", "S"], ["A", "D", "E", "E"]], "ABCB"]
+    expected: false
+  - input: [[["A"]], "A"]
+    expected: true
+  - input: [[["A"]], "B"]
+    expected: false
+  - input: [[["A", "B"], ["C", "D"]], "ABDC"]
+    expected: true
+  - input: [[["A", "B"], ["C", "D"]], "ABCD"]
+    expected: false
+  - input: [[["A", "B", "C"], ["D", "E", "F"], ["G", "H", "I"]], "AEI"]
+    expected: false
+  - input: [[["A", "B", "C"], ["D", "E", "F"], ["G", "H", "I"]], "ABED"]
+    expected: true
+  - input: [[["A", "B", "C"], ["D", "E", "F"], ["G", "H", "I"]], "ABE"]
+    expected: true
+  - input: [[["C", "A", "A"], ["A", "A", "A"], ["B", "C", "D"]], "AAB"]
+    expected: true
+  - input: [[["A", "B"], ["C", "D"]], "CDBA"]
+    expected: true
+  - input: [[["A", "A", "A"], ["A", "A", "A"], ["A", "A", "A"]], "AAAAAAAAA"]
+    expected: true
+  - input: [[["A", "A", "A"], ["A", "A", "A"], ["A", "A", "A"]], "AAAAAAAAAA"]
+    expected: false
+  - input: [[["a", "b"], ["c", "d"]], "abcd"]
+    expected: false

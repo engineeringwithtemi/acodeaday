@@ -1,0 +1,73 @@
+title: Missing Number
+sequence_number: 146
+difficulty: easy
+pattern:
+  - bit-manipulation
+  - math
+  - array
+
+description: |
+  Given an array `nums` containing `n` distinct numbers in the range `[0, n]`, return the only number in the range that is missing from the array.
+
+constraints:
+  - "n == nums.length"
+  - "1 <= n <= 10^4"
+  - "0 <= nums[i] <= n"
+  - "All the numbers of nums are unique."
+
+examples:
+  - input: "nums = [3,0,1]"
+    output: "2"
+    explanation: "n = 3 since there are 3 numbers, so all numbers are in the range [0,3]. 2 is the missing number."
+  - input: "nums = [0,1]"
+    output: "2"
+    explanation: "n = 2 since there are 2 numbers, so all numbers are in the range [0,2]. 2 is the missing number."
+  - input: "nums = [9,6,4,2,3,5,7,0,1]"
+    output: "8"
+    explanation: "n = 9 since there are 9 numbers, so all numbers are in the range [0,9]. 8 is the missing number."
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def missingNumber(self, nums: List[int]) -> int:
+              pass
+    reference_solution: |
+      class Solution:
+          def missingNumber(self, nums: List[int]) -> int:
+              n = len(nums)
+              expected = n * (n + 1) // 2
+              actual = sum(nums)
+              return expected - actual
+    function_signature:
+      name: missingNumber
+      params:
+        - name: nums
+          type: "List[int]"
+      return_type: int
+
+test_cases:
+  - input: [[3,0,1]]
+    expected: 2
+  - input: [[0,1]]
+    expected: 2
+  - input: [[9,6,4,2,3,5,7,0,1]]
+    expected: 8
+  - input: [[0]]
+    expected: 1
+  - input: [[1]]
+    expected: 0
+  - input: [[0,1,2,3,5]]
+    expected: 4
+  - input: [[1,2,3,4,5]]
+    expected: 0
+  - input: [[0,1,2,3,4]]
+    expected: 5
+  - input: [[5,4,3,1,0]]
+    expected: 2
+  - input: [[2,0,1,3,5,4,7,6,9,8,11,10,12,14,13]]
+    expected: 15
+  - input: [[0,2]]
+    expected: 1
+  - input: [[1,0,3]]
+    expected: 2

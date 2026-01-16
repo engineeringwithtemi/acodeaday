@@ -1,0 +1,82 @@
+title: Gas Station
+sequence_number: 131
+difficulty: medium
+pattern:
+  - greedy
+  - array
+
+description: |
+  There are `n` gas stations along a circular route, where the amount of gas at the `ith` station is `gas[i]`.
+
+  You have a car with an unlimited gas tank and it costs `cost[i]` of gas to travel from the `ith` station to its next `(i + 1)th` station. You begin the journey with an empty tank at one of the gas stations.
+
+  Given two integer arrays `gas` and `cost`, return the starting gas station's index if you can travel around the circuit once in the clockwise direction, otherwise return `-1`. If there exists a solution, it is **guaranteed** to be **unique**.
+
+constraints:
+  - "n == gas.length == cost.length"
+  - "1 <= n <= 10^5"
+  - "0 <= gas[i], cost[i] <= 10^4"
+
+examples:
+  - input: "gas = [1,2,3,4,5], cost = [3,4,5,1,2]"
+    output: "3"
+    explanation: "Start at station 3 (index 3) and fill up with 4 unit of gas. Tank = 4. Travel to station 4. Tank = 4 - 1 + 5 = 8. Travel to station 0. Tank = 8 - 2 + 1 = 7. Travel to station 1. Tank = 7 - 3 + 2 = 6. Travel to station 2. Tank = 6 - 4 + 3 = 5. Travel to station 3. Cost is 5. Gas is just enough to travel back to station 3."
+  - input: "gas = [2,3,4], cost = [3,4,3]"
+    output: "-1"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def canCompleteCircuit(self, gas: List[int], cost: List[int]) -> int:
+              pass
+    reference_solution: |
+      class Solution:
+          def canCompleteCircuit(self, gas: List[int], cost: List[int]) -> int:
+              if sum(gas) < sum(cost):
+                  return -1
+
+              tank = 0
+              start = 0
+
+              for i in range(len(gas)):
+                  tank += gas[i] - cost[i]
+                  if tank < 0:
+                      start = i + 1
+                      tank = 0
+
+              return start
+    function_signature:
+      name: canCompleteCircuit
+      params:
+        - name: gas
+          type: "List[int]"
+        - name: cost
+          type: "List[int]"
+      return_type: int
+
+test_cases:
+  - input: [[1,2,3,4,5], [3,4,5,1,2]]
+    expected: 3
+  - input: [[2,3,4], [3,4,3]]
+    expected: -1
+  - input: [[5], [4]]
+    expected: 0
+  - input: [[4], [5]]
+    expected: -1
+  - input: [[1,2], [2,1]]
+    expected: 1
+  - input: [[3,1,1], [1,2,2]]
+    expected: 0
+  - input: [[2,2,2], [2,2,2]]
+    expected: 0
+  - input: [[5,1,2,3,4], [4,4,1,5,1]]
+    expected: 4
+  - input: [[1,2,3,4,5], [1,2,3,4,5]]
+    expected: 0
+  - input: [[0,0,0,0,1], [0,0,0,0,1]]
+    expected: 0
+  - input: [[3,3,4], [3,4,4]]
+    expected: -1
+  - input: [[6,1,4,3,5], [3,8,2,4,2]]
+    expected: 2

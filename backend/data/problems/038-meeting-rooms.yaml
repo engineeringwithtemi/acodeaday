@@ -1,0 +1,92 @@
+title: Meeting Rooms
+sequence_number: 38
+difficulty: easy
+pattern:
+  - intervals
+  - sorting
+
+description: |
+  Given an array of meeting time intervals `intervals` where `intervals[i] = [starti, endi]`, determine if a person could attend all meetings.
+
+constraints:
+  - "0 <= intervals.length <= 10^4"
+  - "intervals[i].length == 2"
+  - "0 <= starti < endi <= 10^6"
+
+examples:
+  - input: "intervals = [[0,30],[5,10],[15,20]]"
+    output: "false"
+    explanation: "Meetings [0,30] and [5,10] overlap, so a person cannot attend all meetings."
+  - input: "intervals = [[7,10],[2,4]]"
+    output: "true"
+    explanation: "No meetings overlap."
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def canAttendMeetings(self, intervals: List[List[int]]) -> bool:
+              pass
+    reference_solution: |
+      class Solution:
+          def canAttendMeetings(self, intervals: List[List[int]]) -> bool:
+              if len(intervals) <= 1:
+                  return True
+
+              # Sort by start time
+              intervals.sort(key=lambda x: x[0])
+
+              for i in range(1, len(intervals)):
+                  # Check if current meeting starts before previous ends
+                  if intervals[i][0] < intervals[i - 1][1]:
+                      return False
+
+              return True
+    function_signature:
+      name: canAttendMeetings
+      params:
+        - name: intervals
+          type: "List[List[int]]"
+      return_type: bool
+
+test_cases:
+  - input: [[[0, 30], [5, 10], [15, 20]]]
+    expected: false
+  - input: [[[7, 10], [2, 4]]]
+    expected: true
+  - input: [[[]]]
+    expected: true
+  - input: [[[1, 5]]]
+    expected: true
+  - input: [[[1, 5], [6, 10]]]
+    expected: true
+  - input: [[[1, 5], [5, 10]]]
+    expected: true
+  - input: [[[1, 5], [4, 10]]]
+    expected: false
+  - input: [[[1, 2], [2, 3], [3, 4], [4, 5]]]
+    expected: true
+  - input: [[[1, 3], [2, 4], [3, 5]]]
+    expected: false
+  - input: [[[0, 1], [1, 2], [2, 3], [3, 4], [4, 5]]]
+    expected: true
+  - input: [[[5, 10], [15, 20], [0, 5], [20, 25]]]
+    expected: true
+  - input: [[[0, 30], [60, 90]]]
+    expected: true
+  - input: [[[0, 30], [25, 50]]]
+    expected: false
+  - input: [[[10, 20], [20, 30], [5, 10], [30, 40]]]
+    expected: true
+  - input: [[[6, 15], [13, 20], [6, 17]]]
+    expected: false
+  - input: [[[0, 5], [5, 10], [0, 5]]]
+    expected: false
+  - input: [[[1, 10], [11, 20], [21, 30]]]
+    expected: true
+  - input: [[[1, 10], [10, 20], [20, 30]]]
+    expected: true
+  - input: [[[1, 10], [9, 20], [19, 30]]]
+    expected: false
+  - input: [[[100, 200], [0, 100], [200, 300]]]
+    expected: true

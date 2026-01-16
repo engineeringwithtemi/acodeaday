@@ -1,0 +1,86 @@
+title: Valid Parentheses
+sequence_number: 55
+difficulty: easy
+pattern:
+  - string
+  - stack
+
+description: |
+  Given a string `s` containing just the characters `'('`, `')'`, `'{'`, `'}'`, `'['` and `']'`, determine if the input string is valid.
+
+  An input string is valid if:
+  1. Open brackets must be closed by the same type of brackets.
+  2. Open brackets must be closed in the correct order.
+  3. Every close bracket has a corresponding open bracket of the same type.
+
+constraints:
+  - "1 <= s.length <= 10^4"
+  - "s consists of parentheses only '()[]{}'."
+
+examples:
+  - input: 's = "()"'
+    output: "true"
+  - input: 's = "()[]{}"'
+    output: "true"
+  - input: 's = "(]"'
+    output: "false"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def isValid(self, s: str) -> bool:
+              pass
+    reference_solution: |
+      class Solution:
+          def isValid(self, s: str) -> bool:
+              stack = []
+              mapping = {')': '(', '}': '{', ']': '['}
+
+              for char in s:
+                  if char in mapping:
+                      top = stack.pop() if stack else '#'
+                      if mapping[char] != top:
+                          return False
+                  else:
+                      stack.append(char)
+
+              return len(stack) == 0
+    function_signature:
+      name: isValid
+      params:
+        - name: s
+          type: str
+      return_type: bool
+
+test_cases:
+  - input: ["()"]
+    expected: true
+  - input: ["()[]{}"]
+    expected: true
+  - input: ["(]"]
+    expected: false
+  - input: ["([)]"]
+    expected: false
+  - input: ["{[]}"]
+    expected: true
+  - input: ["("]
+    expected: false
+  - input: [")"]
+    expected: false
+  - input: ["((()))"]
+    expected: true
+  - input: ["[[[]]]"]
+    expected: true
+  - input: ["{{{}}}"]
+    expected: true
+  - input: ["{[()]}"]
+    expected: true
+  - input: ["{[(])}"]
+    expected: false
+  - input: ["(()"]
+    expected: false
+  - input: ["())"]
+    expected: false
+  - input: ["([{}])"]
+    expected: true
