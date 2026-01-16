@@ -66,7 +66,6 @@ class _MockTestCase:
     def __init__(self, input_data: list[Any], expected: Any = None):
         self.input = input_data
         self.expected = expected
-        self.is_hidden = False
 
 
 async def _execute_code_with_wrapper(
@@ -165,7 +164,6 @@ def _parse_execution_results(judge0_result: dict, test_cases: list[TestCase]) ->
                 error=result_data.get("error"),
                 error_type=result_data.get("error_type"),
                 stdout=result_data.get("stdout"),
-                is_hidden=test_cases[i].is_hidden if i < len(test_cases) else False,
             )
         )
 
@@ -300,7 +298,7 @@ async def submit_code(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Submit code against ALL test cases (including hidden).
+    Submit code against ALL test cases.
 
     This is the "Submit" button - runs all tests and updates user progress.
     """
@@ -359,7 +357,6 @@ async def submit_code(
         failed_input=first_failed.input if first_failed else None,
         failed_output=first_failed.output if first_failed else None,
         failed_expected=first_failed.expected if first_failed else None,
-        failed_is_hidden=first_failed.is_hidden if first_failed else False,
     )
     db.add(submission)
 

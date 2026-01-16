@@ -18,6 +18,16 @@ def load_problem_yaml(path: Path) -> dict:
         return yaml.safe_load(f)
 
 
+def title_to_slug(title: str) -> str:
+    """Convert a problem title to a URL-friendly slug."""
+    import re
+    slug = title.lower()
+    slug = re.sub(r"[^a-z0-9\s-]", "", slug)
+    slug = re.sub(r"\s+", "-", slug)
+    slug = re.sub(r"-+", "-", slug)
+    return slug.strip("-")
+
+
 def validate_problem_data(data: dict) -> None:
     """
     Validate problem data structure.
@@ -27,7 +37,6 @@ def validate_problem_data(data: dict) -> None:
     """
     required_fields = [
         "title",
-        "slug",
         "sequence_number",
         "difficulty",
         "pattern",
@@ -62,8 +71,9 @@ def validate_problem_data(data: dict) -> None:
         raise ValueError("At least one test case is required")
 
 
-async def problem_exists(db: AsyncSession, slug: str) -> bool:
-    """Check if a problem with the given slug exists."""
+async def problem_exists(db: AsyncSession, title: str) -> bool:
+    """Check if a problem with the given title exists (slug derived from title)."""
+    slug = title_to_slug(title)
     result = await db.execute(select(Problem).where(Problem.slug == slug))
     return result.scalar_one_or_none() is not None
 
@@ -74,18 +84,25 @@ async def insert_problem(db: AsyncSession, data: dict) -> Problem:
 
     Args:
         db: Database session
-        data: Parsed YAML data
+        data: Parsed YAML data (slug derived from title if not provided)
 
     Returns:
         Created Problem object
     """
+    # Derive slug from title
+    slug = title_to_slug(data["title"])
+
     # Create the problem
+    # Handle pattern as either a list or single string
+    pattern = data["pattern"]
+    if isinstance(pattern, str):
+        pattern = [pattern]
     problem = Problem(
         title=data["title"],
-        slug=data["slug"],
+        slug=slug,
         description=data["description"],
         difficulty=Difficulty(data["difficulty"]),
-        pattern=data["pattern"],
+        pattern=pattern,
         sequence_number=data["sequence_number"],
         constraints=data["constraints"],
         examples={"examples": data["examples"]},
@@ -110,12 +127,11 @@ async def insert_problem(db: AsyncSession, data: dict) -> Problem:
             problem_id=problem.id,
             input=tc_data["input"],
             expected=tc_data["expected"],
-            is_hidden=tc_data.get("is_hidden", False),
             sequence=tc_data.get("sequence", i + 1),
         )
         db.add(test_case)
 
-    logger.info("inserted_problem", slug=data["slug"], title=data["title"])
+    logger.info("inserted_problem", slug=slug, title=data["title"])
     return problem
 
 
@@ -127,20 +143,27 @@ async def upsert_problem(db: AsyncSession, data: dict) -> Problem:
 
     Args:
         db: Database session
-        data: Parsed YAML data
+        data: Parsed YAML data (slug derived from title)
 
     Returns:
         Created or updated Problem object
     """
-    result = await db.execute(select(Problem).where(Problem.slug == data["slug"]))
+    # Derive slug from title
+    slug = title_to_slug(data["title"])
+
+    result = await db.execute(select(Problem).where(Problem.slug == slug))
     existing = result.scalar_one_or_none()
 
     if existing:
         # Update existing problem
+        # Handle pattern as either a list or single string
+        pattern = data["pattern"]
+        if isinstance(pattern, str):
+            pattern = [pattern]
         existing.title = data["title"]
         existing.description = data["description"]
         existing.difficulty = Difficulty(data["difficulty"])
-        existing.pattern = data["pattern"]
+        existing.pattern = pattern
         existing.sequence_number = data["sequence_number"]
         existing.constraints = data["constraints"]
         existing.examples = {"examples": data["examples"]}
@@ -170,12 +193,11 @@ async def upsert_problem(db: AsyncSession, data: dict) -> Problem:
                 problem_id=existing.id,
                 input=tc_data["input"],
                 expected=tc_data["expected"],
-                is_hidden=tc_data.get("is_hidden", False),
                 sequence=tc_data.get("sequence", i + 1),
             )
             db.add(test_case)
 
-        logger.info("updated_problem", slug=data["slug"], title=data["title"])
+        logger.info("updated_problem", slug=slug, title=data["title"])
         return existing
 
     # Insert new problem
@@ -208,10 +230,12 @@ async def seed_from_directory(
             data = load_problem_yaml(yaml_file)
             validate_problem_data(data)
 
-            exists = await problem_exists(db, data["slug"])
+            # Derive slug from title for existence check
+            slug = title_to_slug(data["title"])
+            exists = await problem_exists(db, data["title"])
 
             if exists and not force:
-                logger.info("skipped_existing", slug=data["slug"], file=yaml_file.name)
+                logger.info("skipped_existing", slug=slug, file=yaml_file.name)
                 skipped += 1
                 continue
 
@@ -248,21 +272,18 @@ def get_next_sequence_number(data_dir: Path) -> int:
     return max_seq + 1
 
 
-def generate_problem_template(slug: str, sequence_number: int, languages: list[str]) -> str:
+def generate_problem_template(title: str, sequence_number: int, languages: list[str]) -> str:
     """
     Generate a YAML template for a new problem.
 
     Args:
-        slug: URL-friendly slug (e.g., "two-sum")
+        title: Problem title (e.g., "Two Sum") - slug is derived automatically
         sequence_number: Problem sequence (e.g., 1)
         languages: List of language keys (e.g., ["python"])
 
     Returns:
         YAML template string
     """
-    # Convert slug to title
-    title = " ".join(word.capitalize() for word in slug.split("-"))
-
     lang_sections = []
     for lang in languages:
         if lang == "python":
@@ -306,7 +327,6 @@ def generate_problem_template(slug: str, sequence_number: int, languages: list[s
     languages_yaml = "\n".join(lang_sections)
 
     template = f"""title: {title}
-slug: {slug}
 sequence_number: {sequence_number}
 difficulty: easy  # easy, medium, hard
 pattern: array  # hash-map, two-pointers, sliding-window, etc.
@@ -331,12 +351,9 @@ languages:
 test_cases:
   - input: [[1, 2, 3]]
     expected: 6
-    is_hidden: false
   - input: [[4, 5, 6]]
     expected: 15
-    is_hidden: false
   - input: [[10, 20, 30]]
     expected: 60
-    is_hidden: true
 """
     return template

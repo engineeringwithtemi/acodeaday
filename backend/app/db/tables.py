@@ -61,9 +61,8 @@ class Problem(Base):
     slug: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     difficulty: Mapped[Difficulty] = mapped_column(Enum(Difficulty), nullable=False)
-    pattern: Mapped[str] = mapped_column(
-        String(50), nullable=False
-    )  # e.g., "hash-map", "two-pointers"
+    # Patterns as ARRAY of strings (e.g., ["hash-map", "arrays", "complement-search"])
+    pattern: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False)
 
     # SEQUENCE_NUMBER: Determines order in Blind 75 (1-75)
     # Used to find "next unsolved problem": SELECT * WHERE sequence_number = (min unsolved)
@@ -147,9 +146,6 @@ class TestCase(Base):
     # Expected output as JSONB: [0,1] or "hello" or {"key": "value"}
     expected: Mapped[dict] = mapped_column(JSONB, nullable=False)
 
-    # Hidden test cases only shown on submit (not on "Run Code")
-    is_hidden: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-
     # Sequence determines order of test case execution
     sequence: Mapped[int] = mapped_column(Integer, nullable=False)
 
@@ -230,7 +226,6 @@ class Submission(Base):
     failed_input: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     failed_output: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     failed_expected: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    failed_is_hidden: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     submitted_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
