@@ -1,0 +1,94 @@
+title: Min Cost to Connect All Points
+sequence_number: 116
+difficulty: medium
+pattern:
+  - graph
+  - minimum-spanning-tree
+  - union-find
+
+description: |
+  You are given an array `points` representing integer coordinates of some points on a 2D-plane, where `points[i] = [xi, yi]`.
+
+  The cost of connecting two points `[xi, yi]` and `[xj, yj]` is the **manhattan distance** between them: `|xi - xj| + |yi - yj|`, where `|val|` denotes the absolute value of `val`.
+
+  Return the minimum cost to make all points connected. All points are connected if there is **exactly one** simple path between any two points.
+
+constraints:
+  - "1 <= points.length <= 1000"
+  - "-10^6 <= xi, yi <= 10^6"
+  - "All pairs (xi, yi) are distinct."
+
+examples:
+  - input: "points = [[0,0],[2,2],[3,10],[5,2],[7,0]]"
+    output: "20"
+    explanation: "We can connect the points as shown to get the minimum cost of 20."
+  - input: "points = [[3,12],[-2,5],[-4,1]]"
+    output: "18"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def minCostConnectPoints(self, points: List[List[int]]) -> int:
+              pass
+    reference_solution: |
+      class Solution:
+          def minCostConnectPoints(self, points: List[List[int]]) -> int:
+              import heapq
+
+              n = len(points)
+              if n <= 1:
+                  return 0
+
+              # Prim's algorithm
+              visited = [False] * n
+              heap = [(0, 0)]  # (cost, point_index)
+              total_cost = 0
+              edges_used = 0
+
+              while edges_used < n:
+                  cost, i = heapq.heappop(heap)
+                  if visited[i]:
+                      continue
+                  visited[i] = True
+                  total_cost += cost
+                  edges_used += 1
+
+                  for j in range(n):
+                      if not visited[j]:
+                          dist = abs(points[i][0] - points[j][0]) + abs(points[i][1] - points[j][1])
+                          heapq.heappush(heap, (dist, j))
+
+              return total_cost
+    function_signature:
+      name: minCostConnectPoints
+      params:
+        - name: points
+          type: "List[List[int]]"
+      return_type: int
+
+test_cases:
+  - input: [[[0,0],[2,2],[3,10],[5,2],[7,0]]]
+    expected: 20
+  - input: [[[3,12],[-2,5],[-4,1]]]
+    expected: 18
+  - input: [[[0,0]]]
+    expected: 0
+  - input: [[[0,0],[1,1]]]
+    expected: 2
+  - input: [[[-1,0],[0,1],[1,0],[0,-1]]]
+    expected: 6
+  - input: [[[0,0],[1,0],[2,0]]]
+    expected: 2
+  - input: [[[0,0],[0,1],[0,2],[0,3]]]
+    expected: 3
+  - input: [[[1,1],[3,3]]]
+    expected: 4
+  - input: [[[-5,-5],[5,5],[0,0]]]
+    expected: 20
+  - input: [[[0,0],[5,0],[0,5],[5,5]]]
+    expected: 15
+  - input: [[[1,2],[3,4],[5,6],[7,8]]]
+    expected: 12
+  - input: [[[0,0],[2,0],[4,0],[6,0],[8,0]]]
+    expected: 8
