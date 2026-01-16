@@ -38,8 +38,7 @@ uv run python scripts/seed_problems.py seed --force
 ## YAML Schema
 
 ```yaml
-title: Two Sum                    # Display title
-slug: two-sum                     # URL-friendly identifier (unique)
+title: Two Sum                    # Display title (slug derived automatically)
 sequence_number: 1                # Order in problem list (unique)
 difficulty: easy                  # easy | medium | hard
 pattern: hash-map                 # Algorithm pattern tag
@@ -83,15 +82,13 @@ languages:                        # Language-specific code
 test_cases:                       # Test inputs/outputs
   - input: [[2, 7, 11, 15], 9]    # Arguments as JSON array
     expected: [0, 1]              # Expected output (any JSON type)
-    is_hidden: false              # Visible in "Run Code"
   - input: [[3, 2, 4], 6]
     expected: [1, 2]
-    is_hidden: true               # Only shown on "Submit"
 ```
 
 ## Notes
 
+- `slug` is automatically derived from the title (e.g., "Two Sum" → "two-sum")
 - `input` is a JSON array of function arguments
 - `expected` can be any JSON type (array, object, string, number, boolean)
-- Hidden test cases are only evaluated on Submit, not Run Code
 - Problems are seeded with **skip on existing** by default to protect user progress data

@@ -74,7 +74,6 @@ export interface TestCase {
   sequence: number
   input: Record<string, any>
   expected: any
-  is_hidden: boolean
   created_at: string
   updated_at: string
 }
@@ -216,7 +215,6 @@ export interface TestResult {
   stdout?: string  // User's print() output
   error?: string
   error_type?: string
-  is_hidden: boolean
 }
 
 // Run Code request (visible tests only, or custom input)
@@ -310,7 +308,6 @@ export interface SubmissionSchema {
   failed_input: any | null
   failed_output: any | null
   failed_expected: any | null
-  failed_is_hidden: boolean
 }
 
 // Chat types

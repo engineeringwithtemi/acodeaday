@@ -368,3 +368,12 @@ backend/migrations/versions/__pycache__/
 frontend/.vinxi/
 frontend/.output/
 /tmp/**
+
+# =============================================================================
+# VitePress Documentation
+# =============================================================================
+
+# VitePress cache and build output
+docs/.vitepress/cache
+docs/.vitepress/dist
+docs/node_modules

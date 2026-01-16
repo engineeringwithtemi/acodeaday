@@ -22,7 +22,6 @@ class TestCaseSchema(BaseModel):
     id: UUID
     input: dict | list  # JSON data (usually array of args)
     expected: dict | list | int | float | str | bool | None  # JSON data (any valid JSON value)
-    is_hidden: bool
     sequence: int
 
     model_config = {"from_attributes": True}
@@ -73,7 +72,7 @@ class ProblemDetailSchema(BaseModel):
 
     # Related data
     languages: list[ProblemLanguageSchema]
-    test_cases: list[TestCaseSchema]  # Filtered to non-hidden
+    test_cases: list[TestCaseSchema]
 
     # User's saved code (if any) - populated from user_code table
     user_code: str | None = None

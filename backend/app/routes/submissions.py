@@ -56,7 +56,6 @@ async def get_submissions(
             failed_input=submission.failed_input,
             failed_output=submission.failed_output,
             failed_expected=submission.failed_expected,
-            failed_is_hidden=submission.failed_is_hidden,
         )
         for submission, problem in submissions_data
     ]

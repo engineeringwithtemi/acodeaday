@@ -152,7 +152,6 @@ class SubmissionSchema(BaseModel):
     failed_input: dict | list | None = None
     failed_output: dict | list | int | float | str | bool | None = None
     failed_expected: dict | list | int | float | str | bool | None = None
-    failed_is_hidden: bool = False
 
     model_config = {"from_attributes": True}
 
