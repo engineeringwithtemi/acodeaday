@@ -1,0 +1,95 @@
+title: Letter Combinations of a Phone Number
+sequence_number: 108
+difficulty: medium
+pattern:
+  - backtracking
+  - string
+
+description: |
+  Given a string containing digits from `2-9` inclusive, return all possible letter combinations that the number could represent. Return the answer in **any order**.
+
+  A mapping of digits to letters (just like on the telephone buttons) is given below. Note that 1 does not map to any letters.
+
+  2 -> "abc", 3 -> "def", 4 -> "ghi", 5 -> "jkl", 6 -> "mno", 7 -> "pqrs", 8 -> "tuv", 9 -> "wxyz"
+
+constraints:
+  - "0 <= digits.length <= 4"
+  - "digits[i] is a digit in the range ['2', '9']."
+
+examples:
+  - input: 'digits = "23"'
+    output: '["ad","ae","af","bd","be","bf","cd","ce","cf"]'
+  - input: 'digits = ""'
+    output: "[]"
+  - input: 'digits = "2"'
+    output: '["a","b","c"]'
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def letterCombinations(self, digits: str) -> List[str]:
+              pass
+    reference_solution: |
+      class Solution:
+          def letterCombinations(self, digits: str) -> List[str]:
+              if not digits:
+                  return []
+
+              phone_map = {
+                  '2': 'abc', '3': 'def', '4': 'ghi', '5': 'jkl',
+                  '6': 'mno', '7': 'pqrs', '8': 'tuv', '9': 'wxyz'
+              }
+
+              result = []
+
+              def backtrack(index, current):
+                  if index == len(digits):
+                      result.append(''.join(current))
+                      return
+
+                  for letter in phone_map[digits[index]]:
+                      current.append(letter)
+                      backtrack(index + 1, current)
+                      current.pop()
+
+              backtrack(0, [])
+              return result
+    function_signature:
+      name: letterCombinations
+      params:
+        - name: digits
+          type: str
+      return_type: "List[str]"
+
+test_cases:
+  - input: ["23"]
+    expected: ["ad", "ae", "af", "bd", "be", "bf", "cd", "ce", "cf"]
+  - input: [""]
+    expected: []
+  - input: ["2"]
+    expected: ["a", "b", "c"]
+  - input: ["7"]
+    expected: ["p", "q", "r", "s"]
+  - input: ["9"]
+    expected: ["w", "x", "y", "z"]
+  - input: ["79"]
+    expected: ["pw", "px", "py", "pz", "qw", "qx", "qy", "qz", "rw", "rx", "ry", "rz", "sw", "sx", "sy", "sz"]
+  - input: ["22"]
+    expected: ["aa", "ab", "ac", "ba", "bb", "bc", "ca", "cb", "cc"]
+  - input: ["234"]
+    expected: ["adg", "adh", "adi", "aeg", "aeh", "aei", "afg", "afh", "afi", "bdg", "bdh", "bdi", "beg", "beh", "bei", "bfg", "bfh", "bfi", "cdg", "cdh", "cdi", "ceg", "ceh", "cei", "cfg", "cfh", "cfi"]
+  - input: ["5"]
+    expected: ["j", "k", "l"]
+  - input: ["56"]
+    expected: ["jm", "jn", "jo", "km", "kn", "ko", "lm", "ln", "lo"]
+  - input: ["8"]
+    expected: ["t", "u", "v"]
+  - input: ["89"]
+    expected: ["tw", "tx", "ty", "tz", "uw", "ux", "uy", "uz", "vw", "vx", "vy", "vz"]
+  - input: ["3"]
+    expected: ["d", "e", "f"]
+  - input: ["4"]
+    expected: ["g", "h", "i"]
+  - input: ["6"]
+    expected: ["m", "n", "o"]

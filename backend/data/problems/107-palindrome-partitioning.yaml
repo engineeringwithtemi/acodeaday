@@ -1,0 +1,87 @@
+title: Palindrome Partitioning
+sequence_number: 107
+difficulty: medium
+pattern:
+  - backtracking
+  - dynamic-programming
+  - string
+
+description: |
+  Given a string `s`, partition `s` such that every substring of the partition is a **palindrome**. Return all possible palindrome partitioning of `s`.
+
+constraints:
+  - "1 <= s.length <= 16"
+  - "s contains only lowercase English letters."
+
+examples:
+  - input: 's = "aab"'
+    output: '[["a","a","b"],["aa","b"]]'
+  - input: 's = "a"'
+    output: '[["a"]]'
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def partition(self, s: str) -> List[List[str]]:
+              pass
+    reference_solution: |
+      class Solution:
+          def partition(self, s: str) -> List[List[str]]:
+              result = []
+
+              def is_palindrome(sub):
+                  return sub == sub[::-1]
+
+              def backtrack(start, current):
+                  if start == len(s):
+                      result.append(current[:])
+                      return
+
+                  for end in range(start + 1, len(s) + 1):
+                      substring = s[start:end]
+                      if is_palindrome(substring):
+                          current.append(substring)
+                          backtrack(end, current)
+                          current.pop()
+
+              backtrack(0, [])
+              return result
+    function_signature:
+      name: partition
+      params:
+        - name: s
+          type: str
+      return_type: "List[List[str]]"
+
+test_cases:
+  - input: ["aab"]
+    expected: [["a", "a", "b"], ["aa", "b"]]
+  - input: ["a"]
+    expected: [["a"]]
+  - input: ["aa"]
+    expected: [["a", "a"], ["aa"]]
+  - input: ["aaa"]
+    expected: [["a", "a", "a"], ["a", "aa"], ["aa", "a"], ["aaa"]]
+  - input: ["ab"]
+    expected: [["a", "b"]]
+  - input: ["aba"]
+    expected: [["a", "b", "a"], ["aba"]]
+  - input: ["abba"]
+    expected: [["a", "b", "b", "a"], ["a", "bb", "a"], ["abba"]]
+  - input: ["abc"]
+    expected: [["a", "b", "c"]]
+  - input: ["abcba"]
+    expected: [["a", "b", "c", "b", "a"], ["a", "bcb", "a"], ["abcba"]]
+  - input: ["aabb"]
+    expected: [["a", "a", "b", "b"], ["a", "a", "bb"], ["aa", "b", "b"], ["aa", "bb"]]
+  - input: ["racecar"]
+    expected: [["r", "a", "c", "e", "c", "a", "r"], ["r", "a", "cec", "a", "r"], ["r", "aceca", "r"], ["racecar"]]
+  - input: ["bb"]
+    expected: [["b", "b"], ["bb"]]
+  - input: ["ccc"]
+    expected: [["c", "c", "c"], ["c", "cc"], ["cc", "c"], ["ccc"]]
+  - input: ["noon"]
+    expected: [["n", "o", "o", "n"], ["n", "oo", "n"], ["noon"]]
+  - input: ["abcd"]
+    expected: [["a", "b", "c", "d"]]

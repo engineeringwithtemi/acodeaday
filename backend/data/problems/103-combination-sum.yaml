@@ -1,0 +1,93 @@
+title: Combination Sum
+sequence_number: 103
+difficulty: medium
+pattern:
+  - backtracking
+  - array
+
+description: |
+  Given an array of **distinct** integers `candidates` and a target integer `target`, return a list of all **unique combinations** of `candidates` where the chosen numbers sum to `target`. You may return the combinations in **any order**.
+
+  The **same** number may be chosen from `candidates` an **unlimited number of times**. Two combinations are unique if the frequency of at least one of the chosen numbers is different.
+
+  The test cases are generated such that the number of unique combinations that sum up to `target` is less than `150` combinations for the given input.
+
+constraints:
+  - "1 <= candidates.length <= 30"
+  - "2 <= candidates[i] <= 40"
+  - "All elements of candidates are distinct."
+  - "1 <= target <= 40"
+
+examples:
+  - input: "candidates = [2,3,6,7], target = 7"
+    output: "[[2,2,3],[7]]"
+  - input: "candidates = [2,3,5], target = 8"
+    output: "[[2,2,2,2],[2,3,3],[3,5]]"
+  - input: "candidates = [2], target = 1"
+    output: "[]"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def combinationSum(self, candidates: List[int], target: int) -> List[List[int]]:
+              pass
+    reference_solution: |
+      class Solution:
+          def combinationSum(self, candidates: List[int], target: int) -> List[List[int]]:
+              result = []
+
+              def backtrack(start, current, remaining):
+                  if remaining == 0:
+                      result.append(current[:])
+                      return
+                  if remaining < 0:
+                      return
+
+                  for i in range(start, len(candidates)):
+                      current.append(candidates[i])
+                      backtrack(i, current, remaining - candidates[i])
+                      current.pop()
+
+              backtrack(0, [], target)
+              return result
+    function_signature:
+      name: combinationSum
+      params:
+        - name: candidates
+          type: "List[int]"
+        - name: target
+          type: int
+      return_type: "List[List[int]]"
+
+test_cases:
+  - input: [[2, 3, 6, 7], 7]
+    expected: [[2, 2, 3], [7]]
+  - input: [[2, 3, 5], 8]
+    expected: [[2, 2, 2, 2], [2, 3, 3], [3, 5]]
+  - input: [[2], 1]
+    expected: []
+  - input: [[1], 1]
+    expected: [[1]]
+  - input: [[1], 2]
+    expected: [[1, 1]]
+  - input: [[2, 3], 6]
+    expected: [[2, 2, 2], [3, 3]]
+  - input: [[2, 3], 7]
+    expected: [[2, 2, 3]]
+  - input: [[5, 10, 15], 15]
+    expected: [[5, 5, 5], [5, 10], [15]]
+  - input: [[3, 4, 5], 12]
+    expected: [[3, 3, 3, 3], [3, 4, 5], [4, 4, 4]]
+  - input: [[2, 5, 10], 10]
+    expected: [[2, 2, 2, 2, 2], [5, 5], [10]]
+  - input: [[7, 8], 15]
+    expected: [[7, 8]]
+  - input: [[3, 5, 7], 10]
+    expected: [[3, 7], [5, 5]]
+  - input: [[2, 4], 8]
+    expected: [[2, 2, 2, 2], [2, 2, 4], [4, 4]]
+  - input: [[6], 12]
+    expected: [[6, 6]]
+  - input: [[2, 3, 4], 9]
+    expected: [[2, 2, 2, 3], [2, 3, 4], [3, 3, 3]]
