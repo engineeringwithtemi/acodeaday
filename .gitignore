@@ -131,7 +131,7 @@ dmypy.json
 .pyre/
 
 # uv
-uv.lock
+# Note: uv.lock should be committed for reproducible builds
 
 # =============================================================================
 # Node.js / Frontend
