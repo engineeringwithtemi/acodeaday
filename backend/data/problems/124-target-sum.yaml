@@ -1,0 +1,93 @@
+title: Target Sum
+sequence_number: 124
+difficulty: medium
+pattern:
+  - dynamic-programming
+  - backtracking
+
+description: |
+  You are given an integer array `nums` and an integer `target`.
+
+  You want to build an **expression** out of nums by adding one of the symbols `'+'` and `'-'` before each integer in nums and then concatenate all the integers.
+
+  For example, if `nums = [2, 1]`, you can add a `'+'` before `2` and a `'-'` before `1` and concatenate them to build the expression `"+2-1"`.
+
+  Return the number of different **expressions** that you can build, which evaluates to `target`.
+
+constraints:
+  - "1 <= nums.length <= 20"
+  - "0 <= nums[i] <= 1000"
+  - "0 <= sum(nums[i]) <= 1000"
+  - "-1000 <= target <= 1000"
+
+examples:
+  - input: "nums = [1,1,1,1,1], target = 3"
+    output: "5"
+    explanation: "There are 5 ways to assign symbols to make the sum of nums be target 3: -1+1+1+1+1, +1-1+1+1+1, +1+1-1+1+1, +1+1+1-1+1, +1+1+1+1-1"
+  - input: "nums = [1], target = 1"
+    output: "1"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def findTargetSumWays(self, nums: List[int], target: int) -> int:
+              pass
+    reference_solution: |
+      class Solution:
+          def findTargetSumWays(self, nums: List[int], target: int) -> int:
+              total = sum(nums)
+              if (total + target) % 2 != 0 or abs(target) > total:
+                  return 0
+
+              # Transform to subset sum problem
+              # P - N = target, P + N = total
+              # 2P = target + total, P = (target + total) / 2
+              subset_sum = (total + target) // 2
+
+              dp = [0] * (subset_sum + 1)
+              dp[0] = 1
+
+              for num in nums:
+                  for j in range(subset_sum, num - 1, -1):
+                      dp[j] += dp[j - num]
+
+              return dp[subset_sum]
+    function_signature:
+      name: findTargetSumWays
+      params:
+        - name: nums
+          type: "List[int]"
+        - name: target
+          type: int
+      return_type: int
+
+test_cases:
+  - input: [[1,1,1,1,1], 3]
+    expected: 5
+  - input: [[1], 1]
+    expected: 1
+  - input: [[1], 2]
+    expected: 0
+  - input: [[0,0,0,0,0,0,0,0,1], 1]
+    expected: 256
+  - input: [[1,0], 1]
+    expected: 2
+  - input: [[2,1], 1]
+    expected: 1
+  - input: [[1,2,1], 0]
+    expected: 2
+  - input: [[1,1,1,1,1], 5]
+    expected: 1
+  - input: [[1,1,1,1,1], -5]
+    expected: 1
+  - input: [[1,2,3], 0]
+    expected: 2
+  - input: [[1,2,3,4,5], 3]
+    expected: 3
+  - input: [[100], 100]
+    expected: 1
+  - input: [[0], 0]
+    expected: 2
+  - input: [[0,0,1], 1]
+    expected: 4
