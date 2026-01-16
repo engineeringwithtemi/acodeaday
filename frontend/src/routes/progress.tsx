@@ -172,7 +172,7 @@ function ProblemRow({ problem, progress }: ProblemRowProps) {
       {/* Problem Title */}
       <div className="flex-1 min-w-0">
         <h3 className="text-white font-semibold truncate">{problem.title}</h3>
-        <p className="text-sm text-gray-400">Pattern: {problem.pattern}</p>
+        <p className="text-sm text-gray-400">Pattern: {problem.pattern.join(', ')}</p>
       </div>
 
       {/* Difficulty Badge */}

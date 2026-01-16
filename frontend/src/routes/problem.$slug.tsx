@@ -206,7 +206,6 @@ function ProblemSolver() {
         input: submission.failed_input,
         output: submission.failed_output,
         expected: submission.failed_expected,
-        is_hidden: submission.failed_is_hidden ?? false,
       })
     }
 

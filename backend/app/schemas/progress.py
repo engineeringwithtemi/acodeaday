@@ -29,7 +29,7 @@ class ProblemProgressSchema(BaseModel):
     title: str
     slug: str
     difficulty: Difficulty
-    pattern: str
+    pattern: list[str]
     sequence_number: int
 
     # User progress
@@ -66,7 +66,7 @@ class ProblemBasicSchema(BaseModel):
     title: str
     slug: str
     difficulty: Difficulty
-    pattern: str
+    pattern: list[str]
     sequence_number: int
 
     model_config = {"from_attributes": True}

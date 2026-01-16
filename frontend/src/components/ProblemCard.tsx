@@ -65,9 +65,13 @@ export function ProblemCard({
           <h3 className="text-lg font-semibold text-white mb-1 group-hover:text-cyan-300 transition-colors">
             {problem.title}
           </h3>
-          <p className="text-xs font-mono text-zinc-500 uppercase tracking-widest">
-            {problem.pattern}
-          </p>
+          <div className="flex flex-wrap gap-1">
+            {problem.pattern.map((p, idx) => (
+              <span key={idx} className="text-xs font-mono text-zinc-500 uppercase tracking-widest px-1.5 py-0.5 bg-zinc-800/50 rounded">
+                {p}
+              </span>
+            ))}
+          </div>
         </div>
         <ArrowRight className="w-5 h-5 text-zinc-600 group-hover:text-cyan-400 group-hover:translate-x-1 transition-all" />
       </div>
