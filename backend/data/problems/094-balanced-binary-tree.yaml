@@ -1,0 +1,118 @@
+title: Balanced Binary Tree
+sequence_number: 94
+difficulty: easy
+pattern:
+  - trees
+  - depth-first-search
+  - recursion
+
+description: |
+  Given a binary tree, determine if it is **height-balanced**.
+
+  A **height-balanced** binary tree is a binary tree in which the depth of the two subtrees of every node never differs by more than one.
+
+  The tree is represented as a level-order array where `null` represents missing nodes.
+
+constraints:
+  - "The number of nodes in the tree is in the range [0, 5000]."
+  - "-10^4 <= Node.val <= 10^4"
+
+examples:
+  - input: "root = [3,9,20,null,null,15,7]"
+    output: "true"
+  - input: "root = [1,2,2,3,3,null,null,4,4]"
+    output: "false"
+  - input: "root = []"
+    output: "true"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def isBalanced(self, root: List) -> bool:
+              pass
+    reference_solution: |
+      class Solution:
+          def isBalanced(self, root: List) -> bool:
+              if not root:
+                  return True
+
+              # Build tree from array
+              class TreeNode:
+                  def __init__(self, val=0, left=None, right=None):
+                      self.val = val
+                      self.left = left
+                      self.right = right
+
+              def build_tree(arr):
+                  if not arr or arr[0] is None:
+                      return None
+                  root = TreeNode(arr[0])
+                  queue = [root]
+                  i = 1
+                  while queue and i < len(arr):
+                      node = queue.pop(0)
+                      if i < len(arr) and arr[i] is not None:
+                          node.left = TreeNode(arr[i])
+                          queue.append(node.left)
+                      i += 1
+                      if i < len(arr) and arr[i] is not None:
+                          node.right = TreeNode(arr[i])
+                          queue.append(node.right)
+                      i += 1
+                  return root
+
+              tree_root = build_tree(root)
+
+              def check_height(node):
+                  if not node:
+                      return 0
+                  left_h = check_height(node.left)
+                  if left_h == -1:
+                      return -1
+                  right_h = check_height(node.right)
+                  if right_h == -1:
+                      return -1
+                  if abs(left_h - right_h) > 1:
+                      return -1
+                  return 1 + max(left_h, right_h)
+
+              return check_height(tree_root) != -1
+    function_signature:
+      name: isBalanced
+      params:
+        - name: root
+          type: List
+      return_type: bool
+
+test_cases:
+  - input: [[3, 9, 20, null, null, 15, 7]]
+    expected: true
+  - input: [[1, 2, 2, 3, 3, null, null, 4, 4]]
+    expected: false
+  - input: [[]]
+    expected: true
+  - input: [[1]]
+    expected: true
+  - input: [[1, 2]]
+    expected: true
+  - input: [[1, 2, 3]]
+    expected: true
+  - input: [[1, 2, null, 3]]
+    expected: false
+  - input: [[1, 2, null, 3, null, 4]]
+    expected: false
+  - input: [[1, null, 2, null, 3]]
+    expected: false
+  - input: [[1, 2, 3, 4, 5, 6, 7]]
+    expected: true
+  - input: [[1, 2, 3, 4, 5, null, null, 6]]
+    expected: false
+  - input: [[1, 2, 3, 4, null, null, null, 5]]
+    expected: false
+  - input: [[1, 2, 2, 3, null, null, 3, 4, null, null, 4]]
+    expected: false
+  - input: [[5, 4, 8, 11, null, 13, 4, 7, 2, null, null, null, 1]]
+    expected: false
+  - input: [[1, 2, 3, 4, 5, 6]]
+    expected: true
