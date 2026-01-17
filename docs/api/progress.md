@@ -83,7 +83,7 @@ Problems are returned in this order:
 ### Example
 
 ```bash
-curl -u admin:password http://localhost:8000/api/today
+curl -H "Authorization: Bearer <token>" http://localhost:8000/api/today
 ```
 
 ## Get Overall Progress
@@ -187,7 +187,7 @@ GET /api/progress
 ### Example
 
 ```bash
-curl -u admin:password http://localhost:8000/api/progress
+curl -H "Authorization: Bearer <token>" http://localhost:8000/api/progress
 ```
 
 ## Get Mastered Problems
@@ -247,7 +247,7 @@ GET /api/mastered
 ### Example
 
 ```bash
-curl -u admin:password http://localhost:8000/api/mastered
+curl -H "Authorization: Bearer <token>" http://localhost:8000/api/mastered
 ```
 
 ## Show Again (Re-add to Rotation)
@@ -297,7 +297,7 @@ When you click "Show Again":
 ### Example
 
 ```bash
-curl -X POST -u admin:password \
+curl -X POST -H "Authorization: Bearer <token>" \
   http://localhost:8000/api/mastered/abc123-uuid/show-again
 ```
 
@@ -318,6 +318,8 @@ curl -X POST -u admin:password \
     type: "review" | "new";
     progress: {
       times_solved: number;
+      ease_factor: number;        // Anki SM-2: default 2.5, min 1.3
+      interval_days: number;      // Days until next review
       next_review_date: string | null;
       is_mastered: boolean;
       last_solved_at: string;
@@ -352,6 +354,8 @@ curl -X POST -u admin:password \
     sequence_number: number;
     progress: {
       times_solved: number;
+      ease_factor: number;        // Anki SM-2
+      interval_days: number;
       is_mastered: boolean;
       last_solved_at: string;
       next_review_date: string | null;
@@ -379,12 +383,14 @@ curl -X POST -u admin:password \
 ### Fetch Daily Session
 
 ```typescript
+import { supabase } from './lib/supabase';
+
 async function fetchDailySession() {
-  const auth = localStorage.getItem('auth');
+  const { data: { session } } = await supabase.auth.getSession();
 
   const response = await fetch('/api/today', {
     headers: {
-      'Authorization': `Basic ${auth}`
+      'Authorization': `Bearer ${session?.access_token}`
     }
   });
 
@@ -403,11 +409,11 @@ console.log(`${reviews.length} reviews, ${newProblems.length} new`);
 
 ```typescript
 async function fetchProgress() {
-  const auth = localStorage.getItem('auth');
+  const { data: { session } } = await supabase.auth.getSession();
 
   const response = await fetch('/api/progress', {
     headers: {
-      'Authorization': `Basic ${auth}`
+      'Authorization': `Bearer ${session?.access_token}`
     }
   });
 
@@ -424,12 +430,12 @@ console.log(`${progress.completion_percentage.toFixed(1)}% complete`);
 
 ```typescript
 async function showAgain(problemId: string) {
-  const auth = localStorage.getItem('auth');
+  const { data: { session } } = await supabase.auth.getSession();
 
   const response = await fetch(`/api/mastered/${problemId}/show-again`, {
     method: 'POST',
     headers: {
-      'Authorization': `Basic ${auth}`
+      'Authorization': `Bearer ${session?.access_token}`
     }
   });
 

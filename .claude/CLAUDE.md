@@ -10,24 +10,36 @@ acodeaday is a daily coding practice app that uses spaced repetition to help use
 
 ## Tech Stack
 
-- **Backend**: FastAPI (Python) with async SQLAlchemy 2.0
+- **Backend**: FastAPI (Python 3.13+) with async SQLAlchemy 2.0
 - **Database**: Supabase PostgreSQL (managed via Alembic migrations)
-- **Auth**: HTTP Basic Auth (username/password)
+- **Auth**: Supabase Auth with JWT Bearer tokens
 - **Code Execution**: Judge0 CE (self-hosted via Docker)
-- **Frontend**: TanStack (React)
+- **Frontend**: TanStack (React 19) with TanStack Router and React Query
 - **Code Editor**: Monaco Editor
 - **Package Manager**: uv (for Python backend)
 - **Logging**: structlog (structured logging)
+- **LLM Integration**: litellm (multi-provider: Gemini, OpenAI, Anthropic)
 
 ## Architecture
 
-### Spaced Repetition System
+### Spaced Repetition System (Anki SM-2)
 
-The app implements a simplified spaced repetition algorithm:
+The app implements the Anki SM-2 spaced repetition algorithm:
 
-1. **First solve**: Problem enters review queue, due in 7 days
-2. **Second solve**: Problem marked as "Mastered", removed from rotation
-3. **"Show Again"**: User can manually re-add mastered problems to rotation
+**Rating System**: After successful submission, user rates difficulty:
+- **Again**: Reset to 1-day interval, decrease ease factor by 0.2
+- **Hard**: Slower growth (interval × 1.2), decrease ease by 0.15
+- **Good**: Normal growth (interval × ease factor)
+- **Mastered**: Immediately exit rotation
+
+**Algorithm Constants**:
+- Default ease factor: 2.5
+- Minimum ease factor: 1.3
+- Auto-mastery threshold: 30 days (when interval reaches 30+ days)
+
+**First Review**: Fixed intervals (hard=1 day, good=3 days)
+
+**"Show Again"**: User can manually re-add mastered problems to rotation (resets ease to 2.5)
 
 ### Daily Session Logic
 
@@ -38,30 +50,35 @@ Each day presents up to 3 problems in priority order:
 
 ### Database Schema
 
-Five core tables (see TASKS.md section 2.3 for complete SQLAlchemy model definitions):
+Seven core tables (see `backend/app/db/tables.py` for complete SQLAlchemy model definitions):
 
 1. **problems**: Core problem metadata
    - `sequence_number` (1-75) determines order in Blind 75
-   - `difficulty` (ENUM: easy/medium/hard), `pattern`, `constraints` (ARRAY), `examples` (JSONB)
+   - `difficulty` (ENUM: easy/medium/hard), `pattern` (ARRAY), `constraints` (ARRAY), `examples` (JSONB)
 
 2. **problem_languages**: Language-specific code
    - Stores `starter_code`, `reference_solution`, `function_signature` (JSONB)
-   - Supports Python initially, extensible to other languages
+   - Supports Python and JavaScript
 
 3. **test_cases**: Test inputs and expected outputs
    - `input` and `expected` stored as JSONB
-   - `is_hidden` flag (hidden tests only run on Submit, not Run Code)
    - `sequence` determines execution order
 
-4. **user_progress**: Spaced repetition tracking
-   - `times_solved`: Counter for mastery (0→1→2)
-   - `next_review_date`: When problem is due for review
-   - `is_mastered`: True after 2 successful solves
-   - `show_again`: Flag to re-enter rotation
+4. **user_progress**: Spaced repetition tracking (Anki SM-2)
+   - `times_solved`, `next_review_date`, `is_mastered`, `show_again`
+   - `ease_factor` (default 2.5), `interval_days`, `review_count`
 
 5. **submissions**: Code submission history
-   - Stores code, language, pass/fail status, runtime_ms
-   - Full audit trail of all attempts
+   - Stores code, language, pass/fail status, runtime_ms, memory_kb
+   - `total_test_cases`, `passed_count`, failed test details
+
+6. **user_code**: Server-side code persistence
+   - Stores user's current code per problem/language
+   - Enables auto-save and code restoration
+
+7. **chat_sessions** & **chat_messages**: AI chat assistant
+   - Per-problem chat sessions with mode (socratic/direct)
+   - Message history with code/test result snapshots
 
 ### Judge0 Integration
 
@@ -93,23 +110,45 @@ See spec.md:167-211 for complete example.
 
 ## API Endpoints
 
-**Daily Session**:
-- `GET /api/today` - Returns 2 reviews (if due) + 1 new problem
+**Problems** (prefix: `/api/problems`):
+- `GET /api/problems/` - List all problems ordered by sequence
+- `GET /api/problems/{slug}` - Get problem details with test cases and saved code
 
-**Submissions**:
-- `POST /api/submit` - Sends code to Judge0, updates user_progress based on result
+**Code Execution** (prefix: `/api`):
+- `POST /api/run` - Execute code against first 3 test cases (no auth required)
+- `POST /api/submit` - Submit code (all tests, creates submission record)
+- `POST /api/rate-submission` - Rate submission difficulty (again/hard/good/mastered)
 
-**Mastery Management**:
-- `GET /api/mastered` - Lists mastered problems
-- `POST /api/mastered/:id/show-again` - Re-adds to review rotation
+**Code Persistence** (prefix: `/api/code`):
+- `POST /api/code/save` - Save user's current code (auto-save)
+- `POST /api/code/reset` - Reset to starter code
+- `POST /api/code/load-submission` - Load code from past submission
 
-## MVP Scope (Phase 1)
+**Progress** (prefix: `/api`):
+- `GET /api/today` - Today's session (2 reviews + 1 new problem)
+- `GET /api/progress` - Overall progress on all 75 problems
+- `GET /api/mastered` - List all mastered problems
+- `POST /api/mastered/{problem_id}/show-again` - Re-add to review rotation
 
-- First 15 Blind 75 problems only
-- Python support only
-- Fixed 7-day review interval
-- Basic Monaco editor integration
+**Submissions** (prefix: `/api/submissions`):
+- `GET /api/submissions/{problem_id}` - Get submission history for a problem
+
+**Chat** (prefix: `/api/chat`):
+- `GET /api/chat/models` - List available LLM models
+- `POST /api/chat/sessions` - Create new chat session
+- `GET /api/chat/sessions/{slug}` - List sessions for a problem
+- `GET /api/chat/session/{session_id}` - Get session with messages
+- `POST /api/chat/session/{session_id}/message` - Send message in session
+
+## Current Features
+
+- First 15 Blind 75 problems seeded
+- Python and JavaScript support
+- Anki SM-2 spaced repetition with ratings
+- Monaco editor with auto-save
 - Judge0 for code execution
+- AI Chat assistant (Socratic/Direct modes)
+- Submission history and code persistence
 
 ## Development Workflow
 
@@ -121,12 +160,13 @@ For detailed task breakdown, see TASKS.md which contains comprehensive phase-by-
 - Phase 5: Testing & Polish
 - Phase 6: Deployment Preparation
 
-Current implementation approach:
-1. **Backend Setup**: Using FastAPI with async SQLAlchemy, managed with uv
+Current implementation:
+1. **Backend**: FastAPI with async SQLAlchemy, managed with uv
 2. **Database**: Supabase PostgreSQL with Alembic migrations
-3. **Auth**: HTTP Basic Auth (simple username/password)
+3. **Auth**: Supabase Auth with JWT Bearer tokens
 4. **Judge0**: Self-hosted via Docker Compose
-5. **Frontend**: TanStack (React) with Monaco Editor (Phase 4)
+5. **Frontend**: TanStack (React 19) with Monaco Editor
+6. **AI Chat**: litellm for multi-provider LLM support
 
 ## Important Implementation Details
 
@@ -139,9 +179,11 @@ Current implementation approach:
 
 **Daily Session Query**: Must check `next_review_date <= today` and `is_mastered = false` to find due reviews, then fetch next unsolved by `sequence_number`.
 
-**Mastery Logic**: On successful submission:
-- If `times_solved = 0`: Set `times_solved = 1`, `next_review_date = today + 7 days`
-- If `times_solved = 1`: Set `times_solved = 2`, `is_mastered = true`, `next_review_date = null`
+**Mastery Logic** (Anki SM-2): On successful submission:
+- User is prompted to rate difficulty (again/hard/good/mastered)
+- Rating determines next interval using SM-2 algorithm
+- Auto-mastery when interval reaches 30+ days
+- See `backend/app/services/progress.py` for implementation
 
 ## Code Style Rules
 
@@ -160,12 +202,13 @@ See TASKS.md "Async SQLAlchemy Patterns" section for comprehensive guide. Key po
 - Use `Mapped[type]` and `mapped_column()` for models (SQLAlchemy 2.0 style)
 - All FastAPI route handlers MUST be `async def`
 
-### HTTP Basic Auth
-Simple username/password authentication:
-- No Supabase Auth (using HTTP Basic Auth instead)
-- Username becomes `user_id` in database queries
-- Credentials stored in `.env` file (AUTH_USERNAME, AUTH_PASSWORD)
-- See TASKS.md section 3.3 for implementation
+### Supabase Auth
+JWT Bearer token authentication:
+- Uses Supabase Auth service for user management
+- `get_current_user()` middleware validates JWT tokens
+- User ID from JWT used as `user_id` in database queries
+- Frontend sends token in `Authorization: Bearer <token>` header
+- See `backend/app/middleware/auth.py` for implementation
 
 ### Code Wrapper Generation
 See TASKS.md section "Judge0 Code Wrapper Generator" for complete implementation:
@@ -174,11 +217,13 @@ See TASKS.md section "Judge0 Code Wrapper Generator" for complete implementation
 - Results returned as JSON from stdout
 - Supports `class Solution` pattern (LeetCode style)
 
-### Spaced Repetition Logic
-See TASKS.md section "Spaced Repetition Logic" for complete implementation:
-- First solve: `times_solved=1`, `next_review_date=today+7days`
-- Second solve: `times_solved=2`, `is_mastered=true`
-- Already mastered: No state change on subsequent solves
+### Spaced Repetition Logic (Anki SM-2)
+See `backend/app/services/progress.py` for complete implementation:
+- Rating system: again/hard/good/mastered
+- First review: hard=1 day, good=3 days
+- Subsequent reviews: interval grows based on rating and ease factor
+- Auto-mastery at 30+ day interval
+- "Show Again" resets ease factor to 2.5
 
 ## Project Documentation
 

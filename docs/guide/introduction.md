@@ -21,28 +21,31 @@ Each day, you'll see up to 3 problems:
 2. **Review #2**: Your second oldest overdue problem (if any)
 3. **New Problem**: The next unsolved problem in sequence
 
-### Spaced Repetition
+### Spaced Repetition (Anki SM-2)
 
-The app uses a simplified spaced repetition algorithm:
+The app uses the Anki SM-2 algorithm with adaptive intervals based on difficulty ratings:
 
-- **First solve**: Problem enters the review queue, due in 7 days
-- **Second solve**: Problem is marked as "Mastered" and removed from rotation
-- **"Show Again"**: You can manually re-add mastered problems to the rotation
+After solving a problem, you rate how difficult it was:
+- **Again**: Reset to 1 day (struggled/needed hints)
+- **Hard**: Slower growth (×1.2), decrease ease factor
+- **Good**: Normal growth (×ease factor)
+- **Mastered**: Exit rotation immediately
 
 ```
                     ┌─────────────┐
                     │   Unsolved  │
                     └──────┬──────┘
                            │
-                      Solve once
+                      Solve & rate
                            │
                            ▼
                     ┌─────────────┐
                     │  In Review  │◄─────────────┐
-                    │  (due 7d)   │              │
+                    │ (scheduled) │              │
                     └──────┬──────┘              │
                            │                     │
-                      Solve twice          "Show Again"
+                    Interval ≥30d          "Show Again"
+                    or "Mastered"                │
                            │                     │
                            ▼                     │
                     ┌─────────────┐              │
@@ -54,12 +57,13 @@ The app uses a simplified spaced repetition algorithm:
 
 | Component | Technology |
 |-----------|------------|
-| Backend | FastAPI (Python) with async SQLAlchemy 2.0 |
-| Frontend | TanStack (React) |
+| Backend | FastAPI (Python 3.13+) with async SQLAlchemy 2.0 |
+| Frontend | TanStack (React 19) with TanStack Router/Query |
 | Code Editor | Monaco Editor |
 | Code Execution | Judge0 CE (self-hosted) |
 | Database | Supabase PostgreSQL |
-| Auth | HTTP Basic Auth |
+| Auth | Supabase Auth (JWT Bearer tokens) |
+| AI Chat | litellm (Gemini, OpenAI, Anthropic) |
 | Package Manager | uv (Python), npm (JavaScript) |
 
 ## Key Features
@@ -86,16 +90,17 @@ The app uses a simplified spaced repetition algorithm:
                    └─────────────────┘
 ```
 
-## MVP Scope
+## Current Features
 
-The current implementation focuses on:
+The implementation includes:
 
-- Python support (more languages coming)
-- Spaced repetition with configurable intervals
-- Monaco editor integration
-- Self-hosted Judge0 for code execution
-
-Future phases will add additional languages (JavaScript, Go, etc.) and more advanced spaced repetition features.
+- **16 Blind 75 problems** seeded and ready to practice
+- **Python support** with JavaScript coming soon
+- **Anki SM-2 spaced repetition** with difficulty ratings
+- **Monaco editor** with auto-save
+- **Self-hosted Judge0** for secure code execution
+- **AI Chat assistant** for hints and explanations (Socratic or direct mode)
+- **Submission history** to review past attempts
 
 ## Next Steps
 

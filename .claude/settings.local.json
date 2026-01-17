@@ -29,7 +29,12 @@
       "Bash(git worktree:*)",
       "Bash(npm run dev:*)",
       "Bash(docker build:*)",
-      "Bash(docker stop:*)"
+      "Bash(docker stop:*)",
+      "Bash(npm run:*)",
+      "Bash(tee:*)",
+      "Bash(npx --package=typescript tsc:*)",
+      "Bash(source ~/.nvm/nvm.sh)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []

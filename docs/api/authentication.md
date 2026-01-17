@@ -1,52 +1,61 @@
 # Authentication
 
-acodeaday uses HTTP Basic Authentication for simplicity and security.
+acodeaday uses Supabase Auth with JWT Bearer tokens for authentication.
 
 ## Authentication Flow
 
 ```
 ┌──────────┐           ┌──────────┐           ┌──────────┐
-│  Client  │           │ Backend  │           │ Database │
+│  Client  │           │ Supabase │           │ Backend  │
 └────┬─────┘           └────┬─────┘           └────┬─────┘
      │                      │                      │
-     │ POST /api/login      │                      │
-     │ {username, password} │                      │
+     │ POST /auth/login     │                      │
+     │ {email, password}    │                      │
      ├─────────────────────>│                      │
      │                      │                      │
-     │                      │ Validate credentials │
-     │                      ├─────────────────────>│
-     │                      │                      │
-     │                      │ User data            │
-     │                      │<─────────────────────┤
-     │                      │                      │
      │ 200 OK               │                      │
-     │ {user, token}        │                      │
+     │ {access_token, user} │                      │
      │<─────────────────────┤                      │
      │                      │                      │
      │ GET /api/today       │                      │
-     │ Authorization: Basic │                      │
-     ├─────────────────────>│                      │
+     │ Authorization: Bearer│                      │
+     ├──────────────────────┼─────────────────────>│
+     │                      │                      │
+     │                      │ Validate JWT token   │
+     │                      │<─────────────────────┤
+     │                      │                      │
+     │                      │ User data            │
+     │                      ├─────────────────────>│
      │                      │                      │
      │ 200 OK               │                      │
      │ {problems}           │                      │
-     │<─────────────────────┤                      │
+     │<─────────────────────┼──────────────────────┤
      │                      │                      │
 ```
 
 ## Login
 
-### Endpoint
+Authentication is handled by Supabase Auth on the frontend.
 
-```http
-POST /api/login
-```
+### Using Supabase JS Client
 
-### Request
+```javascript
+import { createClient } from '@supabase/supabase-js';
 
-```json
-{
-  "username": "admin",
-  "password": "your-password"
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
+);
+
+// Login
+const { data, error } = await supabase.auth.signInWithPassword({
+  email: 'user@example.com',
+  password: 'password123'
+});
+
+if (data.session) {
+  // access_token is in data.session.access_token
+  console.log('Logged in:', data.user.email);
 }
 ```
 
@@ -54,13 +63,17 @@ POST /api/login
 
 ```json
 {
-  "success": true,
-  "user": {
-    "id": "admin",
-    "username": "admin",
-    "email": "admin@example.com"
+  "session": {
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refresh_token": "...",
+    "expires_in": 3600,
+    "token_type": "bearer"
   },
-  "token": "base64-encoded-credentials"
+  "user": {
+    "id": "uuid",
+    "email": "user@example.com",
+    "created_at": "2024-01-01T00:00:00Z"
+  }
 }
 ```
 
@@ -68,86 +81,64 @@ POST /api/login
 
 ```json
 {
-  "success": false,
   "error": {
-    "code": "INVALID_CREDENTIALS",
-    "message": "Invalid username or password"
+    "message": "Invalid login credentials"
   }
 }
 ```
 
-### Example
-
-```bash
-curl -X POST http://localhost:8000/api/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "admin",
-    "password": "password"
-  }'
-```
-
 ## Using Authentication
 
-### HTTP Basic Auth
+### JWT Bearer Token
 
-Include username and password in every authenticated request.
+Include the access token in every authenticated request.
 
 **Format:**
 ```
-Authorization: Basic base64(username:password)
+Authorization: Bearer <access_token>
 ```
 
 **Example:**
 ```bash
-# Encode credentials
-echo -n "admin:password" | base64
-# Output: YWRtaW46cGFzc3dvcmQ=
-
-# Use in request
-curl -H "Authorization: Basic YWRtaW46cGFzc3dvcmQ=" \
+curl -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
   http://localhost:8000/api/today
 ```
-
-### Using curl with -u Flag
-
-Easier method:
-```bash
-curl -u admin:password http://localhost:8000/api/today
-```
-
-curl automatically encodes credentials and adds the header.
 
 ### Using JavaScript (Frontend)
 
 ```javascript
-// Store credentials after login
-const credentials = btoa(`${username}:${password}`);
-localStorage.setItem('auth', credentials);
+// Get current session
+const { data: { session } } = await supabase.auth.getSession();
 
 // Use in API requests
 const response = await fetch('http://localhost:8000/api/today', {
   headers: {
-    'Authorization': `Basic ${credentials}`
+    'Authorization': `Bearer ${session.access_token}`
   }
 });
 ```
 
-### Using Axios
+### Using React Query
 
-```javascript
-import axios from 'axios';
+```typescript
+import { useQuery } from '@tanstack/react-query';
 
-const api = axios.create({
-  baseURL: 'http://localhost:8000',
-  auth: {
-    username: 'admin',
-    password: 'password'
-  }
-});
+function useTodaySession() {
+  return useQuery({
+    queryKey: ['today'],
+    queryFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
 
-// All requests now include auth
-const { data } = await api.get('/api/today');
+      const response = await fetch('/api/today', {
+        headers: {
+          'Authorization': `Bearer ${session?.access_token}`
+        }
+      });
+
+      return response.json();
+    }
+  });
+}
 ```
 
 ## Protected Endpoints
@@ -158,10 +149,16 @@ Endpoints requiring authentication:
 |----------|--------|-------------|
 | `/api/today` | GET | Daily session |
 | `/api/submit` | POST | Submit solution |
+| `/api/rate-submission` | POST | Rate submission difficulty |
 | `/api/progress` | GET | User progress |
 | `/api/mastered` | GET | Mastered problems |
 | `/api/mastered/:id/show-again` | POST | Re-add problem |
 | `/api/submissions/:problem_id` | GET | Submission history |
+| `/api/code/save` | POST | Save code |
+| `/api/code/reset` | POST | Reset to starter code |
+| `/api/code/load-submission` | POST | Load past submission |
+| `/api/chat/sessions` | POST | Create chat session |
+| `/api/chat/session/:id/message` | POST | Send chat message |
 
 ## Public Endpoints
 
@@ -172,6 +169,7 @@ No authentication required:
 | `/api/problems` | GET | List problems |
 | `/api/problems/:slug` | GET | Problem details |
 | `/api/run` | POST | Run code (testing only) |
+| `/api/chat/models` | GET | Available LLM models |
 
 ## Error Responses
 
@@ -181,23 +179,19 @@ Missing or invalid authentication:
 
 ```json
 {
-  "success": false,
-  "error": {
-    "code": "AUTHENTICATION_REQUIRED",
-    "message": "Authentication required"
-  }
+  "detail": "Not authenticated"
 }
 ```
 
 **Cause:**
 - No Authorization header
-- Invalid credentials
-- Malformed header
+- Invalid or expired JWT token
+- Malformed token
 
 **Resolution:**
-- Include Authorization header
-- Verify username and password
-- Check header format
+- Include Authorization header with valid Bearer token
+- Refresh the token if expired
+- Re-authenticate with Supabase
 
 ### 403 Forbidden
 
@@ -205,124 +199,114 @@ Authenticated but not authorized:
 
 ```json
 {
-  "success": false,
-  "error": {
-    "code": "FORBIDDEN",
-    "message": "You don't have permission to access this resource"
-  }
+  "detail": "Forbidden"
 }
+```
+
+## Token Refresh
+
+Supabase tokens expire after 1 hour. The Supabase JS client handles refresh automatically.
+
+```javascript
+// Automatic refresh happens on API calls
+// Or manually refresh:
+const { data, error } = await supabase.auth.refreshSession();
+```
+
+### Listen for Auth State Changes
+
+```javascript
+supabase.auth.onAuthStateChange((event, session) => {
+  if (event === 'SIGNED_IN') {
+    console.log('User signed in:', session.user.email);
+  }
+  if (event === 'SIGNED_OUT') {
+    console.log('User signed out');
+  }
+  if (event === 'TOKEN_REFRESHED') {
+    console.log('Token refreshed');
+  }
+});
 ```
 
 ## Security Best Practices
 
 ### Client-Side
 
-1. **Store credentials securely:**
+1. **Never store tokens in localStorage for sensitive apps:**
    ```javascript
-   // Use sessionStorage for single-session
-   sessionStorage.setItem('auth', credentials);
-
-   // Or localStorage for "remember me"
-   localStorage.setItem('auth', credentials);
+   // Supabase handles storage automatically
+   // Default: localStorage (persists across sessions)
+   // For more security, configure session storage
    ```
 
-2. **Clear credentials on logout:**
+2. **Clear session on logout:**
    ```javascript
-   localStorage.removeItem('auth');
-   sessionStorage.clear();
+   await supabase.auth.signOut();
    ```
 
-3. **Never log credentials:**
+3. **Handle token expiration:**
    ```javascript
-   // ❌ DON'T
-   console.log('Auth:', credentials);
-
-   // ✅ DO
-   console.log('User authenticated');
+   const { data: { session } } = await supabase.auth.getSession();
+   if (!session) {
+     // Redirect to login
+     window.location.href = '/login';
+   }
    ```
 
 4. **Use HTTPS in production:**
-   ```javascript
-   const API_URL = process.env.NODE_ENV === 'production'
-     ? 'https://api.yourapp.com'
-     : 'http://localhost:8000';
-   ```
+   - Supabase URLs are always HTTPS
+   - Ensure your backend uses HTTPS
 
 ### Server-Side
 
-1. **Hash passwords** (already implemented with Supabase)
-
-2. **Rate limit login attempts:**
+1. **Validate JWT on every request** (already implemented):
    ```python
-   # Limit to 5 login attempts per minute
-   @app.post("/api/login")
-   @limiter.limit("5/minute")
-   async def login(credentials: LoginRequest):
-       ...
+   # backend/app/middleware/auth.py
+   async def get_current_user(token: str):
+       user = supabase.auth.get_user(token)
+       return user.user.id
    ```
 
-3. **Use HTTPS only in production:**
-   ```python
-   if settings.ENVIRONMENT == "production":
-       app.add_middleware(
-           HTTPSRedirectMiddleware
-       )
-   ```
-
-4. **Set secure headers:**
-   ```python
-   @app.middleware("http")
-   async def add_security_headers(request, call_next):
-       response = await call_next(request)
-       response.headers["X-Content-Type-Options"] = "nosniff"
-       response.headers["X-Frame-Options"] = "DENY"
-       return response
-   ```
-
-## Session Management
-
-Currently, authentication is stateless (credentials sent with each request).
-
-Future enhancements may include:
-- JWT tokens
-- Session-based auth
-- Refresh tokens
-- OAuth integration
+2. **Use Supabase service key only on backend:**
+   - Never expose service key to frontend
+   - Use anon key for client-side
 
 ## Default Credentials
 
-The backend creates a default user on startup using environment variables:
+A default user is created on backend startup using environment variables:
 
 ```bash
 # In backend/.env
-AUTH_USERNAME=admin
-AUTH_PASSWORD=changeme
-DEFAULT_USER_EMAIL=admin@example.com
-DEFAULT_USER_PASSWORD=changeme
+DEFAULT_USER_EMAIL=admin@acodeaday.local
+DEFAULT_USER_PASSWORD=changeme123
 ```
 
 **IMPORTANT:** Change these in production!
 
 ## Multi-User Support
 
-Currently single-user (default admin account).
+Supabase Auth supports multiple users out of the box:
 
-To add more users:
-
-1. Use Supabase Auth dashboard to create users
-2. Or extend backend to support user registration
+1. Users can sign up via Supabase Auth dashboard
+2. Or enable email signup in Supabase settings
+3. Each user gets isolated progress data
 
 ## Testing Authentication
 
 ### Test Login
 
-```bash
-# Valid credentials
-curl -X POST http://localhost:8000/api/login \
-  -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "password"}'
+```javascript
+const { data, error } = await supabase.auth.signInWithPassword({
+  email: 'admin@acodeaday.local',
+  password: 'changeme123'
+});
 
-# Should return: {"success": true, ...}
+if (error) {
+  console.error('Login failed:', error.message);
+} else {
+  console.log('Logged in successfully');
+}
 ```
 
 ### Test Protected Endpoint
@@ -333,77 +317,81 @@ curl http://localhost:8000/api/today
 # Returns: 401 Unauthorized
 
 # With auth (should succeed)
-curl -u admin:password http://localhost:8000/api/today
+curl -H "Authorization: Bearer <your-token>" http://localhost:8000/api/today
 # Returns: 200 OK with data
-```
-
-### Test Invalid Credentials
-
-```bash
-curl -X POST http://localhost:8000/api/login \
-  -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "wrong"}'
-
-# Returns: {"success": false, "error": {...}}
 ```
 
 ## Frontend Integration Example
 
 ```typescript
-// auth.ts
-export class AuthService {
-  private credentials: string | null = null;
+// lib/supabase.ts
+import { createClient } from '@supabase/supabase-js';
 
-  async login(username: string, password: string) {
-    const response = await fetch('/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
-    });
+export const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
+);
 
-    if (response.ok) {
-      const { token } = await response.json();
-      this.credentials = token;
-      localStorage.setItem('auth', token);
-      return true;
-    }
-    return false;
+// lib/api.ts
+export async function apiRequest(url: string, options: RequestInit = {}) {
+  const { data: { session } } = await supabase.auth.getSession();
+
+  if (!session) {
+    throw new Error('Not authenticated');
   }
-
-  logout() {
-    this.credentials = null;
-    localStorage.removeItem('auth');
-  }
-
-  getAuthHeader() {
-    const creds = this.credentials || localStorage.getItem('auth');
-    return creds ? `Basic ${creds}` : null;
-  }
-
-  isAuthenticated() {
-    return !!this.getAuthHeader();
-  }
-}
-
-// api.ts
-export async function apiRequest(url: string, options = {}) {
-  const auth = new AuthService();
-  const authHeader = auth.getAuthHeader();
 
   const response = await fetch(url, {
     ...options,
     headers: {
       ...options.headers,
-      ...(authHeader && { 'Authorization': authHeader })
+      'Authorization': `Bearer ${session.access_token}`,
+      'Content-Type': 'application/json'
     }
   });
 
   if (response.status === 401) {
-    // Redirect to login
-    window.location.href = '/login';
+    // Token expired, try refresh
+    const { data: { session: newSession } } = await supabase.auth.refreshSession();
+    if (!newSession) {
+      window.location.href = '/login';
+      throw new Error('Session expired');
+    }
+    // Retry with new token
+    return apiRequest(url, options);
   }
 
   return response;
+}
+
+// hooks/useAuth.ts
+export function useAuth() {
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setLoading(false);
+    });
+
+    // Listen for changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setSession(session);
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  return {
+    session,
+    loading,
+    user: session?.user,
+    signIn: (email, password) => supabase.auth.signInWithPassword({ email, password }),
+    signOut: () => supabase.auth.signOut()
+  };
 }
 ```
 

@@ -18,29 +18,24 @@ All API endpoints are prefixed with `/api`.
 
 ## Authentication
 
-acodeaday uses HTTP Basic Authentication for simplicity.
+acodeaday uses Supabase Auth with JWT Bearer tokens.
 
 ### Login Flow
 
-1. User submits username and password
-2. Backend validates credentials
-3. Returns user info and auth token
-4. Client includes token in subsequent requests
+1. User authenticates with Supabase (email/password)
+2. Supabase returns JWT access token
+3. Client includes token in subsequent requests to backend
+4. Backend validates token with Supabase
 
-### HTTP Basic Auth Header
+### JWT Bearer Token Header
 
 ```http
-Authorization: Basic base64(username:password)
+Authorization: Bearer <access_token>
 ```
 
 Example:
 ```bash
-curl -u admin:password http://localhost:8000/api/today
-```
-
-Or with header:
-```bash
-curl -H "Authorization: Basic YWRtaW46cGFzc3dvcmQ=" http://localhost:8000/api/today
+curl -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..." http://localhost:8000/api/today
 ```
 
 See [Authentication](/api/authentication) for details.
@@ -161,6 +156,15 @@ Allowed methods: `GET`, `POST`, `PUT`, `DELETE`, `OPTIONS`
 |--------|----------|------|-------------|
 | POST | `/api/run` | No | Run code against example tests |
 | POST | `/api/submit` | Yes | Submit solution against all tests |
+| POST | `/api/rate-submission` | Yes | Rate submission difficulty (Anki SM-2) |
+
+### Code Persistence
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/api/code/save` | Yes | Save code (auto-save) |
+| POST | `/api/code/reset` | Yes | Reset to starter code |
+| POST | `/api/code/load-submission` | Yes | Load past submission |
 
 ### User Progress
 
@@ -176,6 +180,16 @@ Allowed methods: `GET`, `POST`, `PUT`, `DELETE`, `OPTIONS`
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
 | GET | `/api/submissions/:problem_id` | Yes | Get submission history |
+
+### AI Chat
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/chat/models` | No | List available LLM models |
+| POST | `/api/chat/sessions` | Yes | Create chat session |
+| GET | `/api/chat/sessions/:slug` | Yes | List sessions for problem |
+| GET | `/api/chat/session/:id` | Yes | Get session with messages |
+| POST | `/api/chat/session/:id/message` | Yes | Send message to AI |
 
 ## Interactive Documentation
 
@@ -277,8 +291,11 @@ Use with tools like:
   id: string;
   user_id: string;
   problem_id: string;
-  times_solved: number;   // 0, 1, or 2
+  times_solved: number;
   is_mastered: boolean;
+  ease_factor: number;           // Anki SM-2: default 2.5, min 1.3
+  interval_days: number;         // Days until next review
+  review_count: number;          // Number of reviews completed
   next_review_date: string | null; // ISO 8601 date
   last_solved_at: string;         // ISO 8601 timestamp
 }

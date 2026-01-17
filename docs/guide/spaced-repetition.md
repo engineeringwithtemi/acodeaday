@@ -1,6 +1,6 @@
 # Spaced Repetition
 
-Learn how acodeaday uses spaced repetition to help you master coding problems long-term.
+Learn how acodeaday uses the Anki SM-2 algorithm to help you master coding problems long-term.
 
 ## What is Spaced Repetition?
 
@@ -46,15 +46,26 @@ Each review strengthens the memory and extends the time until the next review.
 
 ## How acodeaday Implements It
 
-acodeaday uses a simplified spaced repetition algorithm optimized for coding practice.
+acodeaday uses the **Anki SM-2 algorithm**, a proven spaced repetition algorithm with adaptive intervals based on how well you know each problem.
+
+### The Rating System
+
+After successfully solving a problem, you rate how difficult it was:
+
+| Rating | Description | Effect on Interval |
+|--------|-------------|-------------------|
+| **Again** | I couldn't solve it / needed hints | Reset to 1 day, decrease ease |
+| **Hard** | Solved but struggled | Slower growth (×1.2), decrease ease |
+| **Good** | Solved with some effort | Normal growth (×ease factor) |
+| **Mastered** | Solved easily, confident | Exit rotation immediately |
 
 ### Problem States
 
 Every problem exists in one of three states:
 
 1. **Unsolved** - You haven't attempted it yet
-2. **In Review** - Solved once, due for review in 7 days
-3. **Mastered** - Solved twice, removed from rotation
+2. **In Review** - Solved at least once, scheduled for future review
+3. **Mastered** - Reached 30+ day interval or rated "Mastered"
 
 ```
 ┌─────────────┐
@@ -62,14 +73,15 @@ Every problem exists in one of three states:
 │  (New)      │
 └──────┬──────┘
        │
-       │ Solve 1st time
+       │ Solve & rate
        ▼
 ┌─────────────┐
 │  In Review  │◄─────────────────┐
-│  (Due: 7d)  │                  │
+│  (Scheduled)│                  │
 └──────┬──────┘                  │
        │                         │
-       │ Solve 2nd time    "Show Again"
+       │ Interval ≥30d      "Show Again"
+       │ OR rate "Mastered"      │
        ▼                         │
 ┌─────────────┐                  │
 │  Mastered   │──────────────────┘
@@ -77,13 +89,33 @@ Every problem exists in one of three states:
 └─────────────┘
 ```
 
-### Mastery Rules
+### The SM-2 Algorithm
 
-| Event | State Change | Next Review |
-|-------|-------------|-------------|
-| Solve problem 1st time | Unsolved → In Review | Today + 7 days |
-| Solve problem 2nd time | In Review → Mastered | None (removed from rotation) |
-| Click "Show Again" on mastered | Mastered → In Review | Today |
+The algorithm uses two key values:
+
+1. **Ease Factor**: How easy the problem is for you (default: 2.5, minimum: 1.3)
+2. **Interval**: Days until next review
+
+#### How Intervals Grow
+
+**First solve:**
+- Rating "Hard": `interval = 1 day`
+- Rating "Good": `interval = 3 days`
+
+**Subsequent solves:**
+```
+new_interval = current_interval × ease_factor
+```
+
+**Ease factor adjustments:**
+- "Again": `ease -= 0.2` (min 1.3)
+- "Hard": `ease -= 0.15` (min 1.3), `interval × 1.2`
+- "Good": `ease += 0.0` (unchanged), `interval × ease`
+- "Mastered": Immediately exit rotation
+
+#### Auto-Mastery
+
+When a problem's interval reaches **30+ days**, it's automatically marked as mastered and removed from the rotation. This means you've demonstrated consistent recall over an extended period.
 
 ### Daily Session Logic
 
@@ -122,38 +154,46 @@ Each day, acodeaday presents up to 3 problems in priority order:
 
 **Day 1:**
 - Solve "Two Sum" (1st time)
-- State: Unsolved → In Review
-- Next review: Day 8
+- Rate: "Good"
+- Next review: Day 4 (3 days)
 
-**Day 2:**
-- Solve "Best Time to Buy Stock" (1st time)
-- State: Unsolved → In Review
-- Next review: Day 9
-
-**Day 3-7:**
-- Continue solving new problems
+**Day 4:**
+- Review "Two Sum"
+- Rate: "Good" (ease = 2.5)
+- Next review: Day 4 + (3 × 2.5) = Day 12 (8 days)
 
 ### Week 2
 
-**Day 8:**
-- Daily session shows:
-  1. **Review:** Two Sum (due today)
-  2. **New:** Next unsolved problem
-- Solve Two Sum (2nd time)
-- State: In Review → Mastered
-- Two Sum is now removed from rotation
+**Day 12:**
+- Review "Two Sum"
+- Rate: "Good"
+- Next review: Day 12 + (8 × 2.5) = Day 32 (20 days)
 
-**Day 9:**
-- Daily session shows:
-  1. **Review:** Best Time to Buy Stock (due today)
-  2. **New:** Next unsolved problem
+### Week 5
 
-### Week 3+
+**Day 32:**
+- Review "Two Sum"
+- Interval would be 50 days (≥30), auto-mastered!
+- Two Sum is removed from rotation
 
-Continue the pattern:
-- Review problems when due
-- Work on new problems
-- Build mastery over time
+### Rating "Hard" Example
+
+**Day 1:**
+- Solve "3Sum" (1st time)
+- Rate: "Hard"
+- Next review: Day 2 (1 day), ease drops to 2.35
+
+**Day 2:**
+- Review "3Sum"
+- Rate: "Good"
+- Next review: Day 2 + (1 × 2.35) = Day 4 (2 days)
+
+**Day 4:**
+- Review "3Sum"
+- Rate: "Good"
+- Next review: Day 4 + (2 × 2.35) = Day 9 (5 days)
+
+Notice how "Hard" ratings create shorter intervals, giving you more practice.
 
 ## Database Tracking
 
@@ -168,15 +208,20 @@ CREATE TABLE user_progress (
   problem_id UUID NOT NULL,
 
   -- Mastery tracking
-  times_solved INTEGER DEFAULT 0,        -- 0 → 1 → 2
-  is_mastered BOOLEAN DEFAULT FALSE,     -- True after 2 solves
+  times_solved INTEGER DEFAULT 0,
+  is_mastered BOOLEAN DEFAULT FALSE,
+
+  -- Anki SM-2 fields
+  ease_factor FLOAT DEFAULT 2.5,      -- Range: 1.3 to 2.5+
+  interval_days INTEGER DEFAULT 0,     -- Current interval
+  review_count INTEGER DEFAULT 0,      -- Number of reviews
 
   -- Scheduling
-  next_review_date DATE,                 -- When to review next
-  last_solved_at TIMESTAMP,              -- Last successful solve
+  next_review_date DATE,
+  last_solved_at TIMESTAMP,
 
   -- Re-entry flag
-  show_again BOOLEAN DEFAULT FALSE,      -- User wants to review
+  show_again BOOLEAN DEFAULT FALSE,
 
   created_at TIMESTAMP DEFAULT NOW()
 );
@@ -184,27 +229,50 @@ CREATE TABLE user_progress (
 
 ### State Transitions
 
-**First Solve (Unsolved → In Review):**
+**First Solve (rate "Good"):**
 ```python
 times_solved = 1
+ease_factor = 2.5
+interval_days = 3
+next_review_date = today() + 3 days
 last_solved_at = now()
-next_review_date = today() + 7 days
 is_mastered = False
 ```
 
-**Second Solve (In Review → Mastered):**
+**Review (rate "Good"):**
 ```python
-times_solved = 2
+review_count += 1
+interval_days = interval_days * ease_factor
+next_review_date = today() + interval_days
 last_solved_at = now()
-next_review_date = None
-is_mastered = True
+if interval_days >= 30:
+    is_mastered = True
+```
+
+**Review (rate "Hard"):**
+```python
+review_count += 1
+ease_factor = max(1.3, ease_factor - 0.15)
+interval_days = interval_days * 1.2
+next_review_date = today() + interval_days
+```
+
+**Review (rate "Again"):**
+```python
+review_count += 1
+ease_factor = max(1.3, ease_factor - 0.2)
+interval_days = 1
+next_review_date = today() + 1
 ```
 
 **Show Again (Mastered → In Review):**
 ```python
-show_again = False  # Reset flag
+show_again = False
+ease_factor = 2.5  # Reset ease
+interval_days = 0
 next_review_date = today()
-# Keep times_solved and is_mastered unchanged
+is_mastered = False
+# times_solved unchanged
 ```
 
 ## Why This Works
@@ -213,19 +281,19 @@ next_review_date = today()
 
 You're forced to retrieve the solution from memory, not just recognize it. This strengthens neural pathways.
 
-### 2. Optimal Timing
+### 2. Adaptive Intervals
 
-7 days is:
-- Long enough to forget surface details
-- Short enough to still have some memory
-- The sweet spot for reinforcement
+Unlike fixed intervals, SM-2 adapts to your performance:
+- Easy problems grow faster (high ease factor)
+- Hard problems repeat more often (low ease factor)
 
-### 3. Mastery Focus
+### 3. Difficulty Feedback
 
-Two successful solves ensures:
-- You understand the pattern, not just memorized the answer
-- You can apply the technique to variations
-- You're ready for similar problems in interviews
+By rating difficulty, you give the algorithm feedback:
+- "Again" = need more practice soon
+- "Hard" = need more practice, but not immediately
+- "Good" = on track for mastery
+- "Mastered" = confident, exit rotation
 
 ### 4. Efficient Learning
 
@@ -234,72 +302,34 @@ By removing mastered problems, you:
 - Avoid over-practicing known patterns
 - Make consistent progress through problem set
 
-## Future Enhancements
-
-### Adaptive Intervals (Planned)
-
-Instead of fixed 7-day intervals, use performance-based scheduling:
-
-```
-| Performance | Next Interval |
-|-------------|---------------|
-| Struggled   | 3 days        |
-| Solved OK   | 7 days        |
-| Solved Fast | 14 days       |
-```
-
-### Difficulty Multipliers (Planned)
-
-Harder problems get longer intervals:
-
-```
-| Difficulty | Base Interval |
-|------------|---------------|
-| Easy       | 7 days        |
-| Medium     | 10 days       |
-| Hard       | 14 days       |
-```
-
-### Lapse Handling (Planned)
-
-If you fail a review:
-- Reset to shorter interval (3 days)
-- Track lapse count for analytics
-
 ## Tips for Success
 
-### 1. Solve Daily
+### 1. Be Honest with Ratings
+
+- Use "Again" if you needed hints or couldn't solve it
+- Use "Hard" if you solved it but struggled
+- Use "Good" for normal solves
+- Only use "Mastered" if you're truly confident
+
+### 2. Solve Daily
 
 Consistency is key. Even 20 minutes a day is better than 3 hours on weekends.
 
-### 2. Don't Skip Reviews
+### 3. Don't Skip Reviews
 
 Reviews are more important than new problems. They cement your knowledge.
 
-### 3. Struggle Before Looking
+### 4. Struggle Before Looking
 
 Try for at least 15 minutes before checking hints or solutions. The struggle strengthens learning.
 
-### 4. Use "Show Again"
+### 5. Use "Show Again"
 
-If you barely remembered a solution, use "Show Again" to practice it more.
+If you barely remembered a solution, rate "Hard" or "Again". If you mastered a problem but want to refresh it, use "Show Again".
 
-### 5. Track Patterns
+### 6. Track Patterns
 
 Notice which patterns you struggle with (arrays, trees, DP). Focus on those.
-
-### 6. Implement from Memory
-
-Don't copy-paste solutions. Type them out from memory to reinforce muscle memory.
-
-## Analytics (Coming Soon)
-
-Future versions will show:
-- **Mastery Rate**: % of problems mastered per pattern
-- **Retention Rate**: % of reviews solved successfully
-- **Weak Patterns**: Patterns with low retention
-- **Study Streak**: Consecutive days practiced
-- **Projected Completion**: When you'll master all problems
 
 ## Research Background
 
@@ -311,7 +341,7 @@ Spaced repetition is backed by decades of cognitive science research:
 - **SuperMemo (1987)**: Implemented algorithmic spaced repetition
 - **Anki (2006)**: Popularized SRS for general learning
 
-acodeaday applies these proven techniques to coding interview preparation.
+acodeaday applies the proven Anki SM-2 algorithm specifically to coding interview preparation.
 
 ## Comparison with Other Methods
 
@@ -321,11 +351,11 @@ acodeaday applies these proven techniques to coding interview preparation.
 - ❌ Overwhelming problem count
 - ✅ Large problem variety
 
-### acodeaday Spaced Repetition
-- ✅ Systematic review schedule
+### acodeaday Anki SM-2
+- ✅ Adaptive review schedule
 - ✅ Long-term retention
 - ✅ Manageable daily sessions
-- ✅ Curated problem sets
+- ✅ Difficulty-based intervals
 
 ### Cramming (Before Interview)
 - ❌ Short-term memory only
@@ -338,6 +368,37 @@ acodeaday applies these proven techniques to coding interview preparation.
 - ✅ Low stress, sustainable
 - ✅ Interview-ready anytime
 - ✅ Deep pattern understanding
+
+## API Reference
+
+### Rate Submission Endpoint
+
+After a successful submission, rate the difficulty:
+
+```http
+POST /api/rate-submission
+```
+
+```json
+{
+  "submission_id": "uuid",
+  "rating": "good"
+}
+```
+
+Rating options: `"again"`, `"hard"`, `"good"`, `"mastered"`
+
+Response includes updated progress:
+
+```json
+{
+  "times_solved": 2,
+  "is_mastered": false,
+  "ease_factor": 2.5,
+  "interval_days": 8,
+  "next_review_date": "2024-01-15"
+}
+```
 
 ## Next Steps
 
