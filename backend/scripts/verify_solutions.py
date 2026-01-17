@@ -3,8 +3,8 @@
 Verification script for problem solutions.
 
 Supports two execution modes:
-- python: Local execution using Python's exec() (default, fast, no dependencies)
-- judge0: Remote execution via Judge0 API (tests actual Judge0 integration)
+- python: Local execution using Python's exec() (default, fast, Python only)
+- judge0: Remote execution via Judge0 API (tests actual Judge0 integration, any language)
 
 Usage:
     # Verify all problems (local Python mode - default)
@@ -13,6 +13,9 @@ Usage:
     # Verify all problems using Judge0
     uv run python scripts/verify_solutions.py --mode judge0
 
+    # Verify a specific language using Judge0 (useful when adding new language support)
+    uv run python scripts/verify_solutions.py --mode judge0 --lang javascript
+
     # Verify specific problem file
     uv run python scripts/verify_solutions.py 017-coin-change.yaml
 
@@ -20,7 +23,7 @@ Usage:
     uv run python scripts/verify_solutions.py --verbose
 
     # Combine options
-    uv run python scripts/verify_solutions.py --mode judge0 --verbose 001-two-sum.yaml
+    uv run python scripts/verify_solutions.py --mode judge0 --lang python --verbose 001-two-sum.yaml
 """
 
 import argparse
@@ -67,14 +70,25 @@ def execute_solution_judge0(
     reference_solution: str,
     function_name: str,
     test_cases: list[dict],
+    language: str = "python",
 ) -> list[dict]:
     """
     Execute the reference solution via Judge0 API.
 
-    Returns list of test results with passed/failed status.
+    Args:
+        reference_solution: The solution code to execute
+        function_name: Name of the function to call
+        test_cases: List of test case dicts with input/expected
+        language: Programming language (must be in SUPPORTED_LANGUAGES)
+
+    Returns:
+        List of test results with passed/failed status.
     """
     from app.services.judge0 import get_judge0_service
-    from app.services.wrapper import generate_python_wrapper, parse_judge0_output
+    from app.services.wrapper import get_wrapper_for_language, parse_judge0_output
+
+    # Get the appropriate wrapper generator for this language
+    wrapper_fn = get_wrapper_for_language(language)
 
     # Create mock TestCase objects for the wrapper
     class MockTestCase:
@@ -87,8 +101,8 @@ def execute_solution_judge0(
         for tc in test_cases
     ]
 
-    # Generate wrapped code
-    wrapped_code = generate_python_wrapper(
+    # Generate wrapped code using the language-specific wrapper
+    wrapped_code = wrapper_fn(
         user_code=reference_solution,
         test_cases=mock_test_cases,
         function_name=function_name,
@@ -99,7 +113,7 @@ def execute_solution_judge0(
     judge0 = get_judge0_service()
     result = judge0.execute_code(
         source_code=wrapped_code,
-        language="python",
+        language=language,
     )
 
     # Check for compilation/runtime errors
@@ -170,23 +184,31 @@ def verify_problem_local(filepath: Path, verbose: bool = False) -> tuple[bool, i
     return passed == total, passed, total, errors
 
 
-def verify_problem_judge0(filepath: Path, verbose: bool = False) -> tuple[bool, int, int, list[str]]:
+def verify_problem_judge0(filepath: Path, language: str = "python", verbose: bool = False) -> tuple[bool, int, int, list[str]]:
     """
     Verify a single problem's reference solution using Judge0 API.
+
+    Args:
+        filepath: Path to the problem YAML file
+        language: Programming language to verify (e.g., "python", "javascript")
+        verbose: Show detailed output for each test case
 
     Returns:
         (all_passed, passed_count, total_count, error_messages)
     """
     data = load_problem(filepath)
 
-    # Get Python solution details
-    python_lang = data.get("languages", {}).get("python", {})
-    reference_solution = python_lang.get("reference_solution", "")
-    function_sig = python_lang.get("function_signature", {})
+    # Get language-specific solution details
+    lang_config = data.get("languages", {}).get(language, {})
+    if not lang_config:
+        return False, 0, 0, [f"Language '{language}' not found in problem"]
+
+    reference_solution = lang_config.get("reference_solution", "")
+    function_sig = lang_config.get("function_signature", {})
     function_name = function_sig.get("name", "")
 
     if not reference_solution or not function_name:
-        return False, 0, 0, ["Missing reference_solution or function_name"]
+        return False, 0, 0, [f"Missing reference_solution or function_name for '{language}'"]
 
     test_cases = data.get("test_cases", [])
     if not test_cases:
@@ -194,7 +216,7 @@ def verify_problem_judge0(filepath: Path, verbose: bool = False) -> tuple[bool, 
 
     # Execute all test cases via Judge0 in a single request
     try:
-        results = execute_solution_judge0(reference_solution, function_name, test_cases)
+        results = execute_solution_judge0(reference_solution, function_name, test_cases, language)
     except Exception as e:
         return False, 0, len(test_cases), [f"Judge0 error: {type(e).__name__}: {e}"]
 
@@ -229,21 +251,23 @@ def verify_problem_judge0(filepath: Path, verbose: bool = False) -> tuple[bool, 
     return passed == total, passed, total, errors
 
 
-def verify_problem(filepath: Path, mode: str = "python", verbose: bool = False) -> tuple[bool, int, int, list[str]]:
+def verify_problem(filepath: Path, mode: str = "python", language: str = "python", verbose: bool = False) -> tuple[bool, int, int, list[str]]:
     """
     Verify a single problem's reference solution against all test cases.
 
     Args:
         filepath: Path to the problem YAML file
-        mode: Execution mode - "python" (local) or "judge0" (remote)
+        mode: Execution mode - "python" (local exec, Python only) or "judge0" (remote, any language)
+        language: Programming language to verify (only used with judge0 mode)
         verbose: Show detailed output for each test case
 
     Returns:
         (all_passed, passed_count, total_count, error_messages)
     """
     if mode == "judge0":
-        return verify_problem_judge0(filepath, verbose)
+        return verify_problem_judge0(filepath, language, verbose)
     else:
+        # Local mode only supports Python (uses exec())
         return verify_problem_local(filepath, verbose)
 
 
@@ -254,10 +278,20 @@ def main():
         "--mode", "-m",
         choices=["python", "judge0"],
         default="python",
-        help="Execution mode: 'python' for local exec (default), 'judge0' for Judge0 API"
+        help="Execution mode: 'python' for local exec (default, Python only), 'judge0' for Judge0 API (any language)"
+    )
+    parser.add_argument(
+        "--lang", "-l",
+        default="python",
+        help="Language to verify (default: python). Only used with --mode judge0. Examples: python, javascript"
     )
     parser.add_argument("--verbose", "-v", action="store_true", help="Show all test results")
     args = parser.parse_args()
+
+    # Warn if --lang is used without judge0 mode
+    if args.lang != "python" and args.mode != "judge0":
+        print(f"Warning: --lang '{args.lang}' is ignored in local Python mode. Use --mode judge0 for other languages.")
+        args.lang = "python"
 
     if not DATA_DIR.exists():
         print(f"Error: Data directory not found: {DATA_DIR}")
@@ -278,7 +312,10 @@ def main():
         print("No problem files found.")
         return 0
 
-    mode_label = "Judge0" if args.mode == "judge0" else "local Python"
+    if args.mode == "judge0":
+        mode_label = f"Judge0 ({args.lang})"
+    else:
+        mode_label = "local Python"
     print(f"Verifying {len(yaml_files)} problem(s) using {mode_label}...\n")
 
     total_passed = 0
@@ -293,7 +330,7 @@ def main():
         print(f"[{seq:03d}] {title}...", end=" ", flush=True)
 
         try:
-            all_passed, passed, total, errors = verify_problem(filepath, args.mode, args.verbose)
+            all_passed, passed, total, errors = verify_problem(filepath, args.mode, args.lang, args.verbose)
 
             if all_passed:
                 print(f"✓ ({passed}/{total} tests)")
