@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { Allotment } from 'allotment'
 import 'allotment/dist/style.css'
 import { Play, Send, Loader2, AlertCircle, RotateCcw, MessageSquare } from 'lucide-react'
-import { useProblem, useSubmitCode, useRunCode, useSaveCode, useResetCode, useLoadSubmissionCode } from '@/hooks'
+import { useProblem, useSubmitCode, useRunCode, useSaveCode, useResetCode, useLoadSubmissionCode, useLanguages } from '@/hooks'
 import { ProblemDescription } from '@/components/ProblemDescription'
 import { TestCasesPanel } from '@/components/TestCasesPanel'
 import { TestResults } from '@/components/TestResults'
@@ -11,9 +11,10 @@ import { SubmissionsPanel } from '@/components/SubmissionsPanel'
 import { SubmissionResultPanel } from '@/components/SubmissionResultPanel'
 import { ChatPanel } from '@/components/ChatPanel'
 import { SolutionsPanel } from '@/components/SolutionsPanel'
+import { LanguageSelector } from '@/components/LanguageSelector'
 import Editor from '@monaco-editor/react'
 import { useQueryClient } from '@tanstack/react-query'
-import type { RunCodeResponse, SubmitCodeResponse, SubmissionSchema, TestResult, FunctionSignature } from '@/types/api'
+import type { RunCodeResponse, SubmitCodeResponse, SubmissionSchema, TestResult, FunctionSignature, Language } from '@/types/api'
 
 export const Route = createFileRoute('/problem/$slug')({
   component: ProblemSolver,
@@ -22,6 +23,7 @@ export const Route = createFileRoute('/problem/$slug')({
 function ProblemSolver() {
   const { slug } = Route.useParams()
   const { data: problem, isLoading, error } = useProblem(slug)
+  const { data: languagesData } = useLanguages()
   const submitCode = useSubmitCode()
   const runCode = useRunCode()
   const saveCode = useSaveCode()
@@ -29,7 +31,8 @@ function ProblemSolver() {
   const loadSubmissionCode = useLoadSubmissionCode()
   const queryClient = useQueryClient()
 
-  const [language] = useState<'python' | 'javascript'>('python')
+  const supportedLanguages = languagesData?.languages ?? ['python']
+  const [language, setLanguage] = useState<Language>('python')
   const [testResults, setTestResults] = useState<RunCodeResponse | SubmitCodeResponse | null>(null)
   const [isRunning, setIsRunning] = useState(false)
   const [leftPaneTab, setLeftPaneTab] = useState<'description' | 'submissions' | 'solutions'>('description')
@@ -355,11 +358,14 @@ ${solutionCode}
               <div className="h-full flex flex-col bg-gray-900">
                 {/* Editor Header */}
                 <div className="flex items-center justify-between px-4 py-2 bg-gray-800 border-b border-gray-700">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
                     <span className="text-sm font-semibold text-gray-300">Code Editor</span>
-                    <span className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded text-xs font-semibold">
-                      Python
-                    </span>
+                    <LanguageSelector
+                      value={language}
+                      onChange={(lang) => setLanguage(lang as Language)}
+                      availableLanguages={supportedLanguages}
+                      disabled={isRunning}
+                    />
                   </div>
                   <div className="flex items-center gap-2">
                     <button

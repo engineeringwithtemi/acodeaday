@@ -3,9 +3,9 @@
 Problem seeder CLI for acodeaday.
 
 Usage:
-    # Scaffold a new problem file
-    uv run python scripts/seed_problems.py new two-sum --lang python
-    uv run python scripts/seed_problems.py new two-sum --lang python --lang javascript
+    # Scaffold a new problem file (slug is auto-generated from title)
+    uv run python scripts/seed_problems.py new "Two Sum" --lang python
+    uv run python scripts/seed_problems.py new "Contains Duplicate" --lang python --lang javascript
 
     # Seed all YAML files to database (skips existing)
     uv run python scripts/seed_problems.py seed
@@ -32,6 +32,7 @@ from app.services.seeder import (
     load_problem_yaml,
     problem_exists,
     seed_from_directory,
+    title_to_slug,
     upsert_problem,
     validate_problem_data,
 )
@@ -48,8 +49,11 @@ async def cmd_new(args: argparse.Namespace) -> int:
     # Get next sequence number
     seq = get_next_sequence_number(DATA_DIR)
 
+    # Generate slug from title
+    slug = title_to_slug(args.title)
+
     # Generate filename
-    filename = f"{seq:03d}-{args.slug}.yaml"
+    filename = f"{seq:03d}-{slug}.yaml"
     filepath = DATA_DIR / filename
 
     if filepath.exists():
@@ -57,11 +61,13 @@ async def cmd_new(args: argparse.Namespace) -> int:
         return 1
 
     # Generate template
-    template = generate_problem_template(args.slug, seq, args.lang)
+    template = generate_problem_template(args.title, seq, args.lang)
 
     # Write file
     filepath.write_text(template)
     print(f"Created: {filepath}")
+    print(f"Title: {args.title}")
+    print(f"Slug: {slug}")
     print(f"Sequence number: {seq}")
     print(f"Languages: {', '.join(args.lang)}")
     print("\nNext steps:")
@@ -154,7 +160,7 @@ def main():
 
     # 'new' command
     new_parser = subparsers.add_parser("new", help="Create a new problem template")
-    new_parser.add_argument("slug", help="URL-friendly slug (e.g., two-sum)")
+    new_parser.add_argument("title", help="Problem title (e.g., \"Two Sum\") - slug is auto-generated")
     new_parser.add_argument(
         "--lang",
         action="append",

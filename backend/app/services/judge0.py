@@ -15,12 +15,17 @@ LANGUAGE_MAP = {
 
 
 class Judge0Service:
-    """Service for interacting with self-hosted Judge0 CE."""
+    """Service for interacting with Judge0 CE (self-hosted or hosted)."""
 
     def __init__(self):
-        """Initialize Judge0 client with self-hosted endpoint."""
+        """Initialize Judge0 client with endpoint and optional API key."""
         self.base_url = settings.judge0_url
-        logger.info("judge0_initialized", endpoint=self.base_url)
+        self.api_key = settings.judge0_api_key
+        self._headers = {}
+        if self.api_key:
+            # Support both X-Auth-Token (self-hosted) and X-RapidAPI-Key (RapidAPI)
+            self._headers["X-Auth-Token"] = self.api_key
+        logger.info("judge0_initialized", endpoint=self.base_url, has_api_key=bool(self.api_key))
 
     def execute_code(
         self, source_code: str, language: str, stdin: str = ""
@@ -59,6 +64,7 @@ class Judge0Service:
         with httpx.Client() as client:
             response = client.post(
                 f"{self.base_url}/submissions?base64_encoded=false&wait=true",
+                headers=self._headers,
                 json={
                     "source_code": source_code,
                     "language_id": language_id,
@@ -115,6 +121,7 @@ class Judge0Service:
             for i, (stdin_data, expected_output) in enumerate(test_cases, 1):
                 response = client.post(
                     f"{self.base_url}/submissions?base64_encoded=false&wait=true",
+                    headers=self._headers,
                     json={
                         "source_code": source_code,
                         "language_id": language_id,

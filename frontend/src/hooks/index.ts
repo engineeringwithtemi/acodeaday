@@ -9,6 +9,7 @@ export { useProblem } from './useProblem'
 export { useSaveCode } from './useSaveCode'
 export { useResetCode } from './useResetCode'
 export { useLoadSubmissionCode } from './useLoadSubmissionCode'
+export { useLanguages } from './useLanguages'
 export {
   useModels,
   useSessions,

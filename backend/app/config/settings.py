@@ -36,6 +36,7 @@ class Settings(BaseSettings):
 
     # Judge0
     judge0_url: str = Field("http://localhost:2358", description="Judge0 API URL")
+    judge0_api_key: str | None = Field(None, description="Judge0 API key (for hosted/authenticated instances)")
 
     # App config
     environment: str = Field("development")
