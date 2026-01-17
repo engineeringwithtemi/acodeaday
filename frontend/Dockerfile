@@ -17,8 +17,8 @@ ENV VITE_API_URL=__VITE_API_URL_PLACEHOLDER__
 ENV VITE_SUPABASE_URL=__VITE_SUPABASE_URL_PLACEHOLDER__
 ENV VITE_SUPABASE_KEY=__VITE_SUPABASE_KEY_PLACEHOLDER__
 
-# Build the application
-RUN npm run build
+# Build the application (skip type generation - types should be pre-committed)
+RUN npm run build:docker
 
 # Stage 2: Production
 FROM node:22-alpine
