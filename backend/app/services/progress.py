@@ -292,9 +292,10 @@ async def get_user_progress_stats(db: AsyncSession, user_id: str) -> dict:
         diff = problem.difficulty.value
         problems_by_difficulty[diff] = problems_by_difficulty.get(diff, 0) + 1
 
-        # Pattern
-        pattern = problem.pattern
-        problems_by_pattern[pattern] = problems_by_pattern.get(pattern, 0) + 1
+        # Pattern (can be multiple patterns per problem)
+        if problem.pattern:
+            for pattern in problem.pattern:
+                problems_by_pattern[pattern] = problems_by_pattern.get(pattern, 0) + 1
 
     return {
         "total_problems": total_problems,

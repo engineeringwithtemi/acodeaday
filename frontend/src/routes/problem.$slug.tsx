@@ -1,9 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Allotment } from 'allotment'
 import 'allotment/dist/style.css'
 import { Play, Send, Loader2, AlertCircle, RotateCcw, MessageSquare } from 'lucide-react'
-import { useProblem, useSubmitCode, useRunCode, useSaveCode, useResetCode, useLoadSubmissionCode } from '@/hooks'
+import { useProblem, useSubmitCode, useRunCode, useSaveCode, useResetCode, useLoadSubmissionCode, useLanguages } from '@/hooks'
 import { ProblemDescription } from '@/components/ProblemDescription'
 import { TestCasesPanel } from '@/components/TestCasesPanel'
 import { TestResults } from '@/components/TestResults'
@@ -11,9 +11,10 @@ import { SubmissionsPanel } from '@/components/SubmissionsPanel'
 import { SubmissionResultPanel } from '@/components/SubmissionResultPanel'
 import { ChatPanel } from '@/components/ChatPanel'
 import { SolutionsPanel } from '@/components/SolutionsPanel'
+import { LanguageSelector } from '@/components/LanguageSelector'
 import Editor from '@monaco-editor/react'
 import { useQueryClient } from '@tanstack/react-query'
-import type { RunCodeResponse, SubmitCodeResponse, SubmissionSchema, TestResult } from '@/types/api'
+import type { RunCodeResponse, SubmitCodeResponse, SubmissionSchema, TestResult, FunctionSignature, Language } from '@/types/api'
 
 export const Route = createFileRoute('/problem/$slug')({
   component: ProblemSolver,
@@ -22,6 +23,7 @@ export const Route = createFileRoute('/problem/$slug')({
 function ProblemSolver() {
   const { slug } = Route.useParams()
   const { data: problem, isLoading, error } = useProblem(slug)
+  const { data: languagesData } = useLanguages()
   const submitCode = useSubmitCode()
   const runCode = useRunCode()
   const saveCode = useSaveCode()
@@ -29,7 +31,8 @@ function ProblemSolver() {
   const loadSubmissionCode = useLoadSubmissionCode()
   const queryClient = useQueryClient()
 
-  const [language] = useState('python')
+  const supportedLanguages = languagesData?.languages ?? ['python']
+  const [language, setLanguage] = useState<Language>('python')
   const [testResults, setTestResults] = useState<RunCodeResponse | SubmitCodeResponse | null>(null)
   const [isRunning, setIsRunning] = useState(false)
   const [leftPaneTab, setLeftPaneTab] = useState<'description' | 'submissions' | 'solutions'>('description')
@@ -49,12 +52,34 @@ function ProblemSolver() {
   // This prevents clearing the editor on subsequent refetches after user actions
   const hasHandledDueState = useRef(false)
 
+  // Check if user has already started working on this due problem today
+  // This persists across navigation - prevents losing work if user leaves and returns
+  const getDueSessionKey = (problemSlug: string) => `due_session_${problemSlug}_${new Date().toDateString()}`
+
+  const hasStartedDueSession = () => {
+    if (!problem) return false
+    try {
+      return localStorage.getItem(getDueSessionKey(slug)) === 'true'
+    } catch {
+      return false
+    }
+  }
+
+  const markDueSessionStarted = () => {
+    try {
+      localStorage.setItem(getDueSessionKey(slug), 'true')
+    } catch {
+      // localStorage might be unavailable
+    }
+  }
+
   // Get initial code:
-  // - If problem is due for review, show starter code (spaced repetition: fresh start)
+  // - If problem is due for review AND user hasn't started working on it today, show starter code
   // - Otherwise, show user's saved code or starter code
   const getInitialCode = () => {
     if (!problem) return starterCode
-    if (problem.is_due && !hasHandledDueState.current) {
+    // If due but user already started this review session (saved in localStorage), preserve their work
+    if (problem.is_due && !hasHandledDueState.current && !hasStartedDueSession()) {
       return starterCode
     }
     return problem.user_code ?? starterCode
@@ -71,13 +96,14 @@ function ProblemSolver() {
   // Update code when problem data changes (e.g., after reset or load submission)
   useEffect(() => {
     if (problem) {
-      // On first load of a due problem, use starter code
-      if (problem.is_due && !hasHandledDueState.current) {
+      // On first load of a due problem that hasn't been started today, use starter code
+      if (problem.is_due && !hasHandledDueState.current && !hasStartedDueSession()) {
         hasHandledDueState.current = true
+        markDueSessionStarted() // Mark that user has started this review session
         setCode(starterCode)
         lastSavedCode.current = starterCode
       } else if (!hasHandledDueState.current) {
-        // First load of a non-due problem
+        // First load of a non-due problem OR due problem already started today
         hasHandledDueState.current = true
         const newCode = problem.user_code ?? starterCode
         setCode(newCode)
@@ -199,7 +225,7 @@ function ProblemSolver() {
   const handleSubmissionClick = (submission: SubmissionSchema) => {
     // Build results array from stored first failed test (if any)
     const results: TestResult[] = []
-    if (submission.failed_test_number !== null) {
+    if (submission.failed_test_number !== null && submission.failed_test_number !== undefined) {
       results.push({
         test_number: submission.failed_test_number,
         passed: false,
@@ -222,6 +248,7 @@ function ProblemSolver() {
       submission_id: submission.id,
       runtime_ms: submission.runtime_ms ?? undefined,
       memory_kb: submission.memory_kb ?? undefined,
+      needs_rating: false, // Historical submissions don't need rating
     }
 
     setSubmissionResult(resultFromSubmission)
@@ -254,10 +281,11 @@ ${solutionCode}
   }
 
   // Clear initial message after it's been sent
-  const handleInitialMessageSent = () => {
+  // useCallback prevents unnecessary effect re-runs in ChatPanel when parent re-renders
+  const handleInitialMessageSent = useCallback(() => {
     setChatInitialMessage(null)
     setChatInitialTitle(null)
-  }
+  }, [])
 
   if (isLoading) {
     return (
@@ -353,11 +381,14 @@ ${solutionCode}
               <div className="h-full flex flex-col bg-gray-900">
                 {/* Editor Header */}
                 <div className="flex items-center justify-between px-4 py-2 bg-gray-800 border-b border-gray-700">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
                     <span className="text-sm font-semibold text-gray-300">Code Editor</span>
-                    <span className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded text-xs font-semibold">
-                      Python
-                    </span>
+                    <LanguageSelector
+                      value={language}
+                      onChange={(lang) => setLanguage(lang as Language)}
+                      availableLanguages={supportedLanguages}
+                      disabled={isRunning}
+                    />
                   </div>
                   <div className="flex items-center gap-2">
                     <button
@@ -477,7 +508,7 @@ ${solutionCode}
                     <TestResults
                       results={testResults}
                       isRunning={isRunning}
-                      functionSignature={problem.languages?.[0]?.function_signature}
+                      functionSignature={problem.languages?.[0]?.function_signature as unknown as FunctionSignature}
                     />
                   )}
                 </div>
@@ -509,7 +540,7 @@ ${solutionCode}
           code={submittedCode}
           language={language}
           problemSlug={slug}
-          functionSignature={problem.languages?.[0]?.function_signature}
+          functionSignature={problem.languages?.[0]?.function_signature as unknown as FunctionSignature}
           onClose={handleCloseSubmissionResult}
           onLoadCode={handleLoadSubmissionCode}
         />

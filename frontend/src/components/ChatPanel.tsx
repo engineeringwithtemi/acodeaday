@@ -2,10 +2,8 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import {
   MessageSquare,
   Send,
-  Loader2,
   Lightbulb,
   Zap,
-  Plus,
   ChevronDown,
   X,
   AlertCircle,
@@ -28,7 +26,7 @@ import {
   useDeleteSession,
   useStreamChat,
 } from '../hooks'
-import type { ChatMode, ChatMessage, ChatSession } from '../types/api'
+import type { ChatMode, ChatMessageSchema } from '../types/api'
 
 interface ChatPanelProps {
   problemSlug: string
@@ -94,10 +92,19 @@ export function ChatPanel({ problemSlug, currentCode, testResults, onClose, init
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [activeSession?.messages, streamingContent])
 
-  // Track initial message state with refs to avoid dependency issues
+  // Two-phase initial message handling to avoid stale closures:
+  // 1. Create session and queue message in ref (effect below)
+  // 2. Send message when activeSessionId matches queued sessionId (separate effect)
+  // This ensures sendMessage has the correct sessionId in its closure
   const initialMessageRef = useRef(initialMessage)
   const initialMessageSentRef = useRef(false)
   const isCreatingSessionRef = useRef(false)
+  const pendingInitialMessageRef = useRef<{
+    message: string
+    sessionId: string
+    code?: string
+    testResults?: any
+  } | null>(null)
 
   // Update ref when initialMessage changes
   useEffect(() => {
@@ -109,7 +116,19 @@ export function ChatPanel({ problemSlug, currentCode, testResults, onClose, init
     }
   }, [initialMessage])
 
-  // Create session and send initial message in one flow (no connection to wait for!)
+  // Send pending initial message once activeSessionId is set and hook is ready
+  useEffect(() => {
+    if (!pendingInitialMessageRef.current) return
+    if (activeSessionId !== pendingInitialMessageRef.current.sessionId) return
+
+    // Now sendMessage has the correct sessionId in its closure
+    const { message, code, testResults } = pendingInitialMessageRef.current
+    pendingInitialMessageRef.current = null
+    sendMessage(message, code, testResults)
+    onInitialMessageSent?.()
+  }, [activeSessionId, sendMessage, onInitialMessageSent])
+
+  // Create session and queue initial message for sending
   useEffect(() => {
     if (!initialMessage || initialMessageSentRef.current || isCreatingSessionRef.current) return
     if (!models) return // Wait for models to load
@@ -128,15 +147,16 @@ export function ChatPanel({ problemSlug, currentCode, testResults, onClose, init
           model: modelToUse,
           title: initialSessionTitle || undefined,
         })
-        setActiveSessionId(session.id)
 
-        // Send immediately after session is created - no connection to wait for!
+        // Mark as sent and queue the message for when the hook has the new sessionId
         initialMessageSentRef.current = true
-        // Small delay to let state update propagate
-        setTimeout(() => {
-          sendMessage(initialMessage, currentCode, testResults)
-          onInitialMessageSent?.()
-        }, 50)
+        pendingInitialMessageRef.current = {
+          message: initialMessage,
+          sessionId: session.id,
+          code: currentCode,
+          testResults,
+        }
+        setActiveSessionId(session.id)
       } catch (err) {
         console.error('Failed to create session:', err)
         isCreatingSessionRef.current = false
@@ -144,7 +164,7 @@ export function ChatPanel({ problemSlug, currentCode, testResults, onClose, init
     }
 
     createAndSend()
-  }, [initialMessage, initialSessionTitle, models, problemSlug, createSession, sendMessage, currentCode, testResults, onInitialMessageSent])
+  }, [initialMessage, initialSessionTitle, models, problemSlug, createSession, currentCode, testResults])
 
   const handleCreateSession = async (mode: ChatMode) => {
     // Use last selected model if available, otherwise use default
@@ -544,7 +564,7 @@ function CodeBlock({ code, language }: { code: string; language: string }) {
   )
 }
 
-function MessageBubble({ message }: { message: ChatMessage }) {
+function MessageBubble({ message }: { message: ChatMessageSchema }) {
   const isUser = message.role === 'user'
 
   return (

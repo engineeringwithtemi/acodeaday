@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { Lock, Unlock, X, Download, MessageSquare } from 'lucide-react'
-import type { ProblemLanguage } from '../types/api'
+import type { ProblemLanguageSchema } from '../types/api'
 
 interface SolutionsPanelProps {
-  languages: ProblemLanguage[]
+  languages: ProblemLanguageSchema[]
   onLoadToEditor?: (code: string, language: string) => void
   onAskAI?: (solutionCode: string, language: string) => void
 }

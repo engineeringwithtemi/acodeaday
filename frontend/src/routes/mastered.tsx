@@ -3,7 +3,7 @@ import { Award, RotateCcw, AlertCircle, Calendar, Code } from 'lucide-react'
 import { useMasteredProblems } from '@/hooks'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiPost } from '@/lib/api-client'
-import type { MasteredProblem } from '@/types/api'
+import type { MasteredProblemSchema } from '@/types/api'
 
 export const Route = createFileRoute('/mastered')({
   component: MasteredProblems,
@@ -129,7 +129,7 @@ function MasteredProblems() {
 }
 
 interface MasteredProblemCardProps {
-  masteredProblem: MasteredProblem
+  masteredProblem: MasteredProblemSchema
   onShowAgain: (problemId: string, e: React.MouseEvent) => Promise<void>
   isLoading: boolean
 }
@@ -154,7 +154,8 @@ function MasteredProblemCard({ masteredProblem, onShowAgain, isLoading }: Master
 
   return (
     <Link
-      to={`/problem/${problem.slug}`}
+      to="/problem/$slug"
+      params={{ slug: problem.slug }}
       className="block bg-gradient-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-sm border border-purple-500/50 rounded-xl p-6 hover:scale-[1.02] transition-all duration-300 hover:shadow-xl"
     >
       <div className="flex items-start justify-between mb-3">

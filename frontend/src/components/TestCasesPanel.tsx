@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Plus, X } from 'lucide-react'
-import type { TestCase } from '../types/api'
+import type { TestCaseSchema } from '../types/api'
 
 interface CustomTestCase {
   id: string
@@ -9,7 +9,7 @@ interface CustomTestCase {
 }
 
 interface TestCasesPanelProps {
-  testCases: TestCase[]
+  testCases: TestCaseSchema[]
   onCustomTestCasesChange?: (customInputs: any[][]) => void
 }
 
@@ -20,7 +20,6 @@ export function TestCasesPanel({ testCases, onCustomTestCasesChange }: TestCases
   const [activeTab, setActiveTab] = useState(0)
   const [customTestCases, setCustomTestCases] = useState<CustomTestCase[]>([])
 
-  const totalTabs = visibleTestCases.length + customTestCases.length
 
   const addCustomTestCase = () => {
     const newCase: CustomTestCase = {
@@ -136,7 +135,7 @@ export function TestCasesPanel({ testCases, onCustomTestCasesChange }: TestCases
   )
 }
 
-function TestCaseDisplay({ testCase }: { testCase: TestCase }) {
+function TestCaseDisplay({ testCase }: { testCase: TestCaseSchema }) {
   const formatValue = (value: any): string => {
     return JSON.stringify(value)
   }

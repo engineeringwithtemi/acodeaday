@@ -1,9 +1,9 @@
 import { Link } from '@tanstack/react-router'
 import { ArrowRight, RotateCcw, Sparkles } from 'lucide-react'
-import type { Problem } from '../types/api'
+import type { ProblemDetailSchema } from '../types/api'
 
 interface ProblemCardProps {
-  problem: Problem
+  problem: ProblemDetailSchema
   type: 'review' | 'new'
   daysOverdue?: number
 }
@@ -41,7 +41,8 @@ export function ProblemCard({
 
   return (
     <Link
-      to={`/problem/${problem.slug}`}
+      to="/problem/$slug"
+      params={{ slug: problem.slug }}
       className={`group block bg-gradient-to-br from-zinc-900 via-zinc-900/95 to-zinc-900/90 border rounded-lg p-6 transition-all duration-300 hover:scale-[1.02] ${style.border} ${style.glow} hover:shadow-xl`}
     >
       <div className="flex items-start justify-between gap-4 mb-4">

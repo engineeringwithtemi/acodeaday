@@ -1,12 +1,15 @@
 """Code wrapper generator for Judge0 execution."""
 
 import json
-from typing import Any
+from typing import Any, Callable
 
 from app.config.logging import get_logger
 from app.db.tables import TestCase
 
 logger = get_logger(__name__)
+
+# Supported languages for code execution
+SUPPORTED_LANGUAGES = ["python"]  # Add "javascript" when implemented
 
 
 def generate_python_wrapper(
@@ -215,3 +218,47 @@ def get_execution_summary(results: list[dict[str, Any]]) -> dict[str, Any]:
         "all_passed": passed == total,
         "pass_rate": passed / total if total > 0 else 0.0,
     }
+
+
+def get_wrapper_for_language(language: str) -> Callable:
+    """
+    Get the appropriate wrapper generator function for a language.
+
+    Args:
+        language: Programming language (e.g., "python", "javascript")
+
+    Returns:
+        Wrapper generator function for the specified language
+
+    Raises:
+        ValueError: If language is not supported
+
+    Example:
+        wrapper_fn = get_wrapper_for_language("python")
+        code = wrapper_fn(user_code, test_cases, function_name)
+    """
+    wrappers = {
+        "python": generate_python_wrapper,
+        # "javascript": generate_javascript_wrapper,  # TODO: Implement when ready
+    }
+
+    language_lower = language.lower()
+    if language_lower not in wrappers:
+        supported = list(wrappers.keys())
+        raise ValueError(f"Unsupported language: {language}. Supported: {supported}")
+
+    return wrappers[language_lower]
+
+
+def get_supported_languages() -> list[str]:
+    """
+    Get list of supported programming languages.
+
+    Returns:
+        List of supported language names
+
+    Example:
+        languages = get_supported_languages()
+        # Returns: ["python"]
+    """
+    return SUPPORTED_LANGUAGES.copy()

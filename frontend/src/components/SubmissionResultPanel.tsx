@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { X, CheckCircle2, XCircle, AlertCircle, Download, RotateCcw, Frown, Smile, Trophy } from 'lucide-react'
 import type { SubmitCodeResponse, FunctionSignature, Rating, RatingResponse } from '../types/api'
 import { useRateSubmission } from '../hooks/useRateSubmission'
+import { useQueryClient } from '@tanstack/react-query'
 
 interface SubmissionResultPanelProps {
   result: SubmitCodeResponse
@@ -25,6 +26,7 @@ export function SubmissionResultPanel({
   const [ratingResult, setRatingResult] = useState<RatingResponse | null>(null)
   const [ratingError, setRatingError] = useState<string | null>(null)
   const rateSubmission = useRateSubmission()
+  const queryClient = useQueryClient()
 
   // Handle rating selection
   const handleRating = async (rating: Rating) => {
@@ -35,6 +37,9 @@ export function SubmissionResultPanel({
         rating,
       })
       setRatingResult(response)
+      // Invalidate problem query so next visit shows updated is_due status
+      // This prevents the editor from being cleared after user has already solved today
+      queryClient.invalidateQueries({ queryKey: ['problem', problemSlug] })
     } catch (error) {
       console.error('Failed to submit rating:', error)
       setRatingError('Failed to save rating. Please try again.')
@@ -61,7 +66,7 @@ export function SubmissionResultPanel({
   const firstFailedTest = result.results?.find(r => !r.passed)
 
   // Format memory (convert KB to MB)
-  const formatMemory = (kb?: number) => {
+  const formatMemory = (kb?: number | null) => {
     if (!kb) return 'N/A'
     return `${(kb / 1024).toFixed(2)} MB`
   }
@@ -85,8 +90,8 @@ export function SubmissionResultPanel({
   // Calculate test counts
   // summary.passed = tests that passed (use this for X in "X / Y")
   // total_test_cases = total tests in problem (use this for Y in "X / Y")
-  const testsPassed = result.summary?.passed ?? 0
-  const totalTests = result.total_test_cases ?? result.summary?.total ?? 0
+  const testsPassed = ((result.summary as any)?.passed as number) ?? 0
+  const totalTests = result.total_test_cases ?? ((result.summary as any)?.total as number) ?? 0
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
@@ -120,11 +125,11 @@ export function SubmissionResultPanel({
                   {status.text}
                 </span>
               </div>
-              {totalTests > 0 && (
+              {totalTests > 0 ? (
                 <span className="font-mono text-sm text-gray-300">
                   {testsPassed} / {totalTests} testcases passed
                 </span>
-              )}
+              ) : null}
             </div>
           </div>
 
@@ -211,7 +216,7 @@ export function SubmissionResultPanel({
                 <h3 className="text-sm font-semibold text-gray-400 mb-2">Memory</h3>
                 <div className="bg-gray-800 rounded-lg p-4">
                   <span className="font-mono text-lg text-cyan-400">
-                    {formatMemory(result.memory_kb)}
+                    {formatMemory(result.memory_kb ?? null)}
                   </span>
                 </div>
               </div>

@@ -3,6 +3,8 @@ name: Build and Publish Docker Images
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 env:
@@ -12,7 +14,51 @@ env:
   IMAGE_NAME_FRONTEND: ${{ github.repository }}-frontend
 
 jobs:
+  # =========================================================================
+  # Build Test (runs on PRs - build only, no push)
+  # =========================================================================
+  build-test:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image (test only)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: false
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+      - name: Build frontend image (test only)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: false
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+
+      - name: Build test passed
+        run: |
+          echo "## Docker Build Test ✅" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Both backend and frontend images built successfully." >> $GITHUB_STEP_SUMMARY
+
+  # =========================================================================
+  # Build and Push (runs on main branch push only)
+  # =========================================================================
   build-and-push:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: read

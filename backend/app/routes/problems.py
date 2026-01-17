@@ -11,6 +11,7 @@ from app.db.connection import get_db
 from app.db.tables import Problem, UserCode, UserProgress
 from app.middleware.auth import get_current_user
 from app.schemas.problem import ProblemDetailSchema, ProblemSchema
+from app.services.wrapper import get_supported_languages
 
 router = APIRouter(prefix="/api/problems", tags=["problems"])
 
@@ -98,3 +99,13 @@ async def get_problem(
         user_code=saved_code,
         is_due=is_due_for_review,
     )
+
+
+@router.get("/languages/supported")
+async def get_languages():
+    """
+    Get list of supported programming languages for code execution.
+
+    Returns languages that have wrapper generators implemented.
+    """
+    return {"languages": get_supported_languages()}

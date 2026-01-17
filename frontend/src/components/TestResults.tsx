@@ -101,7 +101,7 @@ export function TestResults({
               </span>
             </div>
             <span className="font-mono text-sm text-gray-300">
-              {results.summary.passed}/{results.summary.total} tests passed
+              {(results.summary as any).passed}/{(results.summary as any).total} tests passed
             </span>
           </div>
 
@@ -166,7 +166,7 @@ interface TestCaseResultProps {
   functionSignature?: FunctionSignature
 }
 
-function TestCaseResult({ result, index, functionSignature }: TestCaseResultProps) {
+function TestCaseResult({ result, functionSignature }: TestCaseResultProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null)
 
   const formatValue = (value: any): string => {

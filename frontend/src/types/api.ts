@@ -1,64 +1,77 @@
-// API Types for acodeaday
+// frontend/src/types/api.ts
+// Re-export generated types from OpenAPI schema
 
-// Authentication types
-export interface LoginRequest {
-  email: string
-  password: string
-}
+import type { components } from './api.generated'
 
-export interface SignupRequest {
-  email: string
-  password: string
-}
+// ============================================
+// Schema type extractions
+// ============================================
 
-export interface AuthResponse {
-  access_token: string
-  refresh_token: string
-  user_id: string
-  email: string
-}
+// Today/Dashboard types
+export type TodaySessionResponse = components['schemas']['TodaySessionResponse']
+export type ProblemProgressSchema = components['schemas']['ProblemProgressSchema']
 
-export interface RefreshRequest {
-  refresh_token: string
-}
+// Problem types
+export type ProblemSchema = components['schemas']['ProblemSchema']
+export type ProblemDetailSchema = components['schemas']['ProblemDetailSchema']
+export type ProblemBasicSchema = components['schemas']['ProblemBasicSchema']
+export type ProblemExampleSchema = components['schemas']['ProblemExampleSchema']
+export type ProblemLanguageSchema = components['schemas']['ProblemLanguageSchema']
+export type TestCaseSchema = components['schemas']['TestCaseSchema']
 
-export interface Problem {
-  id: string
-  slug: string
-  sequence_number: number
-  title: string
-  difficulty: 'easy' | 'medium' | 'hard'
-  pattern: string[]
-  description: string
-  constraints: string[]
-  examples: ProblemExample[]
-  languages: ProblemLanguage[]
-  test_cases: TestCase[]
-  created_at: string
-  updated_at?: string
-  // User's saved code (from user_code table) - null means use starter_code
-  user_code?: string | null
-  // Whether this problem is due for review (frontend uses this to decide initial code)
-  is_due?: boolean
-}
+// Progress types
+export type ProgressResponse = components['schemas']['ProgressResponse']
+export type ProblemWithProgressSchema = components['schemas']['ProblemWithProgressSchema']
+export type UserProgressBasicSchema = components['schemas']['UserProgressBasicSchema']
 
-export interface ProblemExample {
-  input: string
-  output: string
-  explanation?: string
-}
+// Mastered types
+export type MasteredProblemsResponse = components['schemas']['MasteredProblemsResponse']
+export type MasteredProblemSchema = components['schemas']['MasteredProblemSchema']
+export type ShowAgainResponse = components['schemas']['ShowAgainResponse']
 
-export interface ProblemLanguage {
-  id: number
-  problem_id: number
-  language: string
-  starter_code: string
-  reference_solution: string
-  function_signature: FunctionSignature
-  created_at: string
-  updated_at: string
-}
+// Execution types
+export type RunCodeRequest = components['schemas']['RunCodeRequest']
+export type RunCodeResponse = components['schemas']['RunCodeResponse']
+export type SubmitCodeRequest = components['schemas']['SubmitCodeRequest']
+export type SubmitCodeResponse = components['schemas']['SubmitCodeResponse']
+export type TestResult = components['schemas']['TestResult']
 
+// Rating types
+export type RatingRequest = components['schemas']['RatingRequest']
+export type RatingResponse = components['schemas']['RatingResponse']
+
+// Submission types
+export type SubmissionSchema = components['schemas']['SubmissionSchema']
+export type SubmissionBasicSchema = components['schemas']['SubmissionBasicSchema']
+
+// Code management types
+export type SaveCodeRequest = components['schemas']['SaveCodeRequest']
+export type SaveCodeResponse = components['schemas']['SaveCodeResponse']
+export type ResetCodeRequest = components['schemas']['ResetCodeRequest']
+export type ResetCodeResponse = components['schemas']['ResetCodeResponse']
+export type LoadSubmissionRequest = components['schemas']['LoadSubmissionRequest']
+
+// Chat types
+export type ChatSessionSchema = components['schemas']['ChatSessionSchema']
+export type ChatSessionWithMessagesSchema = components['schemas']['ChatSessionWithMessagesSchema']
+export type ChatMessageSchema = components['schemas']['ChatMessageSchema']
+export type CreateSessionRequest = components['schemas']['CreateSessionRequest']
+export type UpdateSessionRequest = components['schemas']['UpdateSessionRequest']
+export type SendMessageRequest = components['schemas']['SendMessageRequest']
+export type ModelInfo = components['schemas']['ModelInfo']
+
+// Enums
+export type Difficulty = components['schemas']['Difficulty']
+export type Language = components['schemas']['Language']
+export type ChatMode = components['schemas']['ChatMode']
+export type MessageRole = components['schemas']['MessageRole']
+
+// ============================================
+// Types NOT in OpenAPI (keep manual definitions)
+// ============================================
+
+// FunctionSignature is used in frontend but generated as { [key: string]: unknown }
+// Keep a proper typed version for better DX
 export interface FunctionSignature {
   name: string
   params: Array<{
@@ -68,294 +81,5 @@ export interface FunctionSignature {
   return_type: string
 }
 
-export interface TestCase {
-  id: number
-  problem_id: number
-  sequence: number
-  input: Record<string, any>
-  expected: any
-  created_at: string
-  updated_at: string
-}
-
-export interface UserProgress {
-  id: number
-  user_id: string
-  problem_id: number
-  times_solved: number
-  next_review_date: string | null
-  is_mastered: boolean
-  show_again: boolean
-  last_solved_at: string | null
-  created_at: string
-  updated_at: string
-}
-
-export interface Submission {
-  id: number
-  user_id: string
-  problem_id: number
-  language: string
-  code: string
-  is_passed: boolean
-  runtime_ms: number | null
-  submitted_at: string
-}
-
-// Flat structure returned by backend for today's problems
-export interface TodayProblem {
-  id: number
-  title: string
-  slug: string
-  difficulty: 'easy' | 'medium' | 'hard'
-  pattern: string[]
-  sequence_number: number
-  times_solved: number
-  last_solved_at: string | null
-  next_review_date: string | null
-  is_mastered: boolean
-}
-
-export interface TodayResponse {
-  review_problems: TodayProblem[]
-  new_problem: TodayProblem | null
-  total_mastered: number
-  total_attempted: number
-}
-
-export interface SubmitRequest {
-  problem_id: number
-  language: string
-  code: string
-}
-
-export interface TestCaseResult {
-  test_case_id: number
-  passed: boolean
-  expected: any
-  actual: any
-  error?: string
-}
-
-export interface SubmissionResult {
-  is_passed: boolean
-  test_results: TestCaseResult[]
-  runtime_ms: number | null
-  submission_id: number
-  user_progress: UserProgress
-}
-
-// --- Types for /api/progress and /api/mastered endpoints ---
-
-// Basic problem info (for progress/mastered lists)
-export interface ProblemBasic {
-  id: string
-  title: string
-  slug: string
-  difficulty: 'easy' | 'medium' | 'hard'
-  pattern: string[]
-  sequence_number: number
-}
-
-// Basic user progress info (for progress/mastered lists)
-export interface UserProgressBasic {
-  times_solved: number
-  last_solved_at: string | null
-  next_review_date: string | null
-  is_mastered: boolean
-  show_again: boolean
-}
-
-// Basic submission info (for mastered list)
-export interface SubmissionBasic {
-  id: string
-  code: string
-  language: string
-  passed: boolean
-  runtime_ms: number | null
-  memory_kb: number | null
-  submitted_at: string
-}
-
-// Problem with progress (for /api/progress)
-export interface ProblemWithProgress {
-  problem: ProblemBasic
-  user_progress: UserProgressBasic | null
-}
-
-// Response from /api/progress
-export interface ProgressResponse {
-  problems: ProblemWithProgress[]
-  total_problems: number
-  completed_problems: number
-  mastered_problems: number
-}
-
-// Mastered problem (for /api/mastered)
-export interface MasteredProblem {
-  problem: ProblemBasic
-  user_progress: UserProgressBasic
-  last_submission: SubmissionBasic | null
-}
-
-// Response from /api/mastered
-export interface MasteredProblemsResponse {
-  mastered_problems: MasteredProblem[]
-}
-
-// New types matching backend schemas
-
-// Test result from backend (for both Run and Submit)
-export interface TestResult {
-  test_number: number
-  passed: boolean
-  input: any  // Input arguments for this test case
-  output: any
-  expected: any
-  stdout?: string  // User's print() output
-  error?: string
-  error_type?: string
-}
-
-// Run Code request (visible tests only, or custom input)
-export interface RunCodeRequest {
-  problem_slug: string
-  code: string
-  language: string
-  custom_input?: any[][]  // Optional custom test inputs
-}
-
-// Run Code response (visible tests only)
-export interface RunCodeResponse {
-  success: boolean
-  results: TestResult[]
-  summary: {
-    total: number
-    passed: number
-    failed: number
-  }
-  stdout?: string
-  stderr?: string
-  compile_error?: string
-  runtime_error?: string
-}
-
-// Submit Code request (all tests + saves)
-export interface SubmitCodeRequest {
-  problem_slug: string
-  code: string
-  language: string
-}
-
-// Submit Code response (all tests + progress)
-export interface SubmitCodeResponse {
-  success: boolean
-  results: TestResult[]
-  summary: {
-    total: number    // Tests actually executed (may be less than total_test_cases due to early_exit)
-    passed: number
-    failed: number
-  }
-  total_test_cases?: number  // Total tests in problem (for "X / Y testcases passed" display). Optional for old submissions.
-  submission_id: string
-  runtime_ms?: number
-  memory_kb?: number
-  compile_error?: string
-  runtime_error?: string
-  // Anki spaced repetition fields
-  needs_rating?: boolean      // If true, show rating buttons
-  times_solved?: number
-  is_mastered?: boolean
-  next_review_date?: string
-  interval_days?: number
-  ease_factor?: number
-}
-
-// Rating types for Anki-style spaced repetition
+// Rating enum (backend uses string, but we want type safety)
 export type Rating = 'again' | 'hard' | 'good' | 'mastered'
-
-export interface RatingRequest {
-  problem_slug: string
-  rating: Rating
-}
-
-export interface RatingResponse {
-  success: boolean
-  interval_days: number
-  ease_factor: number
-  next_review_date: string | null
-  is_mastered: boolean
-  review_count: number
-  times_solved: number
-}
-
-// Submission history schema
-export interface SubmissionSchema {
-  id: string
-  problem_id: string
-  problem_title: string
-  code: string
-  language: string
-  passed: boolean
-  runtime_ms: number | null
-  memory_kb?: number | null
-  submitted_at: string
-  // Test result summary
-  total_test_cases: number
-  passed_count: number
-  // First failed test details (null if all passed)
-  failed_test_number: number | null
-  failed_input: any | null
-  failed_output: any | null
-  failed_expected: any | null
-}
-
-// Chat types
-export type ChatMode = 'socratic' | 'direct'
-export type MessageRole = 'user' | 'assistant' | 'system'
-
-export interface ChatMessage {
-  id: string
-  session_id: string
-  role: MessageRole
-  content: string
-  code_snapshot?: string | null
-  test_results_snapshot?: any
-  created_at: string
-}
-
-export interface ChatSession {
-  id: string
-  user_id: string
-  problem_id: string
-  title?: string | null
-  mode: ChatMode
-  model?: string | null
-  is_active: boolean
-  created_at: string
-  updated_at: string
-}
-
-export interface ChatSessionWithMessages extends ChatSession {
-  messages: ChatMessage[]
-}
-
-export interface CreateSessionRequest {
-  problem_slug: string
-  mode?: ChatMode
-  model?: string | null
-  title?: string | null
-}
-
-export interface UpdateSessionRequest {
-  title?: string | null
-  mode?: ChatMode
-  model?: string | null
-  is_active?: boolean
-}
-
-export interface ModelInfo {
-  name: string
-  display_name: string
-  is_default: boolean
-}

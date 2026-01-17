@@ -1,7 +1,7 @@
 // Hook for fetching individual problem details
 import { useQuery } from '@tanstack/react-query'
 import { apiGet } from '../lib/api-client'
-import type { Problem } from '../types/api'
+import type { ProblemDetailSchema } from '../types/api'
 
 /**
  * Fetch a specific problem by slug
@@ -10,8 +10,12 @@ import type { Problem } from '../types/api'
 export function useProblem(slug: string) {
   return useQuery({
     queryKey: ['problem', slug],
-    queryFn: () => apiGet<Problem>(`/api/problems/${slug}`),
+    queryFn: () => apiGet<ProblemDetailSchema>(`/api/problems/${slug}`),
     // Only fetch if slug is provided
     enabled: !!slug,
+    // Always refetch on mount to get fresh is_due status
+    // This ensures editor isn't cleared when user returns after rating
+    staleTime: 0,
+    refetchOnMount: true,
   })
 }
