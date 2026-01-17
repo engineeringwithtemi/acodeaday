@@ -61,7 +61,7 @@ function ProgressOverview() {
             <TrendingUp className="text-cyan-400" size={32} />
             <h1 className="text-4xl font-black text-white">Progress Overview</h1>
           </div>
-          <p className="text-gray-400 text-lg">Track your journey through the Blind 75</p>
+          <p className="text-gray-400 text-lg">Track your journey through your coding practice</p>
         </div>
 
         {/* Stats Cards */}
