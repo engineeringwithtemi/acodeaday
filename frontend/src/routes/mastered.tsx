@@ -3,7 +3,7 @@ import { Award, RotateCcw, AlertCircle, Calendar, Code } from 'lucide-react'
 import { useMasteredProblems } from '@/hooks'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiPost } from '@/lib/api-client'
-import type { MasteredProblem } from '@/types/api'
+import type { MasteredProblemSchema } from '@/types/api'
 
 export const Route = createFileRoute('/mastered')({
   component: MasteredProblems,
@@ -129,7 +129,7 @@ function MasteredProblems() {
 }
 
 interface MasteredProblemCardProps {
-  masteredProblem: MasteredProblem
+  masteredProblem: MasteredProblemSchema
   onShowAgain: (problemId: string, e: React.MouseEvent) => Promise<void>
   isLoading: boolean
 }

@@ -1,9 +1,9 @@
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import type { Problem } from '../types/api'
+import type { ProblemDetailSchema } from '../types/api'
 
 interface ProblemDescriptionProps {
-  problem: Problem
+  problem: ProblemDetailSchema
 }
 
 const difficultyStyles = {

@@ -1,5 +1,5 @@
 // frontend/src/types/api.ts
-// Re-export generated types with backward-compatible names
+// Re-export generated types from OpenAPI schema
 
 import type { components } from './api.generated'
 
@@ -65,51 +65,6 @@ export type Difficulty = components['schemas']['Difficulty']
 export type Language = components['schemas']['Language']
 export type ChatMode = components['schemas']['ChatMode']
 export type MessageRole = components['schemas']['MessageRole']
-
-// ============================================
-// Backward-compatible aliases (for gradual migration)
-// These match the old manual type names
-// ============================================
-
-/** @deprecated Use TodaySessionResponse */
-export type TodayResponse = TodaySessionResponse
-
-/** @deprecated Use ProblemProgressSchema */
-export type TodayProblem = ProblemProgressSchema
-
-/** @deprecated Use ProblemDetailSchema */
-export type Problem = ProblemDetailSchema
-
-/** @deprecated Use ProblemBasicSchema */
-export type ProblemBasic = ProblemBasicSchema
-
-/** @deprecated Use UserProgressBasicSchema */
-export type UserProgressBasic = UserProgressBasicSchema
-
-/** @deprecated Use ProblemWithProgressSchema */
-export type ProblemWithProgress = ProblemWithProgressSchema
-
-/** @deprecated Use MasteredProblemSchema */
-export type MasteredProblem = MasteredProblemSchema
-
-/** @deprecated Use ChatSessionSchema */
-export type ChatSession = ChatSessionSchema
-
-/** @deprecated Use ChatSessionWithMessagesSchema */
-export type ChatSessionWithMessages = ChatSessionWithMessagesSchema
-
-/** @deprecated Use ChatMessageSchema */
-export type ChatMessage = ChatMessageSchema
-
-// Legacy aliases for existing code
-/** @deprecated Use ProblemExampleSchema */
-export type ProblemExample = ProblemExampleSchema
-
-/** @deprecated Use ProblemLanguageSchema */
-export type ProblemLanguage = ProblemLanguageSchema
-
-/** @deprecated Use TestCaseSchema */
-export type TestCase = TestCaseSchema
 
 // ============================================
 // Types NOT in OpenAPI (keep manual definitions)

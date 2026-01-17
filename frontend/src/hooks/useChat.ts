@@ -4,8 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { apiGet, apiPost, apiPatch, apiDelete } from '../lib/api-client'
 import { getAccessToken } from '../lib/api-client'
 import type {
-  ChatSession,
-  ChatSessionWithMessages,
+  ChatSessionSchema,
+  ChatSessionWithMessagesSchema,
   CreateSessionRequest,
   UpdateSessionRequest,
   ModelInfo,
@@ -29,7 +29,7 @@ export function useModels() {
 export function useSessions(problemSlug: string) {
   return useQuery({
     queryKey: ['chat', 'sessions', problemSlug],
-    queryFn: () => apiGet<ChatSession[]>(`/api/chat/sessions/${problemSlug}`),
+    queryFn: () => apiGet<ChatSessionSchema[]>(`/api/chat/sessions/${problemSlug}`),
     enabled: !!problemSlug,
   })
 }
@@ -40,7 +40,7 @@ export function useSessions(problemSlug: string) {
 export function useSession(sessionId: string | null) {
   return useQuery({
     queryKey: ['chat', 'session', sessionId],
-    queryFn: () => apiGet<ChatSessionWithMessages>(`/api/chat/session/${sessionId}`),
+    queryFn: () => apiGet<ChatSessionWithMessagesSchema>(`/api/chat/session/${sessionId}`),
     enabled: !!sessionId,
   })
 }
@@ -53,7 +53,7 @@ export function useCreateSession() {
 
   return useMutation({
     mutationFn: (request: CreateSessionRequest) =>
-      apiPost<ChatSession>('/api/chat/sessions', request),
+      apiPost<ChatSessionSchema>('/api/chat/sessions', request),
     onSuccess: (_, variables) => {
       // Invalidate sessions list for this problem
       queryClient.invalidateQueries({ queryKey: ['chat', 'sessions', variables.problem_slug] })
@@ -69,7 +69,7 @@ export function useUpdateSession() {
 
   return useMutation({
     mutationFn: ({ sessionId, request }: { sessionId: string; request: UpdateSessionRequest }) =>
-      apiPatch<ChatSession>(`/api/chat/session/${sessionId}`, request),
+      apiPatch<ChatSessionSchema>(`/api/chat/session/${sessionId}`, request),
     onSuccess: (data) => {
       // Invalidate this specific session and sessions list (for title updates in dropdown)
       queryClient.invalidateQueries({ queryKey: ['chat', 'session', data.id] })

@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Calendar, Clock, Code, AlertCircle } from 'lucide-react'
 import { useTodayProblems } from '@/hooks'
-import type { TodayProblem } from '@/types/api'
+import type { ProblemProgressSchema } from '@/types/api'
 
 export const Route = createFileRoute('/')({
   component: Dashboard,
@@ -121,7 +121,7 @@ function Dashboard() {
 }
 
 interface ProblemCardProps {
-  problem: TodayProblem
+  problem: ProblemProgressSchema
   type: 'review' | 'new'
 }
 

@@ -1,9 +1,9 @@
 import { Link } from '@tanstack/react-router'
 import { ArrowRight, RotateCcw, Sparkles } from 'lucide-react'
-import type { Problem } from '../types/api'
+import type { ProblemDetailSchema } from '../types/api'
 
 interface ProblemCardProps {
-  problem: Problem
+  problem: ProblemDetailSchema
   type: 'review' | 'new'
   daysOverdue?: number
 }

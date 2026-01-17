@@ -26,7 +26,7 @@ import {
   useDeleteSession,
   useStreamChat,
 } from '../hooks'
-import type { ChatMode, ChatMessage } from '../types/api'
+import type { ChatMode, ChatMessageSchema } from '../types/api'
 
 interface ChatPanelProps {
   problemSlug: string
@@ -564,7 +564,7 @@ function CodeBlock({ code, language }: { code: string; language: string }) {
   )
 }
 
-function MessageBubble({ message }: { message: ChatMessage }) {
+function MessageBubble({ message }: { message: ChatMessageSchema }) {
   const isUser = message.role === 'user'
 
   return (

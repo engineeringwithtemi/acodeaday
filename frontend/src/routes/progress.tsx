@@ -2,7 +2,7 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import { TrendingUp, CheckCircle2, Circle, Clock, AlertCircle } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { apiGet } from '@/lib/api-client'
-import type { ProgressResponse, ProblemBasic, UserProgressBasic } from '@/types/api'
+import type { ProgressResponse, ProblemBasicSchema, UserProgressBasicSchema } from '@/types/api'
 
 export const Route = createFileRoute('/progress')({
   component: ProgressOverview,
@@ -121,8 +121,8 @@ function ProgressOverview() {
 }
 
 interface ProblemRowProps {
-  problem: ProblemBasic
-  progress: UserProgressBasic | null
+  problem: ProblemBasicSchema
+  progress: UserProgressBasicSchema | null
 }
 
 function ProblemRow({ problem, progress }: ProblemRowProps) {
