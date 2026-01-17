@@ -1,6 +1,6 @@
 # Adding Language Support
 
-This guide explains how to add support for a new programming language to acodeaday. Currently, the platform supports Python, with JavaScript support planned.
+This guide explains how to add support for a new programming language to acodeaday. Currently, the platform supports Python, with infrastructure ready for JavaScript and other languages.
 
 ## Overview
 
@@ -176,21 +176,31 @@ public class Main {{
 
 ### Update the Wrapper Dispatcher
 
-Add your new wrapper to the dispatcher function in `backend/app/routes/execution.py`:
+Add your new wrapper to the `SUPPORTED_LANGUAGES` list and `get_wrapper_for_language()` function in `backend/app/services/wrapper.py`:
 
 ```python
-def get_wrapper_for_language(language: str):
-    """Get the appropriate wrapper generator for a language."""
+# Supported languages for code execution
+SUPPORTED_LANGUAGES = ["python", "javascript", "java"]  # Add your language here
+
+def get_wrapper_for_language(language: str) -> Callable:
+    """Get the appropriate wrapper generator function for a language."""
     wrappers = {
         "python": generate_python_wrapper,
-        "javascript": generate_javascript_wrapper,
-        "java": generate_java_wrapper,
+        "javascript": generate_javascript_wrapper,  # Add when implemented
+        "java": generate_java_wrapper,              # Add when implemented
     }
 
-    if language not in wrappers:
-        raise ValueError(f"Unsupported language: {language}")
+    language_lower = language.lower()
+    if language_lower not in wrappers:
+        supported = list(wrappers.keys())
+        raise ValueError(f"Unsupported language: {language}. Supported: {supported}")
 
-    return wrappers[language]
+    return wrappers[language_lower]
+
+
+def get_supported_languages() -> list[str]:
+    """Get list of supported programming languages."""
+    return SUPPORTED_LANGUAGES.copy()
 ```
 
 ## Step 3: Problem Data - YAML Configuration
@@ -314,20 +324,48 @@ uv run python scripts/seed_problems.py seed --force
 
 ## Step 4: Frontend - Language Selector
 
-Update the frontend to support the new language.
+Update the frontend to support the new language. The frontend fetches available languages from the backend API.
 
-### Add to Language Options
+### Backend Endpoint
 
-Edit the language selector component (e.g., `frontend/src/components/LanguageSelector.tsx`):
+The backend exposes an endpoint to get supported languages:
+
+```bash
+GET /api/languages
+```
+
+Response:
+```json
+{
+  "languages": ["python", "javascript"]
+}
+```
+
+This endpoint uses `get_supported_languages()` from `wrapper.py`.
+
+### Frontend Language Selector
+
+The `LanguageSelector` component fetches available languages from the backend and allows users to switch between them:
 
 ```typescript
-const SUPPORTED_LANGUAGES = [
-  { value: 'python', label: 'Python', monacoId: 'python' },
-  { value: 'javascript', label: 'JavaScript', monacoId: 'javascript' },
-  { value: 'java', label: 'Java', monacoId: 'java' },
-  { value: 'cpp', label: 'C++', monacoId: 'cpp' },
-  { value: 'go', label: 'Go', monacoId: 'go' },
-];
+// frontend/src/components/LanguageSelector.tsx
+interface LanguageSelectorProps {
+  value: string;
+  onChange: (lang: string) => void;
+  availableLanguages: string[];
+}
+
+export function LanguageSelector({ value, onChange, availableLanguages }: LanguageSelectorProps) {
+  return (
+    <select value={value} onChange={(e) => onChange(e.target.value)}>
+      {availableLanguages.map((lang) => (
+        <option key={lang} value={lang}>
+          {lang.charAt(0).toUpperCase() + lang.slice(1)}
+        </option>
+      ))}
+    </select>
+  );
+}
 ```
 
 ### Configure Monaco Editor
@@ -350,42 +388,30 @@ For languages that need special configuration, you may need to register custom l
 
 ## Step 5: Testing
 
-### Test the Wrapper Locally
+### Verify Solutions Locally
 
-```python
-# backend/test_wrapper.py
-from app.services.wrapper import generate_javascript_wrapper
-from app.db.tables import TestCase
+Use the `verify_solutions.py` script to test reference solutions:
 
-# Create mock test cases
-class MockTestCase:
-    def __init__(self, input, expected):
-        self.input = input
-        self.expected = expected
+```bash
+cd backend
 
-test_cases = [
-    MockTestCase([[2, 7, 11, 15], 9], [0, 1]),
-    MockTestCase([[3, 2, 4], 6], [1, 2]),
-]
+# Verify all problems using local Python execution (default)
+uv run python scripts/verify_solutions.py
 
-user_code = """
-function twoSum(nums, target) {
-    const seen = {};
-    for (let i = 0; i < nums.length; i++) {
-        if ((target - nums[i]) in seen) {
-            return [seen[target - nums[i]], i];
-        }
-        seen[nums[i]] = i;
-    }
-    return [];
-}
-"""
+# Verify all problems using Judge0 API
+uv run python scripts/verify_solutions.py --mode judge0
 
-wrapper = generate_javascript_wrapper(user_code, test_cases, "twoSum")
-print(wrapper)
+# Verify a specific problem
+uv run python scripts/verify_solutions.py 001-two-sum.yaml
+
+# Verbose output (show all test cases)
+uv run python scripts/verify_solutions.py --verbose
+
+# Combine options
+uv run python scripts/verify_solutions.py --mode judge0 --verbose 001-two-sum.yaml
 ```
 
-### Test with Judge0
+### Test with Judge0 Directly
 
 ```bash
 # Submit to Judge0 directly
@@ -397,16 +423,13 @@ curl -X POST http://localhost:2358/submissions?wait=true \
   }'
 ```
 
-### Integration Test
+### Test via API
 
 ```bash
-# Run backend tests
-cd backend
-uv run pytest tests/test_wrapper.py -v
-
-# Test via API
+# Test code execution via the backend API
 curl -X POST http://localhost:8000/api/run \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
   -d '{
     "problem_slug": "two-sum",
     "language": "javascript",
@@ -449,13 +472,14 @@ When adding a new language:
 
 - [ ] Find Judge0 language ID
 - [ ] Add to `LANGUAGE_MAP` in `judge0.py`
-- [ ] Create wrapper generator in `wrapper.py`
-- [ ] Update wrapper dispatcher in `execution.py`
+- [ ] Create wrapper generator function in `wrapper.py`
+- [ ] Add to `SUPPORTED_LANGUAGES` list in `wrapper.py`
+- [ ] Update `get_wrapper_for_language()` dispatcher in `wrapper.py`
 - [ ] Add language config to problem YAML files
 - [ ] Re-seed problems to database
-- [ ] Add to frontend language selector
-- [ ] Configure Monaco Editor
-- [ ] Write and run tests
+- [ ] Verify with `verify_solutions.py --mode judge0`
+- [ ] Test frontend language selector
+- [ ] Configure Monaco Editor (if needed)
 - [ ] Update documentation
 
 ## Troubleshooting

@@ -1,0 +1,76 @@
+title: Valid Anagram
+sequence_number: 53
+difficulty: easy
+pattern:
+  - string
+  - hash-table
+  - sorting
+
+description: |
+  Given two strings `s` and `t`, return `true` if `t` is an anagram of `s`, and `false` otherwise.
+
+  An **Anagram** is a word or phrase formed by rearranging the letters of a different word or phrase, typically using all the original letters exactly once.
+
+constraints:
+  - "1 <= s.length, t.length <= 5 * 10^4"
+  - "s and t consist of lowercase English letters."
+
+examples:
+  - input: 's = "anagram", t = "nagaram"'
+    output: "true"
+  - input: 's = "rat", t = "car"'
+    output: "false"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def isAnagram(self, s: str, t: str) -> bool:
+              pass
+    reference_solution: |
+      class Solution:
+          def isAnagram(self, s: str, t: str) -> bool:
+              if len(s) != len(t):
+                  return False
+              from collections import Counter
+              return Counter(s) == Counter(t)
+    function_signature:
+      name: isAnagram
+      params:
+        - name: s
+          type: str
+        - name: t
+          type: str
+      return_type: bool
+
+test_cases:
+  - input: ["anagram", "nagaram"]
+    expected: true
+  - input: ["rat", "car"]
+    expected: false
+  - input: ["a", "a"]
+    expected: true
+  - input: ["a", "b"]
+    expected: false
+  - input: ["ab", "ba"]
+    expected: true
+  - input: ["ab", "ab"]
+    expected: true
+  - input: ["abc", "cba"]
+    expected: true
+  - input: ["abc", "ab"]
+    expected: false
+  - input: ["aacc", "ccac"]
+    expected: false
+  - input: ["aabb", "bbaa"]
+    expected: true
+  - input: ["listen", "silent"]
+    expected: true
+  - input: ["hello", "world"]
+    expected: false
+  - input: ["aaaaaa", "aaaaaa"]
+    expected: true
+  - input: ["abcdefghijklmnopqrstuvwxyz", "zyxwvutsrqponmlkjihgfedcba"]
+    expected: true
+  - input: ["", ""]
+    expected: true

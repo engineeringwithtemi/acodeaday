@@ -1,0 +1,109 @@
+title: LRU Cache
+sequence_number: 91
+difficulty: medium
+pattern:
+  - linked-list
+  - hash-map
+  - design
+
+description: |
+  Design a data structure that follows the constraints of a **Least Recently Used (LRU) cache**.
+
+  Implement the `LRUCache` class:
+  - `LRUCache(int capacity)` Initialize the LRU cache with **positive** size `capacity`.
+  - `int get(int key)` Return the value of the `key` if the key exists, otherwise return `-1`.
+  - `void put(int key, int value)` Update the value of the `key` if the `key` exists. Otherwise, add the `key-value` pair to the cache. If the number of keys exceeds the `capacity` from this operation, **evict** the least recently used key.
+
+  The functions `get` and `put` must each run in `O(1)` average time complexity.
+
+constraints:
+  - "1 <= capacity <= 3000"
+  - "0 <= key <= 10^4"
+  - "0 <= value <= 10^5"
+  - "At most 2 * 10^5 calls will be made to get and put."
+
+examples:
+  - input: '["LRUCache", "put", "put", "get", "put", "get", "put", "get", "get", "get"] [[2], [1, 1], [2, 2], [1], [3, 3], [2], [4, 4], [1], [3], [4]]'
+    output: "[null, null, null, 1, null, -1, null, -1, 3, 4]"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def executeLRUCacheOperations(self, operations: List[List]) -> List:
+              pass
+    reference_solution: |
+      class Solution:
+          def executeLRUCacheOperations(self, operations: List[List]) -> List:
+              from collections import OrderedDict
+
+              class LRUCache:
+                  def __init__(self, capacity):
+                      self.capacity = capacity
+                      self.cache = OrderedDict()
+
+                  def get(self, key):
+                      if key not in self.cache:
+                          return -1
+                      self.cache.move_to_end(key)
+                      return self.cache[key]
+
+                  def put(self, key, value):
+                      if key in self.cache:
+                          self.cache.move_to_end(key)
+                      self.cache[key] = value
+                      if len(self.cache) > self.capacity:
+                          self.cache.popitem(last=False)
+
+              results = []
+              cache = None
+
+              for op in operations:
+                  if op[0] == "LRUCache":
+                      cache = LRUCache(op[1])
+                      results.append(None)
+                  elif op[0] == "get":
+                      results.append(cache.get(op[1]))
+                  elif op[0] == "put":
+                      cache.put(op[1], op[2])
+                      results.append(None)
+
+              return results
+    function_signature:
+      name: executeLRUCacheOperations
+      params:
+        - name: operations
+          type: "List[List]"
+      return_type: List
+
+test_cases:
+  - input: [[["LRUCache", 2], ["put", 1, 1], ["put", 2, 2], ["get", 1], ["put", 3, 3], ["get", 2], ["put", 4, 4], ["get", 1], ["get", 3], ["get", 4]]]
+    expected: [null, null, null, 1, null, -1, null, -1, 3, 4]
+  - input: [[["LRUCache", 1], ["put", 1, 1], ["get", 1]]]
+    expected: [null, null, 1]
+  - input: [[["LRUCache", 1], ["put", 1, 1], ["put", 2, 2], ["get", 1], ["get", 2]]]
+    expected: [null, null, null, -1, 2]
+  - input: [[["LRUCache", 2], ["put", 1, 1], ["put", 2, 2], ["get", 1], ["get", 2]]]
+    expected: [null, null, null, 1, 2]
+  - input: [[["LRUCache", 2], ["put", 2, 1], ["put", 1, 1], ["put", 2, 3], ["put", 4, 1], ["get", 1], ["get", 2]]]
+    expected: [null, null, null, null, null, -1, 3]
+  - input: [[["LRUCache", 3], ["put", 1, 1], ["put", 2, 2], ["put", 3, 3], ["get", 1], ["put", 4, 4], ["get", 2]]]
+    expected: [null, null, null, null, 1, null, -1]
+  - input: [[["LRUCache", 2], ["get", 1]]]
+    expected: [null, -1]
+  - input: [[["LRUCache", 2], ["put", 1, 0], ["get", 1]]]
+    expected: [null, null, 0]
+  - input: [[["LRUCache", 1], ["put", 1, 1], ["get", 1], ["put", 2, 2], ["get", 1], ["get", 2]]]
+    expected: [null, null, 1, null, -1, 2]
+  - input: [[["LRUCache", 2], ["put", 1, 1], ["put", 2, 2], ["put", 1, 10], ["get", 1], ["get", 2]]]
+    expected: [null, null, null, null, 10, 2]
+  - input: [[["LRUCache", 3], ["put", 1, 1], ["put", 2, 2], ["put", 3, 3], ["put", 4, 4], ["get", 1], ["get", 2], ["get", 3], ["get", 4]]]
+    expected: [null, null, null, null, null, -1, 2, 3, 4]
+  - input: [[["LRUCache", 2], ["put", 1, 1], ["get", 1], ["put", 2, 2], ["get", 1], ["get", 2]]]
+    expected: [null, null, 1, null, 1, 2]
+  - input: [[["LRUCache", 1], ["put", 1, 100], ["get", 1]]]
+    expected: [null, null, 100]
+  - input: [[["LRUCache", 2], ["put", 1, 1], ["put", 2, 2], ["get", 2], ["put", 3, 3], ["get", 1]]]
+    expected: [null, null, null, 2, null, -1]
+  - input: [[["LRUCache", 3], ["put", 1, 1], ["put", 2, 2], ["get", 1], ["put", 3, 3], ["get", 2], ["put", 4, 4], ["get", 1]]]
+    expected: [null, null, null, 1, null, 2, null, -1]

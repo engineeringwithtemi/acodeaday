@@ -1,0 +1,100 @@
+title: Kth Largest Element in a Stream
+sequence_number: 97
+difficulty: easy
+pattern:
+  - heap
+  - design
+
+description: |
+  Design a class to find the `kth` largest element in a stream. Note that it is the `kth` largest element in the sorted order, not the `kth` distinct element.
+
+  Implement `KthLargest` class:
+  - `KthLargest(int k, int[] nums)` Initializes the object with the integer `k` and the stream of integers `nums`.
+  - `int add(int val)` Appends the integer `val` to the stream and returns the element representing the `kth` largest element in the stream.
+
+constraints:
+  - "1 <= k <= 10^4"
+  - "0 <= nums.length <= 10^4"
+  - "-10^4 <= nums[i] <= 10^4"
+  - "-10^4 <= val <= 10^4"
+  - "At most 10^4 calls will be made to add."
+  - "It is guaranteed that there will be at least k elements in the array when you search for the kth element."
+
+examples:
+  - input: '["KthLargest", "add", "add", "add", "add", "add"] [[3, [4, 5, 8, 2]], [3], [5], [10], [9], [4]]'
+    output: "[null, 4, 5, 5, 8, 8]"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def executeKthLargestOperations(self, operations: List[List]) -> List:
+              pass
+    reference_solution: |
+      class Solution:
+          def executeKthLargestOperations(self, operations: List[List]) -> List:
+              import heapq
+
+              class KthLargest:
+                  def __init__(self, k, nums):
+                      self.k = k
+                      self.heap = nums
+                      heapq.heapify(self.heap)
+                      while len(self.heap) > k:
+                          heapq.heappop(self.heap)
+
+                  def add(self, val):
+                      heapq.heappush(self.heap, val)
+                      if len(self.heap) > self.k:
+                          heapq.heappop(self.heap)
+                      return self.heap[0]
+
+              results = []
+              kth_largest = None
+
+              for op in operations:
+                  if op[0] == "KthLargest":
+                      kth_largest = KthLargest(op[1], op[2])
+                      results.append(None)
+                  elif op[0] == "add":
+                      results.append(kth_largest.add(op[1]))
+
+              return results
+    function_signature:
+      name: executeKthLargestOperations
+      params:
+        - name: operations
+          type: "List[List]"
+      return_type: List
+
+test_cases:
+  - input: [[["KthLargest", 3, [4, 5, 8, 2]], ["add", 3], ["add", 5], ["add", 10], ["add", 9], ["add", 4]]]
+    expected: [null, 4, 5, 5, 8, 8]
+  - input: [[["KthLargest", 1, []], ["add", 3], ["add", 5], ["add", 10]]]
+    expected: [null, 3, 5, 10]
+  - input: [[["KthLargest", 2, [0]], ["add", -1], ["add", 3], ["add", 5]]]
+    expected: [null, -1, 0, 3]
+  - input: [[["KthLargest", 3, [1, 2, 3]], ["add", 4]]]
+    expected: [null, 2]
+  - input: [[["KthLargest", 1, [1]], ["add", 2]]]
+    expected: [null, 2]
+  - input: [[["KthLargest", 2, [1, 2, 3, 4, 5]], ["add", 6]]]
+    expected: [null, 5]
+  - input: [[["KthLargest", 3, [5, 5, 5]], ["add", 5]]]
+    expected: [null, 5]
+  - input: [[["KthLargest", 2, [-1, -2, -3]], ["add", 0]]]
+    expected: [null, -1]
+  - input: [[["KthLargest", 4, [1, 2, 3]], ["add", 4], ["add", 5]]]
+    expected: [null, 1, 2]
+  - input: [[["KthLargest", 1, [10, 20, 30]], ["add", 5]]]
+    expected: [null, 30]
+  - input: [[["KthLargest", 3, []], ["add", 1], ["add", 2], ["add", 3], ["add", 4]]]
+    expected: [null, 1, 1, 1, 2]
+  - input: [[["KthLargest", 2, [10]], ["add", 5], ["add", 15]]]
+    expected: [null, 5, 10]
+  - input: [[["KthLargest", 1, [-5]], ["add", -10], ["add", 0]]]
+    expected: [null, -5, 0]
+  - input: [[["KthLargest", 3, [1, 1, 1]], ["add", 1], ["add", 2]]]
+    expected: [null, 1, 1]
+  - input: [[["KthLargest", 2, [2, 1]], ["add", 3], ["add", 0]]]
+    expected: [null, 2, 2]

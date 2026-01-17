@@ -1,0 +1,109 @@
+title: Coin Change
+sequence_number: 17
+difficulty: medium
+pattern:
+  - dynamic-programming
+  - bottom-up
+  - memoization
+  - unbounded-knapsack
+
+description: |
+  You are given an integer array `coins` representing coins of different denominations and an integer `amount` representing a total amount of money.
+
+  Return the fewest number of coins that you need to make up that amount. If that amount of money cannot be made up by any combination of the coins, return `-1`.
+
+  You may assume that you have an infinite number of each kind of coin.
+
+constraints:
+  - "1 <= coins.length <= 12"
+  - "1 <= coins[i] <= 2^31 - 1"
+  - "0 <= amount <= 10^4"
+
+examples:
+  - input: "coins = [1,2,5], amount = 11"
+    output: "3"
+    explanation: "11 = 5 + 5 + 1"
+  - input: "coins = [2], amount = 3"
+    output: "-1"
+  - input: "coins = [1], amount = 0"
+    output: "0"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def coinChange(self, coins: List[int], amount: int) -> int:
+              pass
+    reference_solution: |
+      class Solution:
+          def coinChange(self, coins: List[int], amount: int) -> int:
+              # dp[i] = min coins needed to make amount i
+              dp = [float('inf')] * (amount + 1)
+              dp[0] = 0
+
+              for i in range(1, amount + 1):
+                  for coin in coins:
+                      if coin <= i and dp[i - coin] != float('inf'):
+                          dp[i] = min(dp[i], dp[i - coin] + 1)
+
+              return dp[amount] if dp[amount] != float('inf') else -1
+    function_signature:
+      name: coinChange
+      params:
+        - name: coins
+          type: "List[int]"
+        - name: amount
+          type: int
+      return_type: int
+
+test_cases:
+  - input: [[1, 2, 5], 11]
+    expected: 3
+  - input: [[2], 3]
+    expected: -1
+  - input: [[1], 0]
+    expected: 0
+  - input: [[1], 1]
+    expected: 1
+  - input: [[1], 2]
+    expected: 2
+  - input: [[2], 4]
+    expected: 2
+  - input: [[1, 2], 3]
+    expected: 2
+  - input: [[1, 3, 5], 11]
+    expected: 3
+  - input: [[2, 5, 10], 6]
+    expected: 3
+  - input: [[1, 5, 10, 25], 30]
+    expected: 2
+  - input: [[1, 5, 10, 25], 63]
+    expected: 6
+  - input: [[186, 419, 83, 408], 6249]
+    expected: 20
+  - input: [[3, 7, 405, 436], 8839]
+    expected: 25
+  - input: [[1, 2, 5], 100]
+    expected: 20
+  - input: [[2, 5, 10, 1], 27]
+    expected: 4
+  - input: [[1], 10000]
+    expected: 10000
+  - input: [[5], 10]
+    expected: 2
+  - input: [[5], 11]
+    expected: -1
+  - input: [[1, 2], 10]
+    expected: 5
+  - input: [[3, 5], 8]
+    expected: 2
+  - input: [[2, 3, 7], 15]
+    expected: 4
+  - input: [[1, 6, 9], 12]
+    expected: 2
+  - input: [[1, 2, 3], 6]
+    expected: 2
+  - input: [[2, 4, 6], 9]
+    expected: -1
+  - input: [[1, 3, 4, 5], 7]
+    expected: 2

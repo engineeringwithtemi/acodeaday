@@ -15,15 +15,11 @@ class Settings(BaseSettings):
 
     # Supabase Auth
     supabase_url: str = Field(
-        "http://localhost:54321", description="Supabase project URL"
+        "http://127.0.0.1:54321", description="Supabase project URL"
     )
     supabase_key: str = Field(
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0",
         description="Supabase anon/service role key for JWT validation"
-    )
-    supabase_jwt_secret: str = Field(
-        "super-secret-jwt-token-with-at-least-32-characters-long",
-        description="Supabase JWT secret for token validation"
     )
 
     # Default user credentials (created on startup)

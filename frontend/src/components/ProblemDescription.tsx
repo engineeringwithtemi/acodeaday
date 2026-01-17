@@ -35,9 +35,13 @@ export function ProblemDescription({ problem }: ProblemDescriptionProps) {
               </h1>
               <div className="flex items-center gap-2">
                 <div className="h-px flex-1 bg-gradient-to-r from-zinc-700 to-transparent" />
-                <span className="text-xs font-mono text-zinc-500 uppercase tracking-widest">
-                  {problem.pattern}
-                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {problem.pattern.map((p, idx) => (
+                    <span key={idx} className="text-xs font-mono text-zinc-500 uppercase tracking-widest px-2 py-0.5 bg-zinc-800 rounded">
+                      {p}
+                    </span>
+                  ))}
+                </div>
                 <div className="h-px flex-1 bg-gradient-to-l from-zinc-700 to-transparent" />
               </div>
             </div>

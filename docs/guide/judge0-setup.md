@@ -19,52 +19,43 @@ See [Prerequisites](/guide/prerequisites) for installation instructions.
 
 ## Setup via Docker Compose
 
-The easiest way to run Judge0 is using the provided Docker Compose configuration.
+Judge0 is configured in the root `docker-compose.yml` file along with other services.
 
-### 1. Navigate to Judge0 Directory
+### 1. Start Judge0 Services
 
-```bash
-cd acodeaday/backend/judge0
-```
-
-### 2. Review docker-compose.yml
-
-The configuration includes:
-- **judge0-server**: Main API server (port 2358)
-- **judge0-workers**: Code execution workers (configurable count)
-- **judge0-db**: PostgreSQL database for Judge0 metadata
-- **redis**: Queue for job management
-
-### 3. Start Judge0 Services
+From the project root directory:
 
 ```bash
-docker-compose up -d
+# Start all Judge0 services
+docker compose up -d judge0-server judge0-workers judge0-db judge0-redis
+
+# Or start all services including backend/frontend
+docker compose up -d
 ```
 
 This will:
 - Pull necessary Docker images (first time only, ~2-3 GB)
-- Start all services in detached mode
+- Start all Judge0 services in detached mode
 - Expose the API on `http://localhost:2358`
 
-### 4. Wait for Initialization
+### 2. Wait for Initialization
 
 Judge0 workers need ~30 seconds to initialize. Check status:
 
 ```bash
-docker-compose ps
+docker compose ps
 ```
 
 All services should show `Up` status:
 ```
-NAME                STATUS
-judge0-server       Up
-judge0-worker-1     Up
-judge0-worker-2     Up
-judge0-db           Up
-redis               Up
+NAME                        STATUS
+acodeaday-judge0-server     Up
+acodeaday-judge0-workers    Up
+acodeaday-judge0-db         Up (healthy)
+acodeaday-judge0-redis      Up (healthy)
 ```
 
-### 5. Verify Judge0 is Running
+### 3. Verify Judge0 is Running
 
 Test the API:
 
@@ -75,7 +66,7 @@ curl http://localhost:2358/about
 You should see JSON response with Judge0 version info:
 ```json
 {
-  "version": "1.13.0",
+  "version": "1.13.1",
   "homepage": "https://judge0.com",
   ...
 }
@@ -83,81 +74,55 @@ You should see JSON response with Judge0 version info:
 
 ## Configuration
 
-### Environment Variables
+### Docker Compose Configuration
 
-Judge0 configuration is in `docker-compose.yml`. Key settings:
-
-```yaml
-environment:
-  # Disable authentication (for local dev only)
-  JUDGE0_AUTHENTICATION_ENABLED: "false"
-
-  # Worker count (adjust based on CPU cores)
-  WORKERS_COUNT: "2"
-
-  # Resource limits
-  CPU_TIME_LIMIT: "2"      # seconds
-  MAX_CPU_TIME_LIMIT: "5"  # seconds
-  MEMORY_LIMIT: "128000"   # KB
-  MAX_MEMORY_LIMIT: "256000" # KB
-```
-
-### Adjust Worker Count
-
-For better performance, adjust worker count based on your CPU cores:
+Judge0 configuration is in `docker-compose.yml` at the project root. Key settings:
 
 ```yaml
-# In docker-compose.yml
-services:
-  worker:
-    deploy:
-      replicas: 4  # Set to number of CPU cores
+judge0-server:
+  image: judge0/judge0:1.13.1
+  environment:
+    # Resource limits
+    - MAX_CPU_TIME_LIMIT=15        # seconds
+    - MAX_WALL_TIME_LIMIT=30       # seconds
+    - MAX_MEMORY_LIMIT=512000      # KB (512 MB)
+    - MAX_STACK_LIMIT=128000       # KB (128 MB)
+    - MAX_PROCESSES_AND_OR_THREADS=60
+
+    # Queue settings
+    - MAX_QUEUE_SIZE=1000
+    - ENABLE_WAIT_RESULT=true
 ```
 
-Then restart:
+### Environment Variable
+
+Set the Judge0 URL in your `.env` file:
+
 ```bash
-docker-compose up -d --scale worker=4
+JUDGE0_URL=http://localhost:2358
 ```
 
-### Resource Limits
-
-Adjust limits in `docker-compose.yml` based on your needs:
-
-```yaml
-environment:
-  # Increase for complex problems
-  CPU_TIME_LIMIT: "5"
-  MEMORY_LIMIT: "256000"
+For Docker deployment, the backend connects via the Docker network:
+```bash
+JUDGE0_URL=http://judge0-server:2358
 ```
 
 ## Testing Judge0
 
 ### Test Python Execution
 
-Create a test submission:
+Submit a test Python program:
 
 ```bash
-curl -X POST http://localhost:2358/submissions \
+curl -X POST "http://localhost:2358/submissions?base64_encoded=false&wait=true" \
   -H "Content-Type: application/json" \
   -d '{
     "source_code": "print(\"Hello from Judge0!\")",
-    "language_id": 71,
-    "stdin": ""
+    "language_id": 71
   }'
 ```
 
-You'll get a response with a token:
-```json
-{"token": "abc123..."}
-```
-
-Retrieve the result:
-
-```bash
-curl http://localhost:2358/submissions/abc123...?base64_encoded=false
-```
-
-Result:
+You should get a response like:
 ```json
 {
   "stdout": "Hello from Judge0!\n",
@@ -170,67 +135,61 @@ Result:
 ### Language IDs
 
 Common languages supported:
-- Python 3: `71`
-- JavaScript (Node.js): `63`
-- Java: `62`
-- C++: `54`
-- Go: `60`
+| Language | ID |
+|----------|-----|
+| Python 3 | 71 |
+| JavaScript (Node.js) | 63 |
+| Java | 62 |
+| C++ | 54 |
+| Go | 60 |
+| Rust | 73 |
 
-[Full list of language IDs](https://github.com/judge0/judge0/blob/master/CHANGELOG.md#languages)
+Get all supported languages:
+```bash
+curl http://localhost:2358/languages
+```
 
-## Integration with acodeaday Backend
+## Integration with Backend
 
-The FastAPI backend communicates with Judge0 via HTTP:
+The backend communicates with Judge0 via synchronous HTTP requests:
 
 ```python
 # backend/app/services/judge0.py
-async def execute_code(code: str, language_id: int, stdin: str):
-    # Submit code to Judge0
-    response = await http_client.post(
-        f"{JUDGE0_URL}/submissions",
-        json={
-            "source_code": base64.b64encode(code.encode()).decode(),
-            "language_id": language_id,
-            "stdin": base64.b64encode(stdin.encode()).decode(),
-        }
-    )
+class Judge0Service:
+    def __init__(self):
+        self.base_url = settings.judge0_url
 
-    token = response.json()["token"]
-
-    # Poll for results
-    result = await get_submission(token)
-    return result
-```
-
-Configure Judge0 URL in backend `.env`:
-```bash
-JUDGE0_URL=http://localhost:2358
+    def execute_code(self, source_code: str, language: str, stdin: str = "") -> dict:
+        response = httpx.post(
+            f"{self.base_url}/submissions?base64_encoded=false&wait=true",
+            json={
+                "source_code": source_code,
+                "language_id": LANGUAGE_MAP[language],
+                "stdin": stdin,
+            },
+            timeout=30.0,
+        )
+        return response.json()
 ```
 
 ## Common Commands
 
 ```bash
-# Start services
-docker-compose up -d
+# Start Judge0 services
+docker compose up -d judge0-server judge0-workers judge0-db judge0-redis
 
-# Stop services
-docker-compose down
+# Stop Judge0 services
+docker compose stop judge0-server judge0-workers judge0-db judge0-redis
 
 # View logs
-docker-compose logs
-
-# View logs for specific service
-docker-compose logs judge0-server
-docker-compose logs judge0-worker
+docker compose logs judge0-server
+docker compose logs judge0-workers
 
 # Restart services
-docker-compose restart
+docker compose restart judge0-server judge0-workers
 
-# Scale workers
-docker-compose up -d --scale worker=4
-
-# Remove all data (WARNING: deletes all)
-docker-compose down -v
+# Remove all data (WARNING: deletes all Judge0 data)
+docker compose down -v
 ```
 
 ## Troubleshooting
@@ -239,37 +198,34 @@ docker-compose down -v
 
 ```bash
 # Check logs for errors
-docker-compose logs
+docker compose logs judge0-server
 
 # Ensure ports are not in use
-lsof -i :2358  # Check if port 2358 is free
+lsof -i :2358
 ```
 
 ### "Connection refused" errors
 
-- Wait 30 seconds after `docker-compose up`
-- Check services are running: `docker-compose ps`
-- Verify firewall isn't blocking port 2358
+1. Wait 30 seconds after `docker compose up` for initialization
+2. Check services are running: `docker compose ps`
+3. Verify firewall isn't blocking port 2358
 
 ### Submissions stuck in "Processing"
 
 ```bash
 # Check worker logs
-docker-compose logs judge0-worker
+docker compose logs judge0-workers
 
 # Restart workers
-docker-compose restart judge0-worker
+docker compose restart judge0-workers
 ```
 
 ### High memory usage
 
-Judge0 workers cache language environments. This is normal. To reduce:
+Judge0 workers cache language environments. This is normal. To reduce memory:
 
-```yaml
-# In docker-compose.yml
-environment:
-  WORKERS_COUNT: "1"  # Reduce worker count
-```
+1. Reduce worker processes in the worker command
+2. Set stricter memory limits in environment variables
 
 ### Permission errors
 
@@ -278,45 +234,9 @@ environment:
 sudo chown -R $USER:$USER ./judge0-data
 ```
 
-## Production Considerations
+## Coming Soon
 
-For production deployments:
-
-1. **Enable authentication**:
-   ```yaml
-   environment:
-     JUDGE0_AUTHENTICATION_ENABLED: "true"
-     JUDGE0_AUTHENTICATION_TOKEN: "your-secret-token"
-   ```
-
-2. **Use persistent volumes** for database:
-   ```yaml
-   volumes:
-     - ./judge0-data/postgres:/var/lib/postgresql/data
-   ```
-
-3. **Configure resource limits** per your server capacity
-
-4. **Use Docker Swarm or Kubernetes** for scaling
-
-5. **Monitor resource usage**:
-   ```bash
-   docker stats
-   ```
-
-## Alternative: Hosted Judge0
-
-Instead of self-hosting, you can use Judge0's hosted service:
-
-1. Sign up at [rapidapi.com/judge0](https://rapidapi.com/judge0-judge0-default/api/judge0-ce)
-2. Get API key
-3. Configure in backend `.env`:
-   ```bash
-   JUDGE0_URL=https://judge0-ce.p.rapidapi.com
-   JUDGE0_API_KEY=your-api-key
-   ```
-
-**Note:** Free tier has rate limits.
+Support for hosted Judge0 services (like RapidAPI) is planned for a future release. This will allow using Judge0 without self-hosting.
 
 ## Next Steps
 

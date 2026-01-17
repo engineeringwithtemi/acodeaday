@@ -9,6 +9,7 @@ acodeaday is an open-source daily coding practice platform that uses spaced repe
 ## Built By
 
 <div style="text-align: center; margin: 2rem 0;">
+  <img src="/temi.jpg" alt="Temiloluwa Ojo" style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover;" />
   <h3>Temiloluwa Ojo</h3>
   <p>Software Engineer</p>
 </div>
@@ -17,8 +18,8 @@ acodeaday is an open-source daily coding practice platform that uses spaced repe
 
 - [Portfolio](https://mainstack.me/engineeringwithtemi)
 - [GitHub](https://github.com/engineeringwithtemi)
-- [LinkedIn](https://linkedin.com/in/engineeringwithtemi)
-- [Twitter/X](https://twitter.com/engineeringwtemi)
+- [LinkedIn](https://www.linkedin.com/in/temiloluwa-ojo/)
+- [Twitter/X](https://x.com/_iamtpo)
 
 ## Why I Built This
 
@@ -33,12 +34,14 @@ acodeaday takes a different approach:
 
 | Component | Technology |
 |-----------|------------|
-| Backend | FastAPI (Python) |
-| Frontend | TanStack (React) |
+| Backend | FastAPI (Python 3.13+) with async SQLAlchemy 2.0 |
+| Frontend | TanStack (React 19) with TanStack Router/Query |
 | Database | PostgreSQL (Supabase) |
-| Code Execution | Judge0 |
+| Auth | Supabase Auth (JWT Bearer tokens) |
+| Code Execution | Judge0 CE (self-hosted) |
 | Code Editor | Monaco Editor |
-| AI Tutor | OpenAI / Google Gemini / Anthropic |
+| AI Tutor | litellm (Gemini, OpenAI, Anthropic) |
+| Spaced Repetition | Anki SM-2 algorithm |
 
 ## Open Source
 

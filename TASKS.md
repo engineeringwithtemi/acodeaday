@@ -28,7 +28,7 @@ acodeaday/
   - Run `supabase start` to start local instance
   - Get connection details from output
 - [x] Note: We only use Supabase for its PostgreSQL database
-- [x] Using Supabase Auth (JWT validation) instead of HTTP Basic Auth
+- [x] Using Supabase Auth (JWT Bearer token validation)
 - [x] Database schema is managed by SQLAlchemy + Alembic in backend
 
 ### 1.3 Backend Setup (FastAPI + uv)
@@ -175,23 +175,28 @@ acodeaday/
   from pydantic_settings import BaseSettings, SettingsConfigDict
 
   class Settings(BaseSettings):
-      # Database (note: postgresql+asyncpg format from Supabase)
-      database_url: str = Field(
-          description="PostgreSQL async connection URL from Supabase"
-      )
+      # Database
+      database_url: str = Field(description="PostgreSQL async connection URL")
 
-      # HTTP Basic Auth (simple username/password)
-      auth_username: str = Field("admin", description="Basic auth username")
-      auth_password: str = Field("changeme", description="Basic auth password")
+      # Supabase Auth
+      supabase_url: str = Field(description="Supabase project URL")
+      supabase_key: str = Field(description="Supabase anon/public key")
+
+      # Default user (auto-created on startup)
+      default_user_email: str = Field("admin@acodeaday.local")
+      default_user_password: str = Field("changeme123")
 
       # Judge0
       judge0_url: str = Field("http://localhost:2358", description="Judge0 API URL")
 
+      # LLM Settings
+      llm_supported_models: str = Field("gemini/gemini-2.5-flash,gpt-4o-mini")
+      llm_max_tokens: int = Field(2048)
+      llm_temperature: float = Field(0.7)
+
       # App config
       environment: str = Field("development")
       debug: bool = Field(False)
-      project_name: str = Field("acodeaday")
-      version: str = Field("0.1.0")
       log_level: str = Field("INFO")
       log_to_file: bool = Field(True)
       log_file_path: str = Field("logs/acodeaday.log")
@@ -201,17 +206,15 @@ acodeaday/
   settings = Settings()
   ```
 - [x] Database URL format: `postgresql+asyncpg://user:password@host:port/database`
-  - Example from Supabase: `postgresql+asyncpg://postgres:password@db.xxx.supabase.co:5432/postgres`
 - [x] Create `.env` file with all required variables:
   ```bash
   DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:54322/postgres
-  AUTH_USERNAME=admin
-  AUTH_PASSWORD=your-secure-password
+  SUPABASE_URL=http://localhost:54321
+  SUPABASE_KEY=your-anon-key
   JUDGE0_URL=http://localhost:2358
   ENVIRONMENT=development
   DEBUG=true
   ```
-- [x] Default credentials (admin/changeme) should work if .env not provided
 
 ### 2.2 Async Database Connection (app/db/connection.py)
 - [x] Create async engine using `create_async_engine()`:
@@ -566,48 +569,56 @@ acodeaday/
 - [x] Test Judge0 connectivity and execution
 
 ### 3.3 Supabase JWT Auth (app/middleware/auth.py)
-- [x] Create Supabase JWT validation dependency (upgraded from HTTP Basic):
+- [x] Create Supabase JWT validation dependency:
   ```python
-  from fastapi import Depends, HTTPException, status
-  from fastapi.security import HTTPBasic, HTTPBasicCredentials
+  from fastapi import Depends, HTTPException, status, Request
+  from supabase import create_client
   from app.config.settings import settings
 
-  security = HTTPBasic()
+  supabase = create_client(settings.supabase_url, settings.supabase_key)
 
-  async def get_current_user(
-      credentials: HTTPBasicCredentials = Depends(security)
-  ) -> str:
+  async def get_current_user(request: Request) -> dict:
       """
-      Validate HTTP Basic Auth credentials and return username.
+      Validate Supabase JWT Bearer token and return user info.
 
-      Compares provided credentials against settings.auth_username and settings.auth_password.
-      Returns username if valid, raises 401 if invalid.
+      Extracts token from Authorization header, validates with Supabase,
+      returns user dict with id, email, user_metadata.
+      Raises 401 if token is invalid or expired.
       """
-      is_valid_username = credentials.username == settings.auth_username
-      is_valid_password = credentials.password == settings.auth_password
-
-      if not (is_valid_username and is_valid_password):
+      auth_header = request.headers.get("Authorization")
+      if not auth_header or not auth_header.startswith("Bearer "):
           raise HTTPException(
               status_code=status.HTTP_401_UNAUTHORIZED,
-              detail="Incorrect username or password",
-              headers={"WWW-Authenticate": "Basic"},
+              detail="Missing or invalid authorization header",
           )
 
-      return credentials.username  # Return username as user_id
+      token = auth_header.split(" ")[1]
+      try:
+          user_response = supabase.auth.get_user(token)
+          return {
+              "id": user_response.user.id,
+              "email": user_response.user.email,
+              "user_metadata": user_response.user.user_metadata,
+          }
+      except Exception:
+          raise HTTPException(
+              status_code=status.HTTP_401_UNAUTHORIZED,
+              detail="Invalid or expired token",
+          )
   ```
 - [x] Usage in routes:
   ```python
   @router.get("/api/today")
   async def get_today(
-      user_id: str = Depends(get_current_user),
+      user: dict = Depends(get_current_user),
       db: AsyncSession = Depends(get_db)
   ):
-      # user_id is the username from Basic Auth
+      user_id = user["id"]  # User ID from Supabase JWT
       # Query user_progress for this user_id
       ...
   ```
 - [x] Key points:
-  - Uses Supabase JWT validation (more secure than HTTP Basic)
+  - Uses Supabase Auth service for JWT validation
   - User ID from Supabase token used in database queries
   - Frontend sends Bearer token in Authorization header
   - SUPABASE_URL and SUPABASE_KEY in .env file
@@ -684,116 +695,105 @@ acodeaday/
   - [x] Order by submitted_at DESC
   - [x] Return list with code, passed status, runtime
 
-### 3.7 Spaced Repetition Logic (services/progress.py)
+### 3.7 Spaced Repetition Logic (services/progress.py) - Anki SM-2 Algorithm
+- [x] Implement SM-2 algorithm with rating system:
+  - [x] Ratings: again, hard, good, mastered
+  - [x] Constants: DEFAULT_EASE_FACTOR=2.5, MIN_EASE_FACTOR=1.3, MASTERY_THRESHOLD_DAYS=30
+  - [x] First review: hard=1 day, good=3 days
+  - [x] Subsequent reviews: interval grows based on rating and ease factor
+  - [x] Auto-mastery when interval reaches 30+ days
 - [x] Implement update_user_progress function:
   - [x] Check if UserProgress record exists, create if not
-  - [x] If times_solved=0: Set times_solved=1, next_review_date=today+7days
-  - [x] If times_solved=1: Set times_solved=2, is_mastered=true, next_review_date=null
-  - [x] If times_solved>=2: Do nothing (already mastered)
-  - [x] Update last_solved_at
-  - [x] Commit transaction
+  - [x] If problem is due: set needs_rating=true
+  - [x] If already mastered: skip rating
+- [x] Implement apply_rating function:
+  - [x] Calculate new interval using SM-2 algorithm
+  - [x] Update ease_factor, interval_days, review_count
+  - [x] Set next_review_date based on new interval
+  - [x] Auto-master if interval >= 30 days
 - [x] Test edge cases (already mastered, show_again flag)
 
 ---
 
-## Phase 4: Frontend Implementation
+## Phase 4: Frontend Implementation ✅ COMPLETE
 
 ### 4.1 Authentication
-- [ ] Create Supabase client with auth configuration
-- [ ] Implement useAuth hook (login, signup, logout, session)
-- [ ] Create Login/Signup page
-- [ ] Add protected route wrapper
-- [ ] Store JWT token for API calls
+- [x] Create Supabase client with auth configuration
+- [x] Implement useAuth hook (login, logout, session)
+- [x] Create Login page with email/password
+- [x] Add protected route wrapper with redirect
+- [x] Auto-refresh JWT tokens via Supabase client
 
 ### 4.2 API Client
-- [ ] Create API client (lib/api.ts) with:
-  - [ ] Axios/fetch wrapper with auth headers (JWT from Supabase)
-  - [ ] Type-safe request/response interfaces
-  - [ ] Error handling
+- [x] Create API client (lib/api-client.ts) with:
+  - [x] Fetch wrapper with Supabase Bearer token
+  - [x] Type-safe request/response interfaces (OpenAPI generated)
+  - [x] Custom ApiError class with status codes
+  - [x] Auto-retry on 401 with token refresh
 
 ### 4.3 Dashboard Page (/)
-- [ ] Fetch today's session from GET /api/today
-- [ ] Display review problems section (if any)
-- [ ] Display new problem section
-- [ ] Show overall progress bar at bottom
-- [ ] Create ProblemCard component (title, difficulty, pattern, due date)
-- [ ] Handle empty states (no reviews, all caught up)
+- [x] Fetch today's session from GET /api/today
+- [x] Display review problems section (if any)
+- [x] Display new problem section
+- [x] Show stats (total_mastered, total_solved)
+- [x] Create ProblemCard component (title, difficulty, pattern)
+- [x] Handle empty states
 
 ### 4.4 Problem View Page (/problem/:slug)
-- [ ] Split-pane layout (description left, editor right)
-- [ ] Fetch problem details from GET /api/problems/:slug
-- [ ] Render ProblemDescription component:
-  - [ ] Title, difficulty badge, pattern tag
-  - [ ] Description with examples
-  - [ ] Constraints
-- [ ] Integrate Monaco Editor:
-  - [ ] Load starter code
-  - [ ] Python syntax highlighting
-  - [ ] Configure editor options (theme, font size, minimap)
-- [ ] Add language dropdown (Python only for MVP)
-- [ ] Add "Run Code" and "Submit" buttons in header
+- [x] Split-pane layout with resizable panes (allotment)
+- [x] Left pane: Description/Submissions/Solutions tabs
+- [x] Center pane: Code editor + test cases/results
+- [x] Right pane: AI Chat assistant (optional)
+- [x] Fetch problem details from GET /api/problems/:slug
+- [x] Monaco Editor with auto-save (500ms debounce)
+- [x] Reset code / Load submission buttons
 
 ### 4.5 Test Case Panel
-- [ ] Display visible test cases as tabs
-- [ ] Allow user to add custom test cases
-- [ ] Format test case inputs (pretty-print JSON)
-- [ ] Show "Add Custom Input" button
+- [x] Display first 3 visible test cases
+- [x] Allow user to add custom test cases
+- [x] Format test case inputs (JSON)
+- [x] Add/remove custom inputs
 
 ### 4.6 Code Execution (Run Code)
-- [ ] Create useCodeExecution hook
-- [ ] Handle "Run Code" button click:
-  - [ ] POST user code to /api/run
-  - [ ] Show loading state
-  - [ ] Display results in TestResultPanel
-- [ ] Handle custom input:
-  - [ ] POST user code + custom_input to /api/run
-  - [ ] Show reference solution output comparison
-  - [ ] Handle invalid input errors
+- [x] Create useRunCode hook
+- [x] Handle "Run Code" button click
+- [x] Show loading state
+- [x] Display results in TestResults panel
+- [x] Custom input support
 
 ### 4.7 Test Result Panel
-- [ ] Display test case tabs with pass/fail indicators (✓/✗)
-- [ ] For each test case, show:
-  - [ ] Input (formatted)
-  - [ ] User's output
-  - [ ] Expected output
-  - [ ] Stdout (if any)
-  - [ ] Error message (if failed)
-- [ ] Show runtime at bottom
-- [ ] Highlight failed test cases in red
+- [x] Display test results with pass/fail indicators
+- [x] For each test case, show:
+  - [x] Input, Output, Expected, Stdout
+  - [x] Error message (if failed)
+- [x] Show runtime/memory stats
+- [x] Highlight failed test cases
 
 ### 4.8 Code Submission (Submit)
-- [ ] Handle "Submit" button click:
-  - [ ] POST user code to /api/submit
-  - [ ] Show loading state
-  - [ ] Display results with all test cases (including hidden)
-- [ ] Show success modal if all passed:
-  - [ ] "Accepted" message
-  - [ ] Runtime stats
-  - [ ] Progress update (if applicable)
-- [ ] Show failure results if any tests failed:
-  - [ ] "X/Y tests passed"
-  - [ ] Show failed test inputs/outputs
+- [x] Handle "Submit" button click
+- [x] POST to /api/submit (all tests)
+- [x] Show SubmissionResultPanel modal
+- [x] Show Anki rating buttons (again/hard/good/mastered) if needs_rating
+- [x] Display pass/fail for all test cases
 
 ### 4.9 Progress Page (/progress)
-- [ ] Fetch progress data from GET /api/progress
-- [ ] Display Blind 75 list with status indicators:
-  - [ ] Not started (gray)
-  - [ ] In review (yellow)
-  - [ ] Mastered (green)
-- [ ] Show sequence numbers (1-75)
-- [ ] Filter by pattern (hash-map, two-pointers, etc.)
-- [ ] Show overall completion percentage
+- [x] Fetch progress data from GET /api/progress
+- [x] Display Blind 75 list with status indicators
+- [x] Show sequence numbers
+- [x] Show overall completion stats
 
 ### 4.10 Mastered Page (/mastered)
-- [ ] Fetch mastered problems from GET /api/mastered
-- [ ] Display list with:
-  - [ ] Problem title, difficulty, pattern
-  - [ ] Date mastered
-  - [ ] "Show Again" button
-- [ ] Handle "Show Again" click:
-  - [ ] POST to /api/mastered/:id/show-again
-  - [ ] Show confirmation
-  - [ ] Update list
+- [x] Fetch mastered problems from GET /api/mastered
+- [x] Display list with problem details
+- [x] "Show Again" button with confirmation
+- [x] Handle show-again API call
+
+### 4.11 AI Chat Assistant (NEW)
+- [x] ChatPanel component in split-pane layout
+- [x] Chat sessions per problem (Socratic/Direct modes)
+- [x] Message history with code/test result snapshots
+- [x] Multi-model support (Gemini, OpenAI, Anthropic via litellm)
+- [x] "Ask AI" button for reference solutions
 
 ---
 
@@ -861,27 +861,28 @@ acodeaday/
 
 ---
 
-## MVP Checklist (Must-Have for Phase 1 Launch)
+## MVP Checklist ✅ COMPLETE
 
-- [ ] User can sign up and log in (Supabase Auth)
-- [ ] Dashboard shows today's problems (reviews + new)
-- [ ] User can solve problems with Monaco editor
-- [ ] "Run Code" executes against visible test cases
-- [ ] "Submit" executes against all test cases and updates progress
-- [ ] Spaced repetition works (7-day interval, 2x mastery)
-- [ ] 15 Blind 75 problems seeded and working
-- [ ] Python execution works via Judge0
-- [ ] All services run via docker-compose
-- [ ] Basic error handling throughout
-- [ ] Database managed with SQLAlchemy + Alembic
+- [x] User can sign up and log in (Supabase Auth)
+- [x] Dashboard shows today's problems (reviews + new)
+- [x] User can solve problems with Monaco editor
+- [x] "Run Code" executes against visible test cases
+- [x] "Submit" executes against all test cases with rating prompt
+- [x] Spaced repetition works (Anki SM-2 algorithm)
+- [x] 16 Blind 75 problems seeded and working
+- [x] Python execution works via Judge0
+- [x] All services run via docker-compose
+- [x] Error handling throughout
+- [x] Database managed with SQLAlchemy + Alembic
+- [x] AI Chat assistant for problem-solving help
 
 ---
 
 ## Nice-to-Have (Post-MVP)
 
-- [ ] Submission history view per problem
+- [x] Submission history view per problem ✅ (implemented)
 - [ ] Code templates/snippets
-- [ ] Dark mode toggle
+- [ ] Dark mode toggle (currently dark theme only)
 - [ ] Problem bookmarking
 - [ ] Notes per problem
 - [ ] Discussion forum per problem
@@ -889,6 +890,8 @@ acodeaday/
 - [ ] Email reminders for overdue reviews
 - [ ] Database migrations rollback support
 - [ ] Admin panel for managing problems
+- [ ] JavaScript language support (structure in place)
+- [ ] More LLM model options
 
 ---
 
@@ -1315,14 +1318,15 @@ async def get_todays_problems(
 
 **Yes, with the additions above.** An engineer should now have:
 
-✅ Complete database schema with all 5 models and explanations
+✅ Complete database schema with all 7 models and explanations
 ✅ Async SQLAlchemy patterns and examples
 ✅ Seed data format and structure
 ✅ Judge0 wrapper code generation logic
-✅ Spaced repetition algorithm implementation
-✅ HTTP Basic Auth implementation
+✅ Anki SM-2 spaced repetition algorithm implementation
+✅ Supabase JWT Auth implementation
 ✅ FastAPI route patterns with async
 ✅ All dependencies and configuration
+✅ AI Chat assistant with litellm integration
 
 **What's still needed**:
 - Frontend implementation details (TanStack/React)

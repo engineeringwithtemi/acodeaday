@@ -70,7 +70,7 @@
    - Frontend: http://localhost:5173
    - Backend API: http://localhost:8000
    - API Docs: http://localhost:8000/docs
-   - Default login: `admin` / `changeme`
+   - Default login: `admin@acodeaday.local` / `changeme123`
 
 ---
 
@@ -106,14 +106,15 @@ acodeaday/
 
 | Component | Technology |
 |-----------|------------|
-| Frontend | React + TanStack Router |
+| Frontend | React 19 + TanStack Router + React Query |
 | Code Editor | Monaco Editor |
-| Backend | FastAPI (async) |
+| Backend | FastAPI (Python 3.13+, async) |
 | Database | PostgreSQL (via Supabase) |
 | ORM | SQLAlchemy 2.0 (async) |
 | Migrations | Alembic |
 | Code Execution | Judge0 CE |
-| Auth | HTTP Basic Auth |
+| Auth | Supabase Auth (JWT Bearer tokens) |
+| AI Chat | litellm (Gemini, OpenAI, Anthropic) |
 | Logging | Structlog |
 
 ---
@@ -203,9 +204,12 @@ Copy `.env.example` to `.env` and configure:
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `DATABASE_URL` | PostgreSQL connection (asyncpg) | `postgresql+asyncpg://...` |
-| `AUTH_USERNAME` | Basic auth username | `admin` |
-| `AUTH_PASSWORD` | Basic auth password | `changeme` |
+| `SUPABASE_URL` | Supabase project URL | `http://localhost:54321` |
+| `SUPABASE_KEY` | Supabase anon/public key | - |
+| `DEFAULT_USER_EMAIL` | Default user email | `admin@acodeaday.local` |
+| `DEFAULT_USER_PASSWORD` | Default user password | `changeme123` |
 | `JUDGE0_URL` | Judge0 API endpoint | `http://localhost:2358` |
+| `LLM_SUPPORTED_MODELS` | Comma-separated LLM models | `gemini/gemini-2.5-flash` |
 | `ENVIRONMENT` | Environment (development/production) | `development` |
 | `DEBUG` | Enable debug mode | `true` |
 | `LOG_LEVEL` | Logging level | `INFO` |
@@ -226,22 +230,32 @@ Once the backend is running, visit:
 | GET | `/api/problems/{slug}` | Get problem details |
 | POST | `/api/run` | Run code against test cases |
 | POST | `/api/submit` | Submit solution (all tests) |
+| POST | `/api/rate-submission` | Rate difficulty (Anki SM-2) |
 | GET | `/api/today` | Get today's session |
 | GET | `/api/progress` | Get user progress |
 | GET | `/api/mastered` | Get mastered problems |
 | POST | `/api/mastered/{id}/show-again` | Re-add to rotation |
+| POST | `/api/code/save` | Save code (auto-save) |
+| GET | `/api/submissions/{id}` | Get submission history |
+| POST | `/api/chat/sessions` | Create AI chat session |
 
 ---
 
 ## Architecture
 
-### Spaced Repetition
+### Spaced Repetition (Anki SM-2)
 
-The app uses a simplified spaced repetition algorithm:
+The app uses the Anki SM-2 spaced repetition algorithm:
 
-1. **First solve**: Problem enters review queue, due in 7 days
-2. **Second solve**: Problem marked as "Mastered", removed from rotation
-3. **"Show Again"**: User can manually re-add mastered problems
+**Rating System**: After successful submission, rate difficulty:
+- **Again**: Reset to 1 day, decrease ease factor
+- **Hard**: Slower growth (×1.2), decrease ease
+- **Good**: Normal growth (×ease factor)
+- **Mastered**: Immediately exit rotation
+
+**Algorithm**: Interval grows based on ease factor (default 2.5, min 1.3). Auto-mastery when interval reaches 30+ days.
+
+**"Show Again"**: Manually re-add mastered problems to rotation (resets ease factor).
 
 ### Daily Session Logic
 
@@ -296,5 +310,3 @@ MIT — do whatever you want with it.
 Focus on understanding through consistent practice, not cramming. One problem at a time, reviewed at optimal intervals for long-term retention.
 
 
- <!-- todos -->
- - USE anki style flashcard to determine the frequency of the user seeing the ones to retry 

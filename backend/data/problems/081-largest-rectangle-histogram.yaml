@@ -1,0 +1,81 @@
+title: Largest Rectangle in Histogram
+sequence_number: 81
+difficulty: hard
+pattern:
+  - stack
+  - monotonic-stack
+
+description: |
+  Given an array of integers `heights` representing the histogram's bar height where the width of each bar is `1`, return the area of the largest rectangle in the histogram.
+
+constraints:
+  - "1 <= heights.length <= 10^5"
+  - "0 <= heights[i] <= 10^4"
+
+examples:
+  - input: "heights = [2,1,5,6,2,3]"
+    output: "10"
+    explanation: "The largest rectangle has an area = 10 units."
+  - input: "heights = [2,4]"
+    output: "4"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def largestRectangleArea(self, heights: List[int]) -> int:
+              pass
+    reference_solution: |
+      class Solution:
+          def largestRectangleArea(self, heights: List[int]) -> int:
+              stack = []
+              max_area = 0
+              heights.append(0)  # Sentinel to flush remaining bars
+
+              for i, h in enumerate(heights):
+                  start = i
+                  while stack and stack[-1][1] > h:
+                      idx, height = stack.pop()
+                      max_area = max(max_area, height * (i - idx))
+                      start = idx
+                  stack.append((start, h))
+
+              return max_area
+    function_signature:
+      name: largestRectangleArea
+      params:
+        - name: heights
+          type: "List[int]"
+      return_type: int
+
+test_cases:
+  - input: [[2, 1, 5, 6, 2, 3]]
+    expected: 10
+  - input: [[2, 4]]
+    expected: 4
+  - input: [[1]]
+    expected: 1
+  - input: [[2, 2]]
+    expected: 4
+  - input: [[1, 2, 3, 4, 5]]
+    expected: 9
+  - input: [[5, 4, 3, 2, 1]]
+    expected: 9
+  - input: [[3, 3, 3, 3, 3]]
+    expected: 15
+  - input: [[0]]
+    expected: 0
+  - input: [[0, 0, 0]]
+    expected: 0
+  - input: [[1, 1, 1, 1]]
+    expected: 4
+  - input: [[6, 2, 5, 4, 5, 1, 6]]
+    expected: 12
+  - input: [[2, 1, 2]]
+    expected: 3
+  - input: [[4, 2, 0, 3, 2, 5]]
+    expected: 6
+  - input: [[1, 2, 3, 4, 5, 3, 3, 2]]
+    expected: 15
+  - input: [[10000]]
+    expected: 10000

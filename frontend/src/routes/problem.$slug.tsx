@@ -52,12 +52,34 @@ function ProblemSolver() {
   // This prevents clearing the editor on subsequent refetches after user actions
   const hasHandledDueState = useRef(false)
 
+  // Check if user has already started working on this due problem today
+  // This persists across navigation - prevents losing work if user leaves and returns
+  const getDueSessionKey = (problemSlug: string) => `due_session_${problemSlug}_${new Date().toDateString()}`
+
+  const hasStartedDueSession = () => {
+    if (!problem) return false
+    try {
+      return localStorage.getItem(getDueSessionKey(slug)) === 'true'
+    } catch {
+      return false
+    }
+  }
+
+  const markDueSessionStarted = () => {
+    try {
+      localStorage.setItem(getDueSessionKey(slug), 'true')
+    } catch {
+      // localStorage might be unavailable
+    }
+  }
+
   // Get initial code:
-  // - If problem is due for review, show starter code (spaced repetition: fresh start)
+  // - If problem is due for review AND user hasn't started working on it today, show starter code
   // - Otherwise, show user's saved code or starter code
   const getInitialCode = () => {
     if (!problem) return starterCode
-    if (problem.is_due && !hasHandledDueState.current) {
+    // If due but user already started this review session (saved in localStorage), preserve their work
+    if (problem.is_due && !hasHandledDueState.current && !hasStartedDueSession()) {
       return starterCode
     }
     return problem.user_code ?? starterCode
@@ -74,13 +96,14 @@ function ProblemSolver() {
   // Update code when problem data changes (e.g., after reset or load submission)
   useEffect(() => {
     if (problem) {
-      // On first load of a due problem, use starter code
-      if (problem.is_due && !hasHandledDueState.current) {
+      // On first load of a due problem that hasn't been started today, use starter code
+      if (problem.is_due && !hasHandledDueState.current && !hasStartedDueSession()) {
         hasHandledDueState.current = true
+        markDueSessionStarted() // Mark that user has started this review session
         setCode(starterCode)
         lastSavedCode.current = starterCode
       } else if (!hasHandledDueState.current) {
-        // First load of a non-due problem
+        // First load of a non-due problem OR due problem already started today
         hasHandledDueState.current = true
         const newCode = problem.user_code ?? starterCode
         setCode(newCode)

@@ -13,5 +13,9 @@ export function useProblem(slug: string) {
     queryFn: () => apiGet<ProblemDetailSchema>(`/api/problems/${slug}`),
     // Only fetch if slug is provided
     enabled: !!slug,
+    // Always refetch on mount to get fresh is_due status
+    // This ensures editor isn't cleared when user returns after rating
+    staleTime: 0,
+    refetchOnMount: true,
   })
 }

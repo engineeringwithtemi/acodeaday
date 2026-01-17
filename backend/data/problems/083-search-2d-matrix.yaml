@@ -1,0 +1,96 @@
+title: Search a 2D Matrix
+sequence_number: 83
+difficulty: medium
+pattern:
+  - binary-search
+  - matrix
+
+description: |
+  You are given an `m x n` integer matrix `matrix` with the following two properties:
+  - Each row is sorted in non-decreasing order.
+  - The first integer of each row is greater than the last integer of the previous row.
+
+  Given an integer `target`, return `true` if `target` is in `matrix` or `false` otherwise.
+
+  You must write a solution in `O(log(m * n))` time complexity.
+
+constraints:
+  - "m == matrix.length"
+  - "n == matrix[i].length"
+  - "1 <= m, n <= 100"
+  - "-10^4 <= matrix[i][j], target <= 10^4"
+
+examples:
+  - input: "matrix = [[1,3,5,7],[10,11,16,20],[23,30,34,60]], target = 3"
+    output: "true"
+  - input: "matrix = [[1,3,5,7],[10,11,16,20],[23,30,34,60]], target = 13"
+    output: "false"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def searchMatrix(self, matrix: List[List[int]], target: int) -> bool:
+              pass
+    reference_solution: |
+      class Solution:
+          def searchMatrix(self, matrix: List[List[int]], target: int) -> bool:
+              if not matrix or not matrix[0]:
+                  return False
+
+              m, n = len(matrix), len(matrix[0])
+              left, right = 0, m * n - 1
+
+              while left <= right:
+                  mid = (left + right) // 2
+                  row, col = mid // n, mid % n
+                  val = matrix[row][col]
+
+                  if val == target:
+                      return True
+                  elif val < target:
+                      left = mid + 1
+                  else:
+                      right = mid - 1
+
+              return False
+    function_signature:
+      name: searchMatrix
+      params:
+        - name: matrix
+          type: "List[List[int]]"
+        - name: target
+          type: int
+      return_type: bool
+
+test_cases:
+  - input: [[[1, 3, 5, 7], [10, 11, 16, 20], [23, 30, 34, 60]], 3]
+    expected: true
+  - input: [[[1, 3, 5, 7], [10, 11, 16, 20], [23, 30, 34, 60]], 13]
+    expected: false
+  - input: [[[1]], 1]
+    expected: true
+  - input: [[[1]], 0]
+    expected: false
+  - input: [[[1, 2], [3, 4]], 3]
+    expected: true
+  - input: [[[1, 2], [3, 4]], 5]
+    expected: false
+  - input: [[[1, 2, 3], [4, 5, 6], [7, 8, 9]], 5]
+    expected: true
+  - input: [[[1, 2, 3], [4, 5, 6], [7, 8, 9]], 10]
+    expected: false
+  - input: [[[1, 3, 5, 7], [10, 11, 16, 20], [23, 30, 34, 60]], 1]
+    expected: true
+  - input: [[[1, 3, 5, 7], [10, 11, 16, 20], [23, 30, 34, 60]], 60]
+    expected: true
+  - input: [[[1, 3, 5, 7], [10, 11, 16, 20], [23, 30, 34, 60]], 0]
+    expected: false
+  - input: [[[1, 3, 5, 7], [10, 11, 16, 20], [23, 30, 34, 60]], 100]
+    expected: false
+  - input: [[[-10, -5, 0, 5, 10]], 0]
+    expected: true
+  - input: [[[-10, -5, 0, 5, 10]], -10]
+    expected: true
+  - input: [[[-10], [-5], [0], [5], [10]], 5]
+    expected: true

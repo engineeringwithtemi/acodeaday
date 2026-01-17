@@ -1,0 +1,87 @@
+title: Coin Change II
+sequence_number: 129
+difficulty: medium
+pattern:
+  - dynamic-programming
+  - array
+
+description: |
+  You are given an integer array `coins` representing coins of different denominations and an integer `amount` representing a total amount of money.
+
+  Return the number of combinations that make up that amount. If that amount of money cannot be made up by any combination of the coins, return `0`.
+
+  You may assume that you have an infinite number of each kind of coin.
+
+  The answer is **guaranteed** to fit into a signed **32-bit** integer.
+
+constraints:
+  - "1 <= coins.length <= 300"
+  - "1 <= coins[i] <= 5000"
+  - "All the values of coins are unique."
+  - "0 <= amount <= 5000"
+
+examples:
+  - input: "amount = 5, coins = [1,2,5]"
+    output: "4"
+    explanation: "There are four ways to make up the amount: 5=5, 5=2+2+1, 5=2+1+1+1, 5=1+1+1+1+1"
+  - input: "amount = 3, coins = [2]"
+    output: "0"
+    explanation: "The amount of 3 cannot be made up by coins of 2."
+  - input: "amount = 10, coins = [10]"
+    output: "1"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def change(self, amount: int, coins: List[int]) -> int:
+              pass
+    reference_solution: |
+      class Solution:
+          def change(self, amount: int, coins: List[int]) -> int:
+              dp = [0] * (amount + 1)
+              dp[0] = 1
+
+              for coin in coins:
+                  for x in range(coin, amount + 1):
+                      dp[x] += dp[x - coin]
+
+              return dp[amount]
+    function_signature:
+      name: change
+      params:
+        - name: amount
+          type: int
+        - name: coins
+          type: "List[int]"
+      return_type: int
+
+test_cases:
+  - input: [5, [1,2,5]]
+    expected: 4
+  - input: [3, [2]]
+    expected: 0
+  - input: [10, [10]]
+    expected: 1
+  - input: [0, [1,2,5]]
+    expected: 1
+  - input: [1, [1]]
+    expected: 1
+  - input: [2, [1,2]]
+    expected: 2
+  - input: [5, [1]]
+    expected: 1
+  - input: [5, [5]]
+    expected: 1
+  - input: [5, [2,3]]
+    expected: 1
+  - input: [6, [1,2,3]]
+    expected: 7
+  - input: [10, [1,2,5]]
+    expected: 10
+  - input: [100, [1,2,5]]
+    expected: 541
+  - input: [7, [2,3,6,7]]
+    expected: 2
+  - input: [4, [1,2]]
+    expected: 3

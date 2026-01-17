@@ -1,0 +1,95 @@
+title: Combination Sum II
+sequence_number: 106
+difficulty: medium
+pattern:
+  - backtracking
+  - array
+
+description: |
+  Given a collection of candidate numbers (`candidates`) and a target number (`target`), find all unique combinations in `candidates` where the candidate numbers sum to `target`.
+
+  Each number in `candidates` may only be used **once** in the combination.
+
+  **Note:** The solution set must not contain duplicate combinations.
+
+constraints:
+  - "1 <= candidates.length <= 100"
+  - "1 <= candidates[i] <= 50"
+  - "1 <= target <= 30"
+
+examples:
+  - input: "candidates = [10,1,2,7,6,1,5], target = 8"
+    output: "[[1,1,6],[1,2,5],[1,7],[2,6]]"
+  - input: "candidates = [2,5,2,1,2], target = 5"
+    output: "[[1,2,2],[5]]"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def combinationSum2(self, candidates: List[int], target: int) -> List[List[int]]:
+              pass
+    reference_solution: |
+      class Solution:
+          def combinationSum2(self, candidates: List[int], target: int) -> List[List[int]]:
+              candidates.sort()
+              result = []
+
+              def backtrack(start, current, remaining):
+                  if remaining == 0:
+                      result.append(current[:])
+                      return
+                  if remaining < 0:
+                      return
+
+                  for i in range(start, len(candidates)):
+                      if i > start and candidates[i] == candidates[i-1]:
+                          continue
+                      if candidates[i] > remaining:
+                          break
+                      current.append(candidates[i])
+                      backtrack(i + 1, current, remaining - candidates[i])
+                      current.pop()
+
+              backtrack(0, [], target)
+              return result
+    function_signature:
+      name: combinationSum2
+      params:
+        - name: candidates
+          type: "List[int]"
+        - name: target
+          type: int
+      return_type: "List[List[int]]"
+
+test_cases:
+  - input: [[10, 1, 2, 7, 6, 1, 5], 8]
+    expected: [[1, 1, 6], [1, 2, 5], [1, 7], [2, 6]]
+  - input: [[2, 5, 2, 1, 2], 5]
+    expected: [[1, 2, 2], [5]]
+  - input: [[1, 1, 1, 1, 1], 3]
+    expected: [[1, 1, 1]]
+  - input: [[3, 1, 3, 5, 1, 1], 8]
+    expected: [[1, 1, 1, 5], [1, 1, 3, 3], [3, 5]]
+  - input: [[1, 2], 4]
+    expected: []
+  - input: [[2, 3, 5], 8]
+    expected: [[3, 5]]
+  - input: [[1], 1]
+    expected: [[1]]
+  - input: [[1, 2, 3, 4, 5], 10]
+    expected: [[1, 2, 3, 4], [1, 4, 5], [2, 3, 5]]
+  - input: [[4, 4, 4, 4], 8]
+    expected: [[4, 4]]
+  - input: [[1, 1, 1, 1, 1, 1, 1], 7]
+    expected: [[1, 1, 1, 1, 1, 1, 1]]
+  - input: [[2, 2, 2], 4]
+    expected: [[2, 2]]
+  - input: [[3, 3, 3, 3], 9]
+    expected: [[3, 3, 3]]
+  - input: [[1, 2, 3], 6]
+    expected: [[1, 2, 3]]
+  - input: [[5, 5, 5], 10]
+    expected: [[5, 5]]
+  - input: [[1, 1, 2, 2], 4]
+    expected: [[1, 1, 2], [2, 2]]

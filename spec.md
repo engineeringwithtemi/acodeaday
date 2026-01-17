@@ -39,14 +39,15 @@ Users solve one new problem daily. Problems they've solved before resurface at o
 
 | Component | Technology |
 |-----------|------------|
-| Backend | FastAPI (Python) with async SQLAlchemy |
-| Frontend | TanStack (React) |
+| Backend | FastAPI (Python 3.13+) with async SQLAlchemy 2.0 |
+| Frontend | TanStack (React 19) with TanStack Router/Query |
 | Code Editor | Monaco Editor |
 | Code Execution | Judge0 CE (self-hosted) |
-| Database | Supabase PostgreSQL (local or hosted) |
-| Auth | Supabase Auth (JWT tokens) |
+| Database | Supabase PostgreSQL (7 tables) |
+| Auth | Supabase Auth (JWT Bearer tokens) |
+| AI Chat | litellm (Gemini, OpenAI, Anthropic) |
 | Infrastructure | Docker (Judge0), local dev for backend/frontend |
-| Language Support | Python only (MVP) |
+| Language Support | Python (JavaScript structure in place) |
 
 ---
 
@@ -87,15 +88,33 @@ Users solve one new problem daily. Problems they've solved before resurface at o
 
 ---
 
-## Spaced Repetition Logic
+## Spaced Repetition Logic (Anki SM-2)
 
-### Mastery Rules
+The app uses the Anki SM-2 spaced repetition algorithm for optimal long-term retention.
 
-| Event | Result |
-|-------|--------|
-| Solve problem 1st time | Added to review queue, due in 7 days |
-| Solve problem 2nd time | Marked as "Mastered", removed from rotation |
-| User clicks "Show Again" | Problem re-enters rotation |
+### Rating System
+
+After each successful submission, the user rates difficulty:
+
+| Rating | Effect |
+|--------|--------|
+| **Again** | Reset to 1-day interval, decrease ease factor by 0.2 |
+| **Hard** | Interval grows slowly (×1.2), decrease ease by 0.15 |
+| **Good** | Normal growth (interval × ease factor) |
+| **Mastered** | Immediately exit rotation |
+
+### Algorithm Constants
+
+- **Default ease factor**: 2.5
+- **Minimum ease factor**: 1.3
+- **Auto-mastery threshold**: 30 days (when interval reaches 30+ days)
+
+### First Review Intervals
+
+| Rating | Interval |
+|--------|----------|
+| Hard | 1 day |
+| Good | 3 days |
 
 ### State Diagram
 
@@ -104,15 +123,17 @@ Users solve one new problem daily. Problems they've solved before resurface at o
                     │   Unsolved  │
                     └──────┬──────┘
                            │
-                      Solve once
+                      Solve + Rate
                            │
                            ▼
                     ┌─────────────┐
                     │  In Review  │◄─────────────┐
-                    │  (due 7d)   │              │
+                    │(interval grows│              │
+                    │ based on SM-2)│              │
                     └──────┬──────┘              │
                            │                    │
-                      Solve twice          "Show Again"
+                   Interval ≥ 30d          "Show Again"
+                    or rate "mastered"     (resets ease)
                            │                    │
                            ▼                    │
                     ┌─────────────┐             │
@@ -189,6 +210,10 @@ CREATE TABLE user_progress (
   next_review_date DATE,
   is_mastered      BOOLEAN DEFAULT FALSE,
   show_again       BOOLEAN DEFAULT FALSE,
+  -- Anki SM-2 fields
+  ease_factor      FLOAT DEFAULT 2.5,      -- Current ease factor
+  interval_days    INTEGER DEFAULT 0,       -- Current interval in days
+  review_count     INTEGER DEFAULT 0,       -- Number of reviews completed
   created_at       TIMESTAMP DEFAULT NOW(),
 
   UNIQUE(user_id, problem_id)
@@ -196,6 +221,47 @@ CREATE TABLE user_progress (
 
 CREATE INDEX idx_user_progress_user_id ON user_progress(user_id);
 CREATE INDEX idx_user_progress_next_review ON user_progress(next_review_date);
+```
+
+### User Code (Server-side persistence)
+
+```sql
+CREATE TABLE user_code (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id      VARCHAR(255) NOT NULL,
+  problem_id   UUID REFERENCES problems(id) ON DELETE CASCADE,
+  language     TEXT DEFAULT 'python',
+  code         TEXT NOT NULL,
+  updated_at   TIMESTAMP DEFAULT NOW(),
+
+  UNIQUE(user_id, problem_id, language)
+);
+```
+
+### Chat Sessions & Messages (AI Assistant)
+
+```sql
+CREATE TABLE chat_sessions (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id      VARCHAR(255) NOT NULL,
+  problem_id   UUID REFERENCES problems(id) ON DELETE CASCADE,
+  title        VARCHAR(50),
+  mode         TEXT NOT NULL,  -- 'socratic' or 'direct'
+  model        VARCHAR(100),
+  is_active    BOOLEAN DEFAULT TRUE,
+  created_at   TIMESTAMP DEFAULT NOW(),
+  updated_at   TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE chat_messages (
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id            UUID REFERENCES chat_sessions(id) ON DELETE CASCADE,
+  role                  TEXT NOT NULL,  -- 'user', 'assistant', 'system'
+  content               TEXT NOT NULL,
+  code_snapshot         TEXT,
+  test_results_snapshot JSONB,
+  created_at            TIMESTAMP DEFAULT NOW()
+);
 ```
 
 ### Submissions
@@ -808,6 +874,15 @@ The modal shows:
 |--------|----------|-------------|---------------|
 | POST | `/api/run` | Run code against example test cases | No |
 | POST | `/api/submit` | Submit solution against all test cases | Yes |
+| POST | `/api/rate-submission` | Rate submission difficulty (Anki SM-2) | Yes |
+
+### Code Persistence
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| POST | `/api/code/save` | Save user's current code (auto-save) | Yes |
+| POST | `/api/code/reset` | Reset to starter code | Yes |
+| POST | `/api/code/load-submission` | Load code from past submission | Yes |
 
 ### User Progress
 
@@ -824,37 +899,49 @@ The modal shows:
 |--------|----------|-------------|---------------|
 | GET | `/api/submissions/:problem_id` | Get past submissions for a problem | Yes |
 
+### AI Chat
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/api/chat/models` | List available LLM models | Yes |
+| POST | `/api/chat/sessions` | Create new chat session | Yes |
+| GET | `/api/chat/sessions/:slug` | List sessions for a problem | Yes |
+| GET | `/api/chat/session/:id` | Get session with messages | Yes |
+| POST | `/api/chat/session/:id/message` | Send message in session | Yes |
+
 ---
 
 ## MVP Scope
 
-### Phase 1 - Backend (COMPLETE ✅)
+### Phase 1 - Backend ✅ COMPLETE
 - [x] Docker setup (Judge0 CE with workers, redis, postgres)
-- [x] FastAPI backend with async SQLAlchemy
-- [x] Supabase Auth integration (JWT validation, default user on startup)
+- [x] FastAPI backend with async SQLAlchemy 2.0
+- [x] Supabase Auth integration (JWT Bearer token validation)
 - [x] 16 Blind 75 problems with test cases (YAML seed files)
 - [x] Code execution (Run Code, Submit via Judge0)
 - [x] Daily session logic (2 reviews + 1 new)
-- [x] Basic spaced repetition (7 day interval, 2x mastery)
-- [x] Python only
-- [x] 15 backend tests passing
+- [x] Anki SM-2 spaced repetition with ratings
+- [x] Python execution
+- [x] 20 backend tests passing
 
-### Phase 2 - Frontend (IN PROGRESS)
-- [ ] TanStack (React) setup
-- [ ] LeetCode-clone problem view UI
-- [ ] Monaco Editor integration
-- [ ] Dashboard page with daily problems
-- [ ] Progress visualization
-- [ ] Mastered problems page with "Show Again"
-- [ ] Submission history
+### Phase 2 - Frontend ✅ COMPLETE
+- [x] TanStack (React 19) with file-based routing
+- [x] LeetCode-clone problem view UI with split panes
+- [x] Monaco Editor with auto-save
+- [x] Dashboard page with daily problems
+- [x] Progress visualization
+- [x] Mastered problems page with "Show Again"
+- [x] Submission history
+- [x] AI Chat assistant (Socratic/Direct modes)
+- [x] Rating modal for spaced repetition
 
-### Phase 3
+### Phase 3 - Future
 - [ ] Full Blind 75 (all 75 problems)
 - [ ] Custom test case support
-- [ ] JavaScript support
+- [ ] JavaScript execution support
 - [ ] Additional languages
 - [ ] Multiple problem sets (NeetCode 150, company-specific)
-- [ ] Adjustable spaced repetition intervals
+- [ ] Mobile responsive design
 
 ---
 
@@ -865,16 +952,19 @@ The modal shows:
 
 ---
 
-## Next Steps
+## Current Status
 
-Backend is complete. Next:
+MVP is complete. Both backend and frontend are fully functional:
 
-1. Initialize TanStack (React) frontend project
-2. Set up Supabase JS client for auth
-3. Build Dashboard page with daily problems
-4. Build Problem View page with Monaco Editor
-5. Build Progress and Mastered pages
-6. Test end-to-end flow
+**Backend**: FastAPI with async SQLAlchemy, Supabase JWT auth, Judge0 execution, Anki SM-2 spaced repetition, AI chat via litellm.
+
+**Frontend**: TanStack React 19 with file-based routing, Monaco Editor with auto-save, split-pane layout, all pages implemented.
+
+**Next Steps**:
+1. Add more Blind 75 problems (currently 16 seeded)
+2. Implement JavaScript execution support
+3. Add frontend tests
+4. Improve error handling and edge cases
 
 ---
 

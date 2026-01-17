@@ -1,0 +1,87 @@
+title: Jump Game II
+sequence_number: 130
+difficulty: medium
+pattern:
+  - greedy
+  - dynamic-programming
+  - array
+
+description: |
+  You are given a **0-indexed** array of integers `nums` of length `n`. You are initially positioned at `nums[0]`.
+
+  Each element `nums[i]` represents the maximum length of a forward jump from index `i`. In other words, if you are at `nums[i]`, you can jump to any `nums[i + j]` where:
+  - `0 <= j <= nums[i]` and
+  - `i + j < n`
+
+  Return the minimum number of jumps to reach `nums[n - 1]`. The test cases are generated such that you can reach `nums[n - 1]`.
+
+constraints:
+  - "1 <= nums.length <= 10^4"
+  - "0 <= nums[i] <= 1000"
+  - "It's guaranteed that you can reach nums[n - 1]."
+
+examples:
+  - input: "nums = [2,3,1,1,4]"
+    output: "2"
+    explanation: "The minimum number of jumps to reach the last index is 2. Jump 1 step from index 0 to 1, then 3 steps to the last index."
+  - input: "nums = [2,3,0,1,4]"
+    output: "2"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def jump(self, nums: List[int]) -> int:
+              pass
+    reference_solution: |
+      class Solution:
+          def jump(self, nums: List[int]) -> int:
+              n = len(nums)
+              if n <= 1:
+                  return 0
+
+              jumps = 0
+              current_end = 0
+              farthest = 0
+
+              for i in range(n - 1):
+                  farthest = max(farthest, i + nums[i])
+                  if i == current_end:
+                      jumps += 1
+                      current_end = farthest
+                      if current_end >= n - 1:
+                          break
+
+              return jumps
+    function_signature:
+      name: jump
+      params:
+        - name: nums
+          type: "List[int]"
+      return_type: int
+
+test_cases:
+  - input: [[2,3,1,1,4]]
+    expected: 2
+  - input: [[2,3,0,1,4]]
+    expected: 2
+  - input: [[1]]
+    expected: 0
+  - input: [[1,2]]
+    expected: 1
+  - input: [[2,1]]
+    expected: 1
+  - input: [[1,1,1,1]]
+    expected: 3
+  - input: [[3,2,1]]
+    expected: 1
+  - input: [[1,2,3]]
+    expected: 2
+  - input: [[5,4,3,2,1,0]]
+    expected: 1
+  - input: [[1,2,1,1,1]]
+    expected: 3
+  - input: [[7,0,9,6,9,6,1,7,9,0,1,2,9,0,3]]
+    expected: 2
+  - input: [[2,3,1,1,1,1,1]]
+    expected: 4

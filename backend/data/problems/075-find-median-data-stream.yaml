@@ -1,0 +1,114 @@
+title: Find Median from Data Stream
+sequence_number: 75
+difficulty: hard
+pattern:
+  - heap
+  - design
+  - two-heaps
+
+description: |
+  The **median** is the middle value in an ordered integer list. If the size of the list is even, there is no middle value, and the median is the mean of the two middle values.
+
+  Implement the MedianFinder class:
+  - `MedianFinder()` initializes the MedianFinder object.
+  - `void addNum(int num)` adds the integer `num` from the data stream to the data structure.
+  - `double findMedian()` returns the median of all elements so far.
+
+  For testing, we execute a series of operations and return the results.
+
+constraints:
+  - "-10^5 <= num <= 10^5"
+  - "There will be at least one element in the data structure before calling findMedian."
+  - "At most 5 * 10^4 calls will be made to addNum and findMedian."
+
+examples:
+  - input: 'operations = [["addNum", 1], ["addNum", 2], ["findMedian"], ["addNum", 3], ["findMedian"]]'
+    output: "[null, null, 1.5, null, 2.0]"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def executeMedianFinderOperations(self, operations: List[List]) -> List:
+              pass
+    reference_solution: |
+      class Solution:
+          def executeMedianFinderOperations(self, operations: List[List]) -> List:
+              import heapq
+
+              class MedianFinder:
+                  def __init__(self):
+                      self.small = []  # Max heap (inverted)
+                      self.large = []  # Min heap
+
+                  def addNum(self, num):
+                      # Add to max heap (inverted)
+                      heapq.heappush(self.small, -num)
+
+                      # Balance: ensure small's max <= large's min
+                      if self.large and -self.small[0] > self.large[0]:
+                          val = -heapq.heappop(self.small)
+                          heapq.heappush(self.large, val)
+
+                      # Balance sizes: small can have at most 1 more element
+                      if len(self.small) > len(self.large) + 1:
+                          val = -heapq.heappop(self.small)
+                          heapq.heappush(self.large, val)
+                      elif len(self.large) > len(self.small):
+                          val = heapq.heappop(self.large)
+                          heapq.heappush(self.small, -val)
+
+                  def findMedian(self):
+                      if len(self.small) > len(self.large):
+                          return float(-self.small[0])
+                      return (-self.small[0] + self.large[0]) / 2.0
+
+              mf = MedianFinder()
+              results = []
+
+              for op in operations:
+                  if op[0] == "addNum":
+                      mf.addNum(op[1])
+                      results.append(None)
+                  elif op[0] == "findMedian":
+                      results.append(mf.findMedian())
+
+              return results
+    function_signature:
+      name: executeMedianFinderOperations
+      params:
+        - name: operations
+          type: "List[List]"
+      return_type: List
+
+test_cases:
+  - input: [[["addNum", 1], ["addNum", 2], ["findMedian"], ["addNum", 3], ["findMedian"]]]
+    expected: [null, null, 1.5, null, 2.0]
+  - input: [[["addNum", 1], ["findMedian"]]]
+    expected: [null, 1.0]
+  - input: [[["addNum", 2], ["addNum", 3], ["findMedian"]]]
+    expected: [null, null, 2.5]
+  - input: [[["addNum", 1], ["addNum", 2], ["addNum", 3], ["findMedian"]]]
+    expected: [null, null, null, 2.0]
+  - input: [[["addNum", 3], ["addNum", 1], ["addNum", 2], ["findMedian"]]]
+    expected: [null, null, null, 2.0]
+  - input: [[["addNum", -1], ["findMedian"]]]
+    expected: [null, -1.0]
+  - input: [[["addNum", -1], ["addNum", -2], ["findMedian"]]]
+    expected: [null, null, -1.5]
+  - input: [[["addNum", 0], ["findMedian"]]]
+    expected: [null, 0.0]
+  - input: [[["addNum", 1], ["addNum", 2], ["addNum", 3], ["addNum", 4], ["findMedian"]]]
+    expected: [null, null, null, null, 2.5]
+  - input: [[["addNum", 5], ["addNum", 4], ["addNum", 3], ["addNum", 2], ["addNum", 1], ["findMedian"]]]
+    expected: [null, null, null, null, null, 3.0]
+  - input: [[["addNum", 1], ["addNum", 1], ["findMedian"]]]
+    expected: [null, null, 1.0]
+  - input: [[["addNum", 100], ["addNum", 200], ["findMedian"], ["addNum", 150], ["findMedian"]]]
+    expected: [null, null, 150.0, null, 150.0]
+  - input: [[["addNum", 6], ["addNum", 10], ["addNum", 2], ["addNum", 6], ["findMedian"]]]
+    expected: [null, null, null, null, 6.0]
+  - input: [[["addNum", 1], ["addNum", 2], ["findMedian"], ["addNum", 3], ["findMedian"], ["addNum", 4], ["findMedian"]]]
+    expected: [null, null, 1.5, null, 2.0, null, 2.5]
+  - input: [[["addNum", 10], ["addNum", 20], ["addNum", 30], ["addNum", 40], ["addNum", 50], ["findMedian"]]]
+    expected: [null, null, null, null, null, 30.0]

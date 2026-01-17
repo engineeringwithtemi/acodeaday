@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { X, CheckCircle2, XCircle, AlertCircle, Download, RotateCcw, Frown, Smile, Trophy } from 'lucide-react'
 import type { SubmitCodeResponse, FunctionSignature, Rating, RatingResponse } from '../types/api'
 import { useRateSubmission } from '../hooks/useRateSubmission'
+import { useQueryClient } from '@tanstack/react-query'
 
 interface SubmissionResultPanelProps {
   result: SubmitCodeResponse
@@ -25,6 +26,7 @@ export function SubmissionResultPanel({
   const [ratingResult, setRatingResult] = useState<RatingResponse | null>(null)
   const [ratingError, setRatingError] = useState<string | null>(null)
   const rateSubmission = useRateSubmission()
+  const queryClient = useQueryClient()
 
   // Handle rating selection
   const handleRating = async (rating: Rating) => {
@@ -35,6 +37,9 @@ export function SubmissionResultPanel({
         rating,
       })
       setRatingResult(response)
+      // Invalidate problem query so next visit shows updated is_due status
+      // This prevents the editor from being cleared after user has already solved today
+      queryClient.invalidateQueries({ queryKey: ['problem', problemSlug] })
     } catch (error) {
       console.error('Failed to submit rating:', error)
       setRatingError('Failed to save rating. Please try again.')

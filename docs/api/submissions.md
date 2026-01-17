@@ -206,33 +206,80 @@ When a test fails, execution stops (early exit) to save resources:
 }
 ```
 
-### Progress Updates
+### Progress Updates (Anki SM-2)
 
-When all tests pass, user progress is automatically updated:
+When all tests pass, the submission is recorded but progress is NOT automatically updated. You must call the **rate-submission** endpoint to update progress with your difficulty rating.
 
-**First successful solve:**
-- `times_solved`: 0 → 1
-- `next_review_date`: today + 7 days
-- `is_mastered`: false
-
-**Second successful solve:**
-- `times_solved`: 1 → 2
-- `next_review_date`: null
-- `is_mastered`: true
-
-**Subsequent solves (already mastered):**
-- No progress changes (remains mastered)
+See [Rate Submission](#rate-submission) below.
 
 ### Example
 
 ```bash
 curl -X POST http://localhost:8000/api/submit \
-  -u admin:password \
+  -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{
     "problem_slug": "two-sum",
     "language": "python",
     "code": "class Solution:\n    def twoSum(self, nums, target):\n        seen = {}\n        for i, num in enumerate(nums):\n            if target - num in seen:\n                return [seen[target - num], i]\n            seen[num] = i"
+  }'
+```
+
+## Rate Submission
+
+After a successful submission, rate the difficulty to update your spaced repetition progress (Anki SM-2).
+
+### Endpoint
+
+```http
+POST /api/rate-submission
+```
+
+### Authentication
+
+**Required** - Include Authorization header
+
+### Request Body
+
+```json
+{
+  "submission_id": "uuid",
+  "rating": "good"
+}
+```
+
+**Rating options:**
+| Rating | Description | Effect |
+|--------|-------------|--------|
+| `again` | Couldn't solve / needed hints | Reset interval to 1 day, decrease ease |
+| `hard` | Solved but struggled | Slower growth (×1.2), decrease ease |
+| `good` | Solved with some effort | Normal growth (×ease factor) |
+| `mastered` | Solved easily, confident | Exit rotation immediately |
+
+### Response
+
+```json
+{
+  "success": true,
+  "progress": {
+    "times_solved": 2,
+    "ease_factor": 2.5,
+    "interval_days": 8,
+    "is_mastered": false,
+    "next_review_date": "2024-01-15"
+  }
+}
+```
+
+### Example
+
+```bash
+curl -X POST http://localhost:8000/api/rate-submission \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "submission_id": "abc123-uuid",
+    "rating": "good"
   }'
 ```
 
@@ -300,11 +347,11 @@ GET /api/submissions/:problem_id
 
 ```bash
 # Get submission history
-curl -u admin:password \
+curl -H "Authorization: Bearer <token>" \
   http://localhost:8000/api/submissions/abc123-uuid
 
 # Pagination
-curl -u admin:password \
+curl -H "Authorization: Bearer <token>" \
   "http://localhost:8000/api/submissions/abc123-uuid?limit=10&offset=0"
 ```
 
@@ -371,18 +418,20 @@ curl -u admin:password \
 ### Submit Solution
 
 ```typescript
+import { supabase } from './lib/supabase';
+
 async function submitSolution(
   problemSlug: string,
   code: string,
   language = 'python'
 ) {
-  const auth = localStorage.getItem('auth');
+  const { data: { session } } = await supabase.auth.getSession();
 
   const response = await fetch('/api/submit', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Basic ${auth}`
+      'Authorization': `Bearer ${session?.access_token}`
     },
     body: JSON.stringify({ problem_slug: problemSlug, language, code })
   });
@@ -398,10 +447,8 @@ async function submitSolution(
 const result = await submitSolution('two-sum', userCode);
 
 if (result.success) {
-  console.log('Accepted!');
-  console.log(`Times solved: ${result.times_solved}`);
-  console.log(`Mastered: ${result.is_mastered}`);
-  console.log(`Next review: ${result.next_review_date}`);
+  console.log('Accepted! Now rate the difficulty...');
+  // Show rating modal, then call rateSubmission()
 } else {
   const failedTest = result.results.find(t => !t.passed);
   console.log('Wrong answer on test', failedTest.test_number);
@@ -411,15 +458,39 @@ if (result.success) {
 }
 ```
 
+### Rate Submission (Anki SM-2)
+
+```typescript
+async function rateSubmission(submissionId: string, rating: 'again' | 'hard' | 'good' | 'mastered') {
+  const { data: { session } } = await supabase.auth.getSession();
+
+  const response = await fetch('/api/rate-submission', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session?.access_token}`
+    },
+    body: JSON.stringify({ submission_id: submissionId, rating })
+  });
+
+  return response.json();
+}
+
+// Usage after successful submission
+const rateResult = await rateSubmission(result.submission_id, 'good');
+console.log(`Next review: ${rateResult.progress.next_review_date}`);
+console.log(`Ease factor: ${rateResult.progress.ease_factor}`);
+```
+
 ### Fetch Submission History
 
 ```typescript
 async function getSubmissionHistory(problemId: string) {
-  const auth = localStorage.getItem('auth');
+  const { data: { session } } = await supabase.auth.getSession();
 
   const response = await fetch(`/api/submissions/${problemId}`, {
     headers: {
-      'Authorization': `Basic ${auth}`
+      'Authorization': `Bearer ${session?.access_token}`
     }
   });
 

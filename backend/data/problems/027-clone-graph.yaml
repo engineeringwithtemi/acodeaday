@@ -1,0 +1,115 @@
+title: Clone Graph
+sequence_number: 27
+difficulty: medium
+pattern:
+  - graph
+  - bfs
+  - dfs
+  - hash-map
+
+description: |
+  Given a reference of a node in a **connected** undirected graph, return a **deep copy** (clone) of the graph.
+
+  Each node in the graph contains a value (`int`) and a list (`List[Node]`) of its neighbors.
+
+  ```
+  class Node {
+      public int val;
+      public List<Node> neighbors;
+  }
+  ```
+
+  **Test case format:**
+
+  For simplicity, each node's value is the same as the node's index (1-indexed). For example, the first node with `val == 1`, the second node with `val == 2`, and so on. The graph is represented in the test case using an adjacency list.
+
+  An **adjacency list** is a collection of unordered lists used to represent a finite graph. Each list describes the set of neighbors of a node in the graph.
+
+  The given node will always be the first node with `val = 1`. You must return the **copy of the given node** as a reference to the cloned graph.
+
+constraints:
+  - "The number of nodes in the graph is in the range [0, 100]."
+  - "1 <= Node.val <= 100"
+  - "Node.val is unique for each node."
+  - "There are no repeated edges and no self-loops in the graph."
+  - "The Graph is connected and all nodes can be visited starting from the given node."
+
+examples:
+  - input: "adjList = [[2,4],[1,3],[2,4],[1,3]]"
+    output: "[[2,4],[1,3],[2,4],[1,3]]"
+    explanation: "There are 4 nodes in the graph. 1st node (val = 1)'s neighbors are 2nd and 4th node. 2nd node (val = 2)'s neighbors are 1st and 3rd node. 3rd node (val = 3)'s neighbors are 2nd and 4th node. 4th node (val = 4)'s neighbors are 1st and 3rd node."
+  - input: "adjList = [[]]"
+    output: "[[]]"
+    explanation: "Note that the input contains one empty list. The graph consists of only one node with val = 1 and it does not have any neighbors."
+  - input: "adjList = []"
+    output: "[]"
+    explanation: "This an empty graph, it does not have any nodes."
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def cloneGraph(self, node: Optional['Node']) -> Optional['Node']:
+              pass
+    reference_solution: |
+      class Solution:
+          def cloneGraph(self, node: Optional['Node']) -> Optional['Node']:
+              if not node:
+                  return None
+
+              # Hash map to store original -> clone mapping
+              clones = {}
+
+              def dfs(node):
+                  if node in clones:
+                      return clones[node]
+
+                  # Create clone
+                  clone = Node(node.val)
+                  clones[node] = clone
+
+                  # Clone neighbors
+                  for neighbor in node.neighbors:
+                      clone.neighbors.append(dfs(neighbor))
+
+                  return clone
+
+              return dfs(node)
+    function_signature:
+      name: cloneGraph
+      params:
+        - name: node
+          type: "Optional[Node]"
+      return_type: "Optional[Node]"
+
+test_cases:
+  - input: [[[2, 4], [1, 3], [2, 4], [1, 3]]]
+    expected: [[2, 4], [1, 3], [2, 4], [1, 3]]
+  - input: [[[]]]
+    expected: [[]]
+  - input: [[]]
+    expected: []
+  - input: [[[2], [1]]]
+    expected: [[2], [1]]
+  - input: [[[2, 3], [1, 3], [1, 2]]]
+    expected: [[2, 3], [1, 3], [1, 2]]
+  - input: [[[2], [1, 3], [2]]]
+    expected: [[2], [1, 3], [2]]
+  - input: [[[2, 3, 4], [1, 3], [1, 2, 4], [1, 3]]]
+    expected: [[2, 3, 4], [1, 3], [1, 2, 4], [1, 3]]
+  - input: [[[2, 5], [1, 3], [2, 4], [3, 5], [1, 4]]]
+    expected: [[2, 5], [1, 3], [2, 4], [3, 5], [1, 4]]
+  - input: [[[2], [1, 3], [2, 4], [3, 5], [4]]]
+    expected: [[2], [1, 3], [2, 4], [3, 5], [4]]
+  - input: [[[2, 3, 4, 5], [1], [1], [1], [1]]]
+    expected: [[2, 3, 4, 5], [1], [1], [1], [1]]
+  - input: [[[2], [1, 3, 4, 5], [2], [2], [2]]]
+    expected: [[2], [1, 3, 4, 5], [2], [2], [2]]
+  - input: [[[2, 3], [1, 4], [1, 4], [2, 3]]]
+    expected: [[2, 3], [1, 4], [1, 4], [2, 3]]
+  - input: [[[2, 3, 4], [1, 4], [1, 4], [1, 2, 3]]]
+    expected: [[2, 3, 4], [1, 4], [1, 4], [1, 2, 3]]
+  - input: [[[2, 6], [1, 3], [2, 4], [3, 5], [4, 6], [1, 5]]]
+    expected: [[2, 6], [1, 3], [2, 4], [3, 5], [4, 6], [1, 5]]
+  - input: [[[2, 4, 5], [1, 3, 4], [2, 5], [1, 2], [1, 3]]]
+    expected: [[2, 4, 5], [1, 3, 4], [2, 5], [1, 2], [1, 3]]

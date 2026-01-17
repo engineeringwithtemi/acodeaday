@@ -1,0 +1,99 @@
+title: Merge K Sorted Lists
+sequence_number: 43
+difficulty: hard
+pattern:
+  - linked-list
+  - heap
+  - divide-and-conquer
+  - merge-sort
+
+description: |
+  You are given an array of `k` linked-lists `lists`, each linked-list is sorted in ascending order.
+
+  Merge all the linked-lists into one sorted linked-list and return it.
+
+  For testing purposes, linked lists are represented as arrays.
+
+constraints:
+  - "k == lists.length"
+  - "0 <= k <= 10^4"
+  - "0 <= lists[i].length <= 500"
+  - "-10^4 <= lists[i][j] <= 10^4"
+  - "lists[i] is sorted in ascending order."
+  - "The sum of lists[i].length will not exceed 10^4."
+
+examples:
+  - input: "lists = [[1,4,5],[1,3,4],[2,6]]"
+    output: "[1,1,2,3,4,4,5,6]"
+  - input: "lists = []"
+    output: "[]"
+  - input: "lists = [[]]"
+    output: "[]"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def mergeKLists(self, lists: List[List[int]]) -> List[int]:
+              pass
+    reference_solution: |
+      class Solution:
+          def mergeKLists(self, lists: List[List[int]]) -> List[int]:
+              import heapq
+
+              result = []
+              heap = []
+
+              # Initialize heap with first element of each list
+              for i, lst in enumerate(lists):
+                  if lst:
+                      heapq.heappush(heap, (lst[0], i, 0))
+
+              while heap:
+                  val, list_idx, elem_idx = heapq.heappop(heap)
+                  result.append(val)
+
+                  # Push next element from same list
+                  if elem_idx + 1 < len(lists[list_idx]):
+                      next_val = lists[list_idx][elem_idx + 1]
+                      heapq.heappush(heap, (next_val, list_idx, elem_idx + 1))
+
+              return result
+    function_signature:
+      name: mergeKLists
+      params:
+        - name: lists
+          type: "List[List[int]]"
+      return_type: "List[int]"
+
+test_cases:
+  - input: [[[1, 4, 5], [1, 3, 4], [2, 6]]]
+    expected: [1, 1, 2, 3, 4, 4, 5, 6]
+  - input: [[]]
+    expected: []
+  - input: [[[]]]
+    expected: []
+  - input: [[[1]]]
+    expected: [1]
+  - input: [[[1], [2], [3]]]
+    expected: [1, 2, 3]
+  - input: [[[3], [2], [1]]]
+    expected: [1, 2, 3]
+  - input: [[[1, 2, 3]]]
+    expected: [1, 2, 3]
+  - input: [[[1, 3, 5], [2, 4, 6]]]
+    expected: [1, 2, 3, 4, 5, 6]
+  - input: [[[-1, 0, 1], [-2, 2], [-3, 3]]]
+    expected: [-3, -2, -1, 0, 1, 2, 3]
+  - input: [[[1, 1, 1], [1, 1, 1]]]
+    expected: [1, 1, 1, 1, 1, 1]
+  - input: [[[1, 5, 9], [2, 6, 10], [3, 7, 11], [4, 8, 12]]]
+    expected: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+  - input: [[[], [1], []]]
+    expected: [1]
+  - input: [[[], [], []]]
+    expected: []
+  - input: [[[-10000], [10000]]]
+    expected: [-10000, 10000]
+  - input: [[[1, 2], [3, 4], [5, 6], [7, 8], [9, 10]]]
+    expected: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]

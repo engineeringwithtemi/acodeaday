@@ -1,0 +1,121 @@
+title: Subtree of Another Tree
+sequence_number: 66
+difficulty: easy
+pattern:
+  - tree
+  - dfs
+  - recursion
+
+description: |
+  Given the roots of two binary trees `root` and `subRoot`, return `true` if there is a subtree of `root` with the same structure and node values of `subRoot` and `false` otherwise.
+
+  A subtree of a binary tree `tree` is a tree that consists of a node in `tree` and all of this node's descendants. The tree `tree` could also be considered as a subtree of itself.
+
+  For testing purposes, binary trees are represented as arrays in level-order (BFS), where `null` represents missing nodes.
+
+constraints:
+  - "The number of nodes in the root tree is in the range [1, 2000]."
+  - "The number of nodes in the subRoot tree is in the range [1, 1000]."
+  - "-10^4 <= root.val <= 10^4"
+  - "-10^4 <= subRoot.val <= 10^4"
+
+examples:
+  - input: "root = [3,4,5,1,2], subRoot = [4,1,2]"
+    output: "true"
+  - input: "root = [3,4,5,1,2,null,null,null,null,0], subRoot = [4,1,2]"
+    output: "false"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def isSubtree(self, root: List, subRoot: List) -> bool:
+              pass
+    reference_solution: |
+      class Solution:
+          def isSubtree(self, root: List, subRoot: List) -> bool:
+              from collections import deque
+
+              class TreeNode:
+                  def __init__(self, val=0):
+                      self.val = val
+                      self.left = None
+                      self.right = None
+
+              def build_tree(arr):
+                  if not arr or arr[0] is None:
+                      return None
+                  root = TreeNode(arr[0])
+                  queue = deque([root])
+                  i = 1
+                  while queue and i < len(arr):
+                      node = queue.popleft()
+                      if i < len(arr) and arr[i] is not None:
+                          node.left = TreeNode(arr[i])
+                          queue.append(node.left)
+                      i += 1
+                      if i < len(arr) and arr[i] is not None:
+                          node.right = TreeNode(arr[i])
+                          queue.append(node.right)
+                      i += 1
+                  return root
+
+              def is_same(t1, t2):
+                  if not t1 and not t2:
+                      return True
+                  if not t1 or not t2:
+                      return False
+                  return (t1.val == t2.val and
+                          is_same(t1.left, t2.left) and
+                          is_same(t1.right, t2.right))
+
+              def check_subtree(node, sub):
+                  if not node:
+                      return False
+                  if is_same(node, sub):
+                      return True
+                  return check_subtree(node.left, sub) or check_subtree(node.right, sub)
+
+              tree = build_tree(root)
+              sub_tree = build_tree(subRoot)
+              return check_subtree(tree, sub_tree)
+    function_signature:
+      name: isSubtree
+      params:
+        - name: root
+          type: List
+        - name: subRoot
+          type: List
+      return_type: bool
+
+test_cases:
+  - input: [[3, 4, 5, 1, 2], [4, 1, 2]]
+    expected: true
+  - input: [[3, 4, 5, 1, 2, null, null, null, null, 0], [4, 1, 2]]
+    expected: false
+  - input: [[1], [1]]
+    expected: true
+  - input: [[1, 2], [2]]
+    expected: true
+  - input: [[1, 2], [1]]
+    expected: false
+  - input: [[1, 2, 3], [2]]
+    expected: true
+  - input: [[1, 2, 3], [3]]
+    expected: true
+  - input: [[1, 2, 3], [1, 2, 3]]
+    expected: true
+  - input: [[1, null, 2], [2]]
+    expected: true
+  - input: [[1, 2, 3, 4, 5], [2, 4, 5]]
+    expected: true
+  - input: [[1, 2, 3, 4, 5], [2, 4]]
+    expected: false
+  - input: [[3, 4, 5, 1, null, 2], [3, 1, 2]]
+    expected: false
+  - input: [[1, 1], [1]]
+    expected: true
+  - input: [[12], [12]]
+    expected: true
+  - input: [[1, 2, 3, null, null, 4, 5], [3, 4, 5]]
+    expected: true

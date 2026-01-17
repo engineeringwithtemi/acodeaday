@@ -1,0 +1,91 @@
+title: Longest Repeating Character Replacement
+sequence_number: 51
+difficulty: medium
+pattern:
+  - string
+  - sliding-window
+
+description: |
+  You are given a string `s` and an integer `k`. You can choose any character of the string and change it to any other uppercase English character. You can perform this operation at most `k` times.
+
+  Return the length of the longest substring containing the same letter you can get after performing the above operations.
+
+constraints:
+  - "1 <= s.length <= 10^5"
+  - "s consists of only uppercase English letters."
+  - "0 <= k <= s.length"
+
+examples:
+  - input: 's = "ABAB", k = 2'
+    output: "4"
+    explanation: "Replace the two 'A's with two 'B's or vice versa."
+  - input: 's = "AABABBA", k = 1'
+    output: "4"
+    explanation: "Replace the one 'A' in the middle with 'B' and form 'AABBBBA'."
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def characterReplacement(self, s: str, k: int) -> int:
+              pass
+    reference_solution: |
+      class Solution:
+          def characterReplacement(self, s: str, k: int) -> int:
+              count = {}
+              max_count = 0
+              max_length = 0
+              left = 0
+
+              for right in range(len(s)):
+                  count[s[right]] = count.get(s[right], 0) + 1
+                  max_count = max(max_count, count[s[right]])
+
+                  # Window size - max char count > k means we need to shrink
+                  while (right - left + 1) - max_count > k:
+                      count[s[left]] -= 1
+                      left += 1
+
+                  max_length = max(max_length, right - left + 1)
+
+              return max_length
+    function_signature:
+      name: characterReplacement
+      params:
+        - name: s
+          type: str
+        - name: k
+          type: int
+      return_type: int
+
+test_cases:
+  - input: ["ABAB", 2]
+    expected: 4
+  - input: ["AABABBA", 1]
+    expected: 4
+  - input: ["AAAA", 2]
+    expected: 4
+  - input: ["AAAB", 0]
+    expected: 3
+  - input: ["ABBB", 2]
+    expected: 4
+  - input: ["A", 0]
+    expected: 1
+  - input: ["A", 1]
+    expected: 1
+  - input: ["AB", 1]
+    expected: 2
+  - input: ["ABCD", 2]
+    expected: 3
+  - input: ["AABCABBB", 2]
+    expected: 6
+  - input: ["BAAAB", 2]
+    expected: 5
+  - input: ["ABCDE", 1]
+    expected: 2
+  - input: ["AAABBBCCC", 2]
+    expected: 5
+  - input: ["ABABABAB", 3]
+    expected: 7
+  - input: ["KKKKKKKK", 0]
+    expected: 8

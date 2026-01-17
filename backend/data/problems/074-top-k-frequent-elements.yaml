@@ -1,0 +1,78 @@
+title: Top K Frequent Elements
+sequence_number: 74
+difficulty: medium
+pattern:
+  - heap
+  - hash-table
+  - bucket-sort
+
+description: |
+  Given an integer array `nums` and an integer `k`, return the `k` most frequent elements. You may return the answer in **any order**.
+
+constraints:
+  - "1 <= nums.length <= 10^5"
+  - "-10^4 <= nums[i] <= 10^4"
+  - "k is in the range [1, the number of unique elements in the array]."
+  - "It is guaranteed that the answer is unique."
+
+examples:
+  - input: "nums = [1,1,1,2,2,3], k = 2"
+    output: "[1,2]"
+  - input: "nums = [1], k = 1"
+    output: "[1]"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def topKFrequent(self, nums: List[int], k: int) -> List[int]:
+              pass
+    reference_solution: |
+      class Solution:
+          def topKFrequent(self, nums: List[int], k: int) -> List[int]:
+              from collections import Counter
+              import heapq
+
+              count = Counter(nums)
+              # Use nlargest with heap
+              return [num for num, freq in heapq.nlargest(k, count.items(), key=lambda x: x[1])]
+    function_signature:
+      name: topKFrequent
+      params:
+        - name: nums
+          type: "List[int]"
+        - name: k
+          type: int
+      return_type: "List[int]"
+
+test_cases:
+  - input: [[1, 1, 1, 2, 2, 3], 2]
+    expected: [1, 2]
+  - input: [[1], 1]
+    expected: [1]
+  - input: [[1, 2], 2]
+    expected: [1, 2]
+  - input: [[1, 1, 2, 2, 3], 2]
+    expected: [1, 2]
+  - input: [[4, 1, -1, 2, -1, 2, 3], 2]
+    expected: [-1, 2]
+  - input: [[1, 1, 1, 1], 1]
+    expected: [1]
+  - input: [[5, 3, 1, 1, 1, 3, 73, 1], 2]
+    expected: [1, 3]
+  - input: [[1, 2, 3, 4, 5], 5]
+    expected: [1, 2, 3, 4, 5]
+  - input: [[3, 0, 1, 0], 1]
+    expected: [0]
+  - input: [[-1, -1], 1]
+    expected: [-1]
+  - input: [[1, 1, 1, 2, 2, 2, 3, 3, 3], 3]
+    expected: [1, 2, 3]
+  - input: [[2, 2, 2, 3, 3, 1], 2]
+    expected: [2, 3]
+  - input: [[7, 7, 7, 7, 7, 8, 8, 8, 9, 9], 2]
+    expected: [7, 8]
+  - input: [[1, 2, 2, 3, 3, 3], 1]
+    expected: [3]
+  - input: [[5, 5, 5, 5, 1, 1, 1, 2, 2, 3], 3]
+    expected: [5, 1, 2]

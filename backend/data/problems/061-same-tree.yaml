@@ -1,0 +1,113 @@
+title: Same Tree
+sequence_number: 61
+difficulty: easy
+pattern:
+  - tree
+  - dfs
+  - bfs
+  - recursion
+
+description: |
+  Given the roots of two binary trees `p` and `q`, write a function to check if they are the same or not.
+
+  Two binary trees are considered the same if they are structurally identical, and the nodes have the same value.
+
+  For testing purposes, binary trees are represented as arrays in level-order (BFS), where `null` represents missing nodes.
+
+constraints:
+  - "The number of nodes in both trees is in the range [0, 100]."
+  - "-10^4 <= Node.val <= 10^4"
+
+examples:
+  - input: "p = [1,2,3], q = [1,2,3]"
+    output: "true"
+  - input: "p = [1,2], q = [1,null,2]"
+    output: "false"
+  - input: "p = [1,2,1], q = [1,1,2]"
+    output: "false"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def isSameTree(self, p: List, q: List) -> bool:
+              pass
+    reference_solution: |
+      class Solution:
+          def isSameTree(self, p: List, q: List) -> bool:
+              from collections import deque
+
+              class TreeNode:
+                  def __init__(self, val=0):
+                      self.val = val
+                      self.left = None
+                      self.right = None
+
+              def build_tree(arr):
+                  if not arr or arr[0] is None:
+                      return None
+                  root = TreeNode(arr[0])
+                  queue = deque([root])
+                  i = 1
+                  while queue and i < len(arr):
+                      node = queue.popleft()
+                      if i < len(arr) and arr[i] is not None:
+                          node.left = TreeNode(arr[i])
+                          queue.append(node.left)
+                      i += 1
+                      if i < len(arr) and arr[i] is not None:
+                          node.right = TreeNode(arr[i])
+                          queue.append(node.right)
+                      i += 1
+                  return root
+
+              def same(t1, t2):
+                  if not t1 and not t2:
+                      return True
+                  if not t1 or not t2:
+                      return False
+                  return t1.val == t2.val and same(t1.left, t2.left) and same(t1.right, t2.right)
+
+              tree1 = build_tree(p)
+              tree2 = build_tree(q)
+              return same(tree1, tree2)
+    function_signature:
+      name: isSameTree
+      params:
+        - name: p
+          type: List
+        - name: q
+          type: List
+      return_type: bool
+
+test_cases:
+  - input: [[1, 2, 3], [1, 2, 3]]
+    expected: true
+  - input: [[1, 2], [1, null, 2]]
+    expected: false
+  - input: [[1, 2, 1], [1, 1, 2]]
+    expected: false
+  - input: [[], []]
+    expected: true
+  - input: [[1], [1]]
+    expected: true
+  - input: [[1], [2]]
+    expected: false
+  - input: [[1], []]
+    expected: false
+  - input: [[], [1]]
+    expected: false
+  - input: [[1, 2, 3, 4, 5], [1, 2, 3, 4, 5]]
+    expected: true
+  - input: [[1, 2, 3, 4, 5], [1, 2, 3, 4, 6]]
+    expected: false
+  - input: [[1, null, 2], [1, null, 2]]
+    expected: true
+  - input: [[1, 2, null], [1, null, 2]]
+    expected: false
+  - input: [[0], [0]]
+    expected: true
+  - input: [[-1, -2, -3], [-1, -2, -3]]
+    expected: true
+  - input: [[1, 2, 3, 4, 5, 6, 7], [1, 2, 3, 4, 5, 6, 7]]
+    expected: true
