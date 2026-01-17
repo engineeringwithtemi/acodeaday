@@ -61,7 +61,7 @@ export function SubmissionResultPanel({
   const firstFailedTest = result.results?.find(r => !r.passed)
 
   // Format memory (convert KB to MB)
-  const formatMemory = (kb?: number) => {
+  const formatMemory = (kb?: number | null) => {
     if (!kb) return 'N/A'
     return `${(kb / 1024).toFixed(2)} MB`
   }
@@ -85,8 +85,8 @@ export function SubmissionResultPanel({
   // Calculate test counts
   // summary.passed = tests that passed (use this for X in "X / Y")
   // total_test_cases = total tests in problem (use this for Y in "X / Y")
-  const testsPassed = result.summary?.passed ?? 0
-  const totalTests = result.total_test_cases ?? result.summary?.total ?? 0
+  const testsPassed = ((result.summary as any)?.passed as number) ?? 0
+  const totalTests = result.total_test_cases ?? ((result.summary as any)?.total as number) ?? 0
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
@@ -120,11 +120,11 @@ export function SubmissionResultPanel({
                   {status.text}
                 </span>
               </div>
-              {totalTests > 0 && (
+              {totalTests > 0 ? (
                 <span className="font-mono text-sm text-gray-300">
                   {testsPassed} / {totalTests} testcases passed
                 </span>
-              )}
+              ) : null}
             </div>
           </div>
 
@@ -155,7 +155,7 @@ export function SubmissionResultPanel({
           )}
 
           {/* Failed Test Case Details */}
-          {firstFailedTest && !firstFailedTest.is_hidden && (
+          {firstFailedTest && (
             <div className="space-y-3">
               {/* Test Case Number */}
               {firstFailedTest.test_number && (
@@ -211,7 +211,7 @@ export function SubmissionResultPanel({
                 <h3 className="text-sm font-semibold text-gray-400 mb-2">Memory</h3>
                 <div className="bg-gray-800 rounded-lg p-4">
                   <span className="font-mono text-lg text-cyan-400">
-                    {formatMemory(result.memory_kb)}
+                    {formatMemory(result.memory_kb ?? null)}
                   </span>
                 </div>
               </div>

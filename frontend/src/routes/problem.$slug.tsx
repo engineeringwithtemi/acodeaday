@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Allotment } from 'allotment'
 import 'allotment/dist/style.css'
 import { Play, Send, Loader2, AlertCircle, RotateCcw, MessageSquare } from 'lucide-react'
@@ -13,7 +13,7 @@ import { ChatPanel } from '@/components/ChatPanel'
 import { SolutionsPanel } from '@/components/SolutionsPanel'
 import Editor from '@monaco-editor/react'
 import { useQueryClient } from '@tanstack/react-query'
-import type { RunCodeResponse, SubmitCodeResponse, SubmissionSchema, TestResult } from '@/types/api'
+import type { RunCodeResponse, SubmitCodeResponse, SubmissionSchema, TestResult, FunctionSignature } from '@/types/api'
 
 export const Route = createFileRoute('/problem/$slug')({
   component: ProblemSolver,
@@ -29,7 +29,7 @@ function ProblemSolver() {
   const loadSubmissionCode = useLoadSubmissionCode()
   const queryClient = useQueryClient()
 
-  const [language] = useState('python')
+  const [language] = useState<'python' | 'javascript'>('python')
   const [testResults, setTestResults] = useState<RunCodeResponse | SubmitCodeResponse | null>(null)
   const [isRunning, setIsRunning] = useState(false)
   const [leftPaneTab, setLeftPaneTab] = useState<'description' | 'submissions' | 'solutions'>('description')
@@ -199,14 +199,13 @@ function ProblemSolver() {
   const handleSubmissionClick = (submission: SubmissionSchema) => {
     // Build results array from stored first failed test (if any)
     const results: TestResult[] = []
-    if (submission.failed_test_number !== null) {
+    if (submission.failed_test_number !== null && submission.failed_test_number !== undefined) {
       results.push({
         test_number: submission.failed_test_number,
         passed: false,
         input: submission.failed_input,
         output: submission.failed_output,
         expected: submission.failed_expected,
-        is_hidden: submission.failed_is_hidden ?? false,
       })
     }
 
@@ -223,6 +222,7 @@ function ProblemSolver() {
       submission_id: submission.id,
       runtime_ms: submission.runtime_ms ?? undefined,
       memory_kb: submission.memory_kb ?? undefined,
+      needs_rating: false, // Historical submissions don't need rating
     }
 
     setSubmissionResult(resultFromSubmission)
@@ -255,10 +255,11 @@ ${solutionCode}
   }
 
   // Clear initial message after it's been sent
-  const handleInitialMessageSent = () => {
+  // useCallback prevents unnecessary effect re-runs in ChatPanel when parent re-renders
+  const handleInitialMessageSent = useCallback(() => {
     setChatInitialMessage(null)
     setChatInitialTitle(null)
-  }
+  }, [])
 
   if (isLoading) {
     return (
@@ -478,7 +479,7 @@ ${solutionCode}
                     <TestResults
                       results={testResults}
                       isRunning={isRunning}
-                      functionSignature={problem.languages?.[0]?.function_signature}
+                      functionSignature={problem.languages?.[0]?.function_signature as unknown as FunctionSignature}
                     />
                   )}
                 </div>
@@ -510,7 +511,7 @@ ${solutionCode}
           code={submittedCode}
           language={language}
           problemSlug={slug}
-          functionSignature={problem.languages?.[0]?.function_signature}
+          functionSignature={problem.languages?.[0]?.function_signature as unknown as FunctionSignature}
           onClose={handleCloseSubmissionResult}
           onLoadCode={handleLoadSubmissionCode}
         />

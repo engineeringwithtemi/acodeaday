@@ -46,7 +46,7 @@ class ProblemSchema(BaseModel):
     title: str
     slug: str
     difficulty: Difficulty
-    pattern: str
+    pattern: list[str]
     sequence_number: int
 
     model_config = {"from_attributes": True}
@@ -64,7 +64,7 @@ class ProblemDetailSchema(BaseModel):
     slug: str
     description: str
     difficulty: Difficulty
-    pattern: str
+    pattern: list[str]
     sequence_number: int
     constraints: list[str]
     examples: list[ProblemExampleSchema]

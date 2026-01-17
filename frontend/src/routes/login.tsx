@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, useRouter, Link } from '@tanstack/react-router'
+import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router'
 import { useState, FormEvent } from 'react'
 import { Code2, LogIn } from 'lucide-react'
 import { useAuth } from '@/hooks'

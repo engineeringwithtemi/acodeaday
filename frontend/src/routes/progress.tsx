@@ -158,7 +158,8 @@ function ProblemRow({ problem, progress }: ProblemRowProps) {
 
   return (
     <Link
-      to={`/problem/${problem.slug}`}
+      to="/problem/$slug"
+      params={{ slug: problem.slug }}
       className="flex items-center gap-4 p-4 hover:bg-gray-700/50 transition-colors"
     >
       {/* Status Icon */}

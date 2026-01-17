@@ -139,7 +139,8 @@ function ProblemCard({ problem, type }: ProblemCardProps) {
 
   return (
     <Link
-      to={`/problem/${problem.slug}`}
+      to="/problem/$slug"
+      params={{ slug: problem.slug }}
       className={`block bg-gradient-to-br ${typeColors[type]} backdrop-blur-sm border rounded-xl p-6 hover:scale-[1.02] transition-all duration-300 hover:shadow-xl`}
     >
       <div className="flex items-start justify-between mb-3">

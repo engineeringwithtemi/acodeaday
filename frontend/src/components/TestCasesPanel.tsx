@@ -20,7 +20,6 @@ export function TestCasesPanel({ testCases, onCustomTestCasesChange }: TestCases
   const [activeTab, setActiveTab] = useState(0)
   const [customTestCases, setCustomTestCases] = useState<CustomTestCase[]>([])
 
-  const totalTabs = visibleTestCases.length + customTestCases.length
 
   const addCustomTestCase = () => {
     const newCase: CustomTestCase = {

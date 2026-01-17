@@ -154,7 +154,8 @@ function MasteredProblemCard({ masteredProblem, onShowAgain, isLoading }: Master
 
   return (
     <Link
-      to={`/problem/${problem.slug}`}
+      to="/problem/$slug"
+      params={{ slug: problem.slug }}
       className="block bg-gradient-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-sm border border-purple-500/50 rounded-xl p-6 hover:scale-[1.02] transition-all duration-300 hover:shadow-xl"
     >
       <div className="flex items-start justify-between mb-3">
