@@ -33,18 +33,36 @@ cp .env.example .env
 Edit `.env` with your Supabase credentials:
 
 ```bash
-# Database (from Supabase dashboard > Settings > Database)
-DATABASE_URL=postgresql+asyncpg://postgres:[PASSWORD]@[HOST]:5432/postgres
+# Database (from Supabase dashboard > Settings > Database > Connection string > URI)
+# IMPORTANT: Use the "Transaction pooler" connection (port 6543), NOT direct connection (port 5432)
+DATABASE_URL=postgresql+asyncpg://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
 
 # Supabase (from Supabase dashboard > Settings > API)
 SUPABASE_URL=https://[PROJECT_ID].supabase.co
 SUPABASE_KEY=[YOUR_ANON_KEY]
+# Service role key - enables auto-confirm for default user (recommended)
+SUPABASE_SERVICE_ROLE_KEY=[YOUR_SERVICE_ROLE_KEY]
 
 # AI features (optional - for AI tutor)
 OPENAI_API_KEY=sk-...
 # or
 GOOGLE_API_KEY=...
 ```
+
+::: warning Supabase Cloud Connection
+When using Supabase Cloud, you **must** use the **Transaction pooler** connection string (port 6543), not the direct connection (port 5432).
+
+**To get the correct connection string:**
+1. Go to Supabase Dashboard → **Settings** → **Database**
+2. Under **Connection string**, select **URI**
+3. Choose **Transaction pooler** (port 6543)
+4. Copy the connection string and replace `postgresql://` with `postgresql+asyncpg://`
+
+The pooler connection is required because:
+- It handles connection pooling for serverless/async applications
+- It works better with asyncpg (the async PostgreSQL driver)
+- Direct connections may hit connection limits or timeout issues
+:::
 
 ::: tip Using Local Supabase?
 If you're running Supabase locally (`supabase start`) instead of Supabase Cloud, use `host.docker.internal` instead of `localhost`:
@@ -100,9 +118,10 @@ curl -O https://raw.githubusercontent.com/engineeringwithtemi/acodeaday/main/doc
 
 Edit `docker-compose.prod.yml` and update the `CHANGE_ME` values:
 
-- `DATABASE_URL` - Your Supabase PostgreSQL connection string
+- `DATABASE_URL` - Your Supabase PostgreSQL connection string (use pooler URL with port 6543)
 - `SUPABASE_URL` - Your Supabase project URL
 - `SUPABASE_KEY` - Your Supabase anon key
+- `SUPABASE_SERVICE_ROLE_KEY` - Your Supabase service role key (for auto-confirming users)
 - `VITE_API_URL` - Where users access the backend (e.g., `http://localhost:8000`)
 
 ### 3. Start All Services

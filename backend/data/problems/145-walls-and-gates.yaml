@@ -1,0 +1,138 @@
+title: Walls and Gates
+sequence_number: 145
+difficulty: medium
+pattern:
+  - bfs
+  - matrix
+  - graph
+  - multi-source-bfs
+
+description: |
+  You are given an `m x n` grid `rooms` initialized with these three possible values:
+
+  - `-1` A wall or an obstacle.
+  - `0` A gate.
+  - `INF` Infinity means an empty room. We use the value `2^31 - 1 = 2147483647` to represent `INF` as you may assume that the distance to a gate is less than `2147483647`.
+
+  Fill each empty room with the distance to its nearest gate. If it is impossible to reach a gate, it should be filled with `INF`.
+
+constraints:
+  - "m == rooms.length"
+  - "n == rooms[i].length"
+  - "1 <= m, n <= 250"
+  - "rooms[i][j] is -1, 0, or 2^31 - 1"
+
+examples:
+  - input: "rooms = [[2147483647,-1,0,2147483647],[2147483647,2147483647,2147483647,-1],[2147483647,-1,2147483647,-1],[0,-1,2147483647,2147483647]]"
+    output: "[[3,-1,0,1],[2,2,1,-1],[1,-1,2,-1],[0,-1,3,4]]"
+  - input: "rooms = [[-1]]"
+    output: "[[-1]]"
+  - input: "rooms = [[2147483647]]"
+    output: "[[2147483647]]"
+  - input: "rooms = [[0]]"
+    output: "[[0]]"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def wallsAndGates(self, rooms: List[List[int]]) -> List[List[int]]:
+              pass
+    reference_solution: |
+      class Solution:
+          def wallsAndGates(self, rooms: List[List[int]]) -> List[List[int]]:
+              from collections import deque
+
+              if not rooms:
+                  return rooms
+
+              INF = 2147483647
+              m, n = len(rooms), len(rooms[0])
+              queue = deque()
+
+              # Add all gates to queue
+              for i in range(m):
+                  for j in range(n):
+                      if rooms[i][j] == 0:
+                          queue.append((i, j))
+
+              # BFS from all gates simultaneously
+              directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
+              while queue:
+                  row, col = queue.popleft()
+                  for dr, dc in directions:
+                      r, c = row + dr, col + dc
+                      if 0 <= r < m and 0 <= c < n and rooms[r][c] == INF:
+                          rooms[r][c] = rooms[row][col] + 1
+                          queue.append((r, c))
+
+              return rooms
+    function_signature:
+      name: wallsAndGates
+      params:
+        - name: rooms
+          type: "List[List[int]]"
+      return_type: "List[List[int]]"
+
+test_cases:
+  - input: [[[2147483647, -1, 0, 2147483647], [2147483647, 2147483647, 2147483647, -1], [2147483647, -1, 2147483647, -1], [0, -1, 2147483647, 2147483647]]]
+    expected: [[3, -1, 0, 1], [2, 2, 1, -1], [1, -1, 2, -1], [0, -1, 3, 4]]
+  - input: [[[-1]]]
+    expected: [[-1]]
+  - input: [[[2147483647]]]
+    expected: [[2147483647]]
+  - input: [[[0]]]
+    expected: [[0]]
+  - input: [[[0, 2147483647]]]
+    expected: [[0, 1]]
+  - input: [[[2147483647, 0]]]
+    expected: [[1, 0]]
+  - input: [[[0, -1, 2147483647]]]
+    expected: [[0, -1, 2147483647]]
+  - input: [[[0, 2147483647, 0]]]
+    expected: [[0, 1, 0]]
+  - input: [[[2147483647], [0], [2147483647]]]
+    expected: [[1], [0], [1]]
+  - input: [[[0, 2147483647, 2147483647], [2147483647, 2147483647, 2147483647], [2147483647, 2147483647, 0]]]
+    expected: [[0, 1, 2], [1, 2, 1], [2, 1, 0]]
+  # Additional 20 test cases
+  - input: [[[0, 2147483647, 2147483647, 2147483647]]]
+    expected: [[0, 1, 2, 3]]
+  - input: [[[2147483647, 2147483647, 2147483647, 0]]]
+    expected: [[3, 2, 1, 0]]
+  - input: [[[0], [2147483647], [2147483647], [2147483647]]]
+    expected: [[0], [1], [2], [3]]
+  - input: [[[2147483647], [2147483647], [2147483647], [0]]]
+    expected: [[3], [2], [1], [0]]
+  - input: [[[-1, -1, -1], [-1, 0, -1], [-1, -1, -1]]]
+    expected: [[-1, -1, -1], [-1, 0, -1], [-1, -1, -1]]
+  - input: [[[0, -1, 0], [-1, -1, -1], [0, -1, 0]]]
+    expected: [[0, -1, 0], [-1, -1, -1], [0, -1, 0]]
+  - input: [[[2147483647, 2147483647], [2147483647, 0]]]
+    expected: [[2, 1], [1, 0]]
+  - input: [[[0, 2147483647], [2147483647, 2147483647]]]
+    expected: [[0, 1], [1, 2]]
+  - input: [[[2147483647, 0], [0, 2147483647]]]
+    expected: [[1, 0], [0, 1]]
+  - input: [[[0, 0, 0], [0, 0, 0], [0, 0, 0]]]
+    expected: [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
+  - input: [[[-1, -1, -1], [-1, -1, -1], [-1, -1, -1]]]
+    expected: [[-1, -1, -1], [-1, -1, -1], [-1, -1, -1]]
+  - input: [[[2147483647, 2147483647, 2147483647], [2147483647, 2147483647, 2147483647], [2147483647, 2147483647, 2147483647]]]
+    expected: [[2147483647, 2147483647, 2147483647], [2147483647, 2147483647, 2147483647], [2147483647, 2147483647, 2147483647]]
+  - input: [[[0, -1, 2147483647, 2147483647], [2147483647, -1, 2147483647, 0]]]
+    expected: [[0, -1, 2, 1], [1, -1, 1, 0]]
+  - input: [[[2147483647, 2147483647, 0, 2147483647, 2147483647]]]
+    expected: [[2, 1, 0, 1, 2]]
+  - input: [[[2147483647], [2147483647], [0], [2147483647], [2147483647]]]
+    expected: [[2], [1], [0], [1], [2]]
+  - input: [[[0, 2147483647, -1, 2147483647, 0]]]
+    expected: [[0, 1, -1, 1, 0]]
+  - input: [[[-1, 0, -1], [2147483647, 2147483647, 2147483647], [-1, 0, -1]]]
+    expected: [[-1, 0, -1], [2, 1, 2], [-1, 0, -1]]
+  - input: [[[0, 2147483647, 2147483647], [-1, -1, 2147483647], [2147483647, 2147483647, 0]]]
+    expected: [[0, 1, 2], [-1, -1, 1], [2, 1, 0]]
+  - input: [[[2147483647, -1, 2147483647], [0, -1, 0], [2147483647, -1, 2147483647]]]
+    expected: [[1, -1, 1], [0, -1, 0], [1, -1, 1]]
+  - input: [[[0, 2147483647, 2147483647, 2147483647, 0]]]
+    expected: [[0, 1, 2, 1, 0]]

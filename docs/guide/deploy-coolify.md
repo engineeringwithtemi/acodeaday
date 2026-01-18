@@ -35,9 +35,14 @@ In the Coolify UI, add these environment variables:
 DATABASE_URL=postgresql+asyncpg://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
 SUPABASE_URL=https://[your-project].supabase.co
 SUPABASE_KEY=[your-anon-key]
+SUPABASE_SERVICE_ROLE_KEY=[your-service-role-key]
 VITE_SUPABASE_URL=https://[your-project].supabase.co
 VITE_SUPABASE_KEY=[your-anon-key]
 ```
+
+::: tip Service Role Key
+The `SUPABASE_SERVICE_ROLE_KEY` enables auto-confirmation of the default user's email. Without it, you'll need to manually confirm the user in Supabase Dashboard → Authentication → Users.
+:::
 
 **For path-based routing (recommended):**
 ```
@@ -173,12 +178,23 @@ Coolify will use these to determine when services are ready.
 
 ### Database connection timeout
 
-**Problem:** Supabase connection pooler timeout.
+**Problem:** Supabase connection pooler timeout or connection errors.
 
-**Solution:** Use the pooler URL (port 6543) instead of direct connection (port 5432):
-```
+**Solution:** You **must** use the **Transaction pooler** URL (port 6543), not direct connection (port 5432):
+
+```bash
+# ✅ Correct - Transaction pooler (port 6543)
 postgresql+asyncpg://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
+
+# ❌ Wrong - Direct connection (port 5432)
+postgresql+asyncpg://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres
 ```
+
+**To get the correct connection string:**
+1. Supabase Dashboard → **Settings** → **Database**
+2. Under **Connection string**, select **URI**
+3. Choose **Transaction pooler** (port 6543)
+4. Replace `postgresql://` with `postgresql+asyncpg://`
 
 ### Migrations not running
 
@@ -194,6 +210,26 @@ If migrations failed, you can run them manually:
 docker exec acodeaday-backend alembic upgrade head
 docker exec acodeaday-backend python scripts/seed_problems.py seed
 ```
+
+### Browser showing old API URLs after config change
+
+**Problem:** After changing `VITE_API_URL` or other environment variables, the browser still makes requests to the old URL.
+
+**Cause:** Browser caches the compiled JavaScript files. Even though the container replaces environment variables at startup, browsers may serve cached versions.
+
+**Solution:**
+1. **Hard refresh** the page: `Ctrl+Shift+R` (Windows/Linux) or `Cmd+Shift+R` (Mac)
+2. If that doesn't work, **clear browser cache**:
+   - Chrome: Settings → Privacy → Clear browsing data → Cached images and files
+   - Or open DevTools (F12) → Network tab → Check "Disable cache" → Refresh
+3. **Log out and log back in** - This forces a fresh page load
+4. Try **incognito/private mode** to verify the fix works with a clean cache
+
+::: tip For Production
+After changing environment variables in Coolify:
+1. Redeploy the frontend service
+2. Ask users to hard refresh if they experience issues
+:::
 
 ### SSL/HTTPS issues
 

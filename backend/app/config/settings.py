@@ -19,12 +19,16 @@ class Settings(BaseSettings):
     )
     supabase_key: str = Field(
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0",
-        description="Supabase anon/service role key for JWT validation"
+        description="Supabase anon key for JWT validation"
+    )
+    supabase_service_role_key: str | None = Field(
+        None,
+        description="Supabase service role key for admin operations (user creation with auto-confirm)"
     )
 
     # Default user credentials (created on startup)
     auth_user_email: str = Field(
-        "admin@acodeaday.local", description="Default user email"
+        "admin@acodeaday.vercel.app", description="Default user email"
     )
     auth_password: str = Field(
         "changeme123", description="Default user password (min 6 chars)"

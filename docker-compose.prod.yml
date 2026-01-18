@@ -190,13 +190,15 @@ services:
       # Your Supabase project URL and anon key (from Supabase dashboard > Settings > API)
       - SUPABASE_URL=https://your-project.supabase.co
       - SUPABASE_KEY=your-supabase-anon-key
+      # Service role key for auto-confirming user emails (from Supabase dashboard > Settings > API)
+      - SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
 
       # =========================================================================
       # DEFAULT USER - REQUIRED (CHANGE_ME)
       # =========================================================================
       # Email and password for the default admin user created on startup
-      - DEFAULT_USER_EMAIL=admin@yourdomain.com
-      - DEFAULT_USER_PASSWORD=CHANGE_ME_secure_password
+      - AUTH_USER_EMAIL=admin@acodeaday.vercel.app
+      - AUTH_PASSWORD=admin12345
 
       # =========================================================================
       # CORS ORIGINS - Configure allowed frontend URLs

@@ -15,6 +15,7 @@ export default {
           items: [
             { text: 'Introduction', link: '/guide/introduction' },
             { text: 'Quick Start', link: '/guide/quick-start' },
+            { text: 'Troubleshooting', link: '/guide/troubleshooting' },
           ]
         },
         {

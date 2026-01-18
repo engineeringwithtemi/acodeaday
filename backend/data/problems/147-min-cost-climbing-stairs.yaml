@@ -1,0 +1,115 @@
+title: Min Cost Climbing Stairs
+sequence_number: 147
+difficulty: easy
+pattern:
+  - dynamic-programming
+  - arrays
+
+description: |
+  You are given an integer array `cost` where `cost[i]` is the cost of `ith` step on a staircase. Once you pay the cost, you can either climb one or two steps.
+
+  You can either start from the step with index `0`, or the step with index `1`.
+
+  Return the minimum cost to reach the top of the floor.
+
+constraints:
+  - "2 <= cost.length <= 1000"
+  - "0 <= cost[i] <= 999"
+
+examples:
+  - input: "cost = [10,15,20]"
+    output: "15"
+    explanation: "You will start at index 1. Pay 15 and climb two steps to reach the top. The total cost is 15."
+  - input: "cost = [1,100,1,1,1,100,1,1,100,1]"
+    output: "6"
+    explanation: "You will start at index 0. Pay 1 and climb two steps to reach index 2. Pay 1 and climb two steps to reach index 4. Pay 1 and climb two steps to reach index 6. Pay 1 and climb one step to reach index 7. Pay 1 and climb two steps to reach index 9. Pay 1 and climb one step to reach the top. The total cost is 6."
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def minCostClimbingStairs(self, cost: List[int]) -> int:
+              pass
+    reference_solution: |
+      class Solution:
+          def minCostClimbingStairs(self, cost: List[int]) -> int:
+              n = len(cost)
+              # dp[i] = min cost to reach step i
+              prev2 = 0  # cost to reach step 0
+              prev1 = 0  # cost to reach step 1
+
+              for i in range(2, n + 1):
+                  current = min(prev1 + cost[i - 1], prev2 + cost[i - 2])
+                  prev2 = prev1
+                  prev1 = current
+
+              return prev1
+    function_signature:
+      name: minCostClimbingStairs
+      params:
+        - name: cost
+          type: "List[int]"
+      return_type: int
+
+test_cases:
+  - input: [[10, 15, 20]]
+    expected: 15
+  - input: [[1, 100, 1, 1, 1, 100, 1, 1, 100, 1]]
+    expected: 6
+  - input: [[0, 0, 0, 0]]
+    expected: 0
+  - input: [[1, 2]]
+    expected: 1
+  - input: [[2, 1]]
+    expected: 1
+  - input: [[0, 1, 2, 3]]
+    expected: 2
+  - input: [[10, 15]]
+    expected: 10
+  - input: [[1, 100]]
+    expected: 1
+  - input: [[1, 1, 1, 1, 1]]
+    expected: 2
+  - input: [[999, 999, 999]]
+    expected: 999
+  # Additional 20 test cases
+  - input: [[0, 0]]
+    expected: 0
+  - input: [[100, 1]]
+    expected: 1
+  - input: [[1, 2, 3]]
+    expected: 2
+  - input: [[3, 2, 1]]
+    expected: 2
+  - input: [[5, 5, 5, 5, 5, 5]]
+    expected: 15
+  - input: [[1, 2, 3, 4, 5]]
+    expected: 6
+  - input: [[5, 4, 3, 2, 1]]
+    expected: 6
+  - input: [[10, 1, 10, 1, 10]]
+    expected: 2
+  - input: [[1, 10, 1, 10, 1]]
+    expected: 3
+  - input: [[100, 99, 98, 97, 96]]
+    expected: 196
+  - input: [[1, 1, 1, 1, 1, 1, 1, 1, 1, 1]]
+    expected: 5
+  - input: [[0, 1, 0, 1, 0, 1]]
+    expected: 0
+  - input: [[1, 0, 1, 0, 1, 0]]
+    expected: 0
+  - input: [[100, 1, 1, 1, 100]]
+    expected: 2
+  - input: [[1, 100, 1, 100, 1]]
+    expected: 3
+  - input: [[50, 50, 50, 50]]
+    expected: 100
+  - input: [[999, 1, 999, 1]]
+    expected: 2
+  - input: [[1, 999, 1, 999]]
+    expected: 2
+  - input: [[10, 20, 30, 40, 50, 60]]
+    expected: 90
+  - input: [[60, 50, 40, 30, 20, 10]]
+    expected: 90
