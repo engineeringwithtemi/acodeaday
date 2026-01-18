@@ -21,7 +21,25 @@ DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:54322/postgres
 
 **Important:** Must use `postgresql+asyncpg://` (not `postgresql://`) for async SQLAlchemy.
 
-For local Supabase, get this from `supabase status` output (look for "DB URL") and replace `postgresql://` with `postgresql+asyncpg://`.
+#### Local Supabase
+Get the connection string from `supabase status` output (look for "DB URL") and replace `postgresql://` with `postgresql+asyncpg://`.
+
+#### Supabase Cloud
+You **must** use the **Transaction pooler** connection string (port 6543), not the direct connection (port 5432):
+
+```bash
+# ✅ Correct - Transaction pooler (port 6543)
+DATABASE_URL=postgresql+asyncpg://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
+
+# ❌ Wrong - Direct connection (port 5432) - will cause connection issues
+DATABASE_URL=postgresql+asyncpg://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres
+```
+
+**To get the correct connection string:**
+1. Supabase Dashboard → **Settings** → **Database**
+2. Under **Connection string**, select **URI**
+3. Choose **Transaction pooler** (port 6543)
+4. Replace `postgresql://` with `postgresql+asyncpg://`
 
 ### Supabase Authentication
 
@@ -32,11 +50,16 @@ SUPABASE_URL=http://127.0.0.1:54321
 # Supabase anon/public key (for JWT validation)
 SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
-# Supabase JWT secret (for token validation)
-SUPABASE_JWT_SECRET=super-secret-jwt-token-with-at-least-32-characters-long
+# Supabase service role key (for admin operations - auto-confirm users)
+# Optional but recommended for production to avoid manual email confirmation
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
 For local Supabase, these values are available from `supabase status` after running `supabase start`.
+
+For Supabase Cloud, get these from **Settings** → **API**:
+- `anon` `public` key → `SUPABASE_KEY`
+- `service_role` key → `SUPABASE_SERVICE_ROLE_KEY`
 
 ### Default User Credentials
 
@@ -152,7 +175,7 @@ DATABASE_URL=postgresql+asyncpg://postgres:postgres@127.0.0.1:54322/postgres
 # =============================================================================
 SUPABASE_URL=http://127.0.0.1:54321
 SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
-SUPABASE_JWT_SECRET=super-secret-jwt-token-with-at-least-32-characters-long
+# SUPABASE_SERVICE_ROLE_KEY=  # Optional: enables auto-confirm for default user
 
 # =============================================================================
 # Default User (created on startup)

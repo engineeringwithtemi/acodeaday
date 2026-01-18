@@ -1,4 +1,4 @@
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import {
   Home,
@@ -8,16 +8,19 @@ import {
   LogOut,
   X,
   Code2,
+  BookOpen,
 } from 'lucide-react'
 import { useAuth } from '@/hooks'
 
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false)
   const { logout, email } = useAuth()
+  const navigate = useNavigate()
 
   const handleLogout = async () => {
     await logout()
     setIsOpen(false)
+    navigate({ to: '/login' })
   }
 
   return (
@@ -38,11 +41,21 @@ export default function Header() {
             </Link>
           </h1>
         </div>
-        {email && (
-          <div className="text-sm text-gray-300">
-            <span className="font-semibold text-cyan-400">{email}</span>
-          </div>
-        )}
+        <div className="flex items-center gap-4">
+          <a
+            href="https://acodeaday.vercel.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-1.5 hover:bg-gray-700 rounded-lg transition-colors text-gray-300 hover:text-cyan-400 text-sm font-medium"
+          >
+            Docs
+          </a>
+          {email && (
+            <div className="text-sm text-gray-300">
+              <span className="font-semibold text-cyan-400">{email}</span>
+            </div>
+          )}
+        </div>
       </header>
 
       <aside
@@ -100,6 +113,17 @@ export default function Header() {
             <Award size={20} />
             <span className="font-medium">Mastered Problems</span>
           </Link>
+
+          <a
+            href="https://acodeaday.vercel.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => setIsOpen(false)}
+            className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800 transition-colors mb-2"
+          >
+            <BookOpen size={20} />
+            <span className="font-medium">Documentation</span>
+          </a>
 
           <div className="border-t border-gray-700 my-4"></div>
 

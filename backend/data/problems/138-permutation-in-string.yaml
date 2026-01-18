@@ -1,0 +1,136 @@
+title: Permutation in String
+sequence_number: 138
+difficulty: medium
+pattern:
+  - sliding-window
+  - hash-map
+  - strings
+  - two-pointers
+
+description: |
+  Given two strings `s1` and `s2`, return `true` if `s2` contains a permutation of `s1`, or `false` otherwise.
+
+  In other words, return `true` if one of `s1`'s permutations is the substring of `s2`.
+
+constraints:
+  - "1 <= s1.length, s2.length <= 10^4"
+  - "s1 and s2 consist of lowercase English letters"
+
+examples:
+  - input: 's1 = "ab", s2 = "eidbaooo"'
+    output: "true"
+    explanation: "s2 contains one permutation of s1 (\"ba\")."
+  - input: 's1 = "ab", s2 = "eidboaoo"'
+    output: "false"
+
+languages:
+  python:
+    starter_code: |
+      class Solution:
+          def checkInclusion(self, s1: str, s2: str) -> bool:
+              pass
+    reference_solution: |
+      class Solution:
+          def checkInclusion(self, s1: str, s2: str) -> bool:
+              if len(s1) > len(s2):
+                  return False
+
+              s1_count = [0] * 26
+              s2_count = [0] * 26
+
+              for i in range(len(s1)):
+                  s1_count[ord(s1[i]) - ord('a')] += 1
+                  s2_count[ord(s2[i]) - ord('a')] += 1
+
+              matches = sum(1 for i in range(26) if s1_count[i] == s2_count[i])
+
+              for i in range(len(s1), len(s2)):
+                  if matches == 26:
+                      return True
+
+                  idx = ord(s2[i]) - ord('a')
+                  s2_count[idx] += 1
+                  if s2_count[idx] == s1_count[idx]:
+                      matches += 1
+                  elif s2_count[idx] == s1_count[idx] + 1:
+                      matches -= 1
+
+                  idx = ord(s2[i - len(s1)]) - ord('a')
+                  s2_count[idx] -= 1
+                  if s2_count[idx] == s1_count[idx]:
+                      matches += 1
+                  elif s2_count[idx] == s1_count[idx] - 1:
+                      matches -= 1
+
+              return matches == 26
+    function_signature:
+      name: checkInclusion
+      params:
+        - name: s1
+          type: str
+        - name: s2
+          type: str
+      return_type: bool
+
+test_cases:
+  - input: ["ab", "eidbaooo"]
+    expected: true
+  - input: ["ab", "eidboaoo"]
+    expected: false
+  - input: ["adc", "dcda"]
+    expected: true
+  - input: ["a", "ab"]
+    expected: true
+  - input: ["ab", "a"]
+    expected: false
+  - input: ["abc", "bbbca"]
+    expected: true
+  - input: ["abc", "ccccbbbbaaaa"]
+    expected: false
+  - input: ["aaa", "aaaa"]
+    expected: true
+  - input: ["hello", "ooolleoooleh"]
+    expected: false
+  - input: ["ab", "ab"]
+    expected: true
+  # Additional 20 test cases
+  - input: ["a", "a"]
+    expected: true
+  - input: ["z", "abc"]
+    expected: false
+  - input: ["xyz", "zyx"]
+    expected: true
+  - input: ["abc", "cba"]
+    expected: true
+  - input: ["abc", "cab"]
+    expected: true
+  - input: ["abcd", "dcbaefgh"]
+    expected: true
+  - input: ["abcd", "efghdcba"]
+    expected: true
+  - input: ["aabb", "bbaa"]
+    expected: true
+  - input: ["aabb", "abab"]
+    expected: true
+  - input: ["aabb", "aaab"]
+    expected: false
+  - input: ["abc", "defghijklmnop"]
+    expected: false
+  - input: ["pqr", "rpqabc"]
+    expected: true
+  - input: ["xy", "xyxy"]
+    expected: true
+  - input: ["aaa", "aab"]
+    expected: false
+  - input: ["ab", "lecabodee"]
+    expected: true
+  - input: ["trinitrophenylmethylnitramine", ""]
+    expected: false
+  - input: ["abc", "cbadeffed"]
+    expected: true
+  - input: ["aabc", "abcadef"]
+    expected: true
+  - input: ["abcde", "edcbaxxxxx"]
+    expected: true
+  - input: ["rotation", "noitator"]
+    expected: true

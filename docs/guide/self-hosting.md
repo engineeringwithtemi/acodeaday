@@ -94,7 +94,7 @@ Use our pre-built Docker images:
 curl -O https://raw.githubusercontent.com/engineeringwithtemi/acodeaday/main/docker-compose.prod.yml
 
 # Edit environment variables (search for CHANGE_ME)
-# Required: DATABASE_URL, SUPABASE_URL, SUPABASE_KEY
+# Required: DATABASE_URL, SUPABASE_URL, SUPABASE_KEY, SUPABASE_SERVICE_ROLE_KEY
 
 # Start all services
 docker compose -f docker-compose.prod.yml up -d
@@ -144,10 +144,16 @@ See [Distributed Deployment](/guide/deploy-distributed) for details.
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql+asyncpg://user:pass@host:5432/db` |
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql+asyncpg://user:pass@host:6543/db` |
 | `SUPABASE_URL` | Your Supabase project URL | `https://xxx.supabase.co` |
 | `SUPABASE_KEY` | Supabase anon/public key | `eyJ...` |
 | `JUDGE0_URL` | Judge0 API endpoint | `http://judge0-server:2358` |
+
+### Backend (Recommended)
+
+| Variable | Description |
+|----------|-------------|
+| `SUPABASE_SERVICE_ROLE_KEY` | Auto-confirms user email on creation (from Supabase Settings > API) |
 
 ### Backend (Optional)
 
@@ -186,9 +192,26 @@ Some container platforms (like certain Kubernetes setups) don't support privileg
 ### Database connection failed
 
 - Ensure `DATABASE_URL` uses `postgresql+asyncpg://` (not `postgresql://`)
+- **For Supabase Cloud**: Use the **Transaction pooler** URL (port 6543), NOT direct connection (port 5432)
 - Check if your IP is allowed in Supabase (Settings > Database > Network)
 - Verify the database exists and is accessible
 - **If using local Supabase with Docker**: See the section below
+
+::: tip Getting the Right Supabase Cloud Connection String
+1. Go to Supabase Dashboard → **Settings** → **Database**
+2. Under **Connection string**, select **URI**
+3. Choose **Transaction pooler** (port 6543)
+4. Copy and replace `postgresql://` with `postgresql+asyncpg://`
+
+Example:
+```bash
+# From Supabase:
+postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
+
+# Convert to:
+postgresql+asyncpg://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
+```
+:::
 
 ### Using Local Supabase with Docker
 
@@ -228,16 +251,29 @@ docker compose up -d
 
 ### CORS errors
 
-Update backend CORS settings to allow your frontend domain:
+Update the `CORS_ORIGINS` environment variable to include your frontend domain:
 
-```python
-# backend/app/main.py
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["https://yourdomain.com"],
-    ...
-)
+```bash
+CORS_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
 ```
+
+### Browser showing old configuration after environment variable change
+
+**Problem:** After changing `VITE_API_URL` or other frontend environment variables, the browser still uses the old values.
+
+**Cause:** Browser caches JavaScript files. The frontend replaces environment variable placeholders at container startup, but browsers may serve cached versions of the old files.
+
+**Solution:**
+1. **Hard refresh**: `Ctrl+Shift+R` (Windows/Linux) or `Cmd+Shift+R` (Mac)
+2. **Clear browser cache** if hard refresh doesn't work
+3. **Try incognito/private mode** to verify with a clean cache
+4. **Log out and log back in** to force a fresh page load
+
+::: tip
+After changing environment variables:
+1. Restart the frontend container
+2. Tell users to hard refresh their browsers
+:::
 
 ---
 

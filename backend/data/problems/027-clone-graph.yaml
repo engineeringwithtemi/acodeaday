@@ -49,38 +49,71 @@ languages:
   python:
     starter_code: |
       class Solution:
-          def cloneGraph(self, node: Optional['Node']) -> Optional['Node']:
+          def cloneGraph(self, adjList: List[List[int]]) -> List[List[int]]:
+              # Node class for building the graph
+              class Node:
+                  def __init__(self, val=0, neighbors=None):
+                      self.val = val
+                      self.neighbors = neighbors if neighbors is not None else []
+
+              # TODO: Build graph from adjList, clone it using DFS/BFS,
+              # then convert back to adjacency list format
               pass
     reference_solution: |
       class Solution:
-          def cloneGraph(self, node: Optional['Node']) -> Optional['Node']:
-              if not node:
-                  return None
+          def cloneGraph(self, adjList: List[List[int]]) -> List[List[int]]:
+              # Node class for building the graph
+              class Node:
+                  def __init__(self, val=0, neighbors=None):
+                      self.val = val
+                      self.neighbors = neighbors if neighbors is not None else []
 
-              # Hash map to store original -> clone mapping
+              # Handle empty graph
+              if not adjList:
+                  return []
+
+              # Build graph from adjacency list
+              nodes = {i + 1: Node(i + 1) for i in range(len(adjList))}
+              for i, neighbors in enumerate(adjList):
+                  nodes[i + 1].neighbors = [nodes[n] for n in neighbors]
+
+              # Clone the graph using DFS
               clones = {}
 
               def dfs(node):
                   if node in clones:
                       return clones[node]
 
-                  # Create clone
                   clone = Node(node.val)
                   clones[node] = clone
 
-                  # Clone neighbors
                   for neighbor in node.neighbors:
                       clone.neighbors.append(dfs(neighbor))
 
                   return clone
 
-              return dfs(node)
+              cloned = dfs(nodes[1])
+
+              # Convert cloned graph back to adjacency list
+              result = [[] for _ in range(len(adjList))]
+              visited = set()
+
+              def build_adj_list(node):
+                  if node.val in visited:
+                      return
+                  visited.add(node.val)
+                  result[node.val - 1] = [n.val for n in node.neighbors]
+                  for neighbor in node.neighbors:
+                      build_adj_list(neighbor)
+
+              build_adj_list(cloned)
+              return result
     function_signature:
       name: cloneGraph
       params:
-        - name: node
-          type: "Optional[Node]"
-      return_type: "Optional[Node]"
+        - name: adjList
+          type: "List[List[int]]"
+      return_type: "List[List[int]]"
 
 test_cases:
   - input: [[[2, 4], [1, 3], [2, 4], [1, 3]]]

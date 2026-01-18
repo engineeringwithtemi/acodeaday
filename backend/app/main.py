@@ -15,7 +15,7 @@ configure_logging()
 logger = get_logger(__name__)
 
 
-async def ensure_default_user_exists(supabase_client):
+async def ensure_default_user_exists(supabase_client, admin_client=None):
     """Create default user in Supabase Auth if it doesn't exist."""
     try:
         await supabase_client.auth.sign_in_with_password({
@@ -25,11 +25,21 @@ async def ensure_default_user_exists(supabase_client):
         logger.info("default_user_exists", email=settings.auth_user_email)
     except Exception:
         try:
-            await supabase_client.auth.sign_up({
-                "email": settings.auth_user_email,
-                "password": settings.auth_password,
-            })
-            logger.info("default_user_created", email=settings.auth_user_email)
+            # Use admin API if service role key is available (auto-confirms email)
+            if admin_client:
+                await admin_client.auth.admin.create_user({
+                    "email": settings.auth_user_email,
+                    "password": settings.auth_password,
+                    "email_confirm": True,
+                })
+                logger.info("default_user_created_confirmed", email=settings.auth_user_email)
+            else:
+                # Fallback to regular sign_up (requires manual email confirmation)
+                await supabase_client.auth.sign_up({
+                    "email": settings.auth_user_email,
+                    "password": settings.auth_password,
+                })
+                logger.info("default_user_created_unconfirmed", email=settings.auth_user_email)
         except Exception as e:
             logger.warning(
                 "default_user_creation_failed",
@@ -52,7 +62,12 @@ async def lifespan(app: FastAPI):
     supabase_client = await acreate_client(settings.supabase_url, settings.supabase_key)
     app.state.supabase = supabase_client
 
-    await ensure_default_user_exists(supabase_client)
+    # Create admin client if service role key is available (for user creation with auto-confirm)
+    admin_client = None
+    if settings.supabase_service_role_key:
+        admin_client = await acreate_client(settings.supabase_url, settings.supabase_service_role_key)
+
+    await ensure_default_user_exists(supabase_client, admin_client)
 
     yield
 
