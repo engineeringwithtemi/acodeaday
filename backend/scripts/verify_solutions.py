@@ -46,6 +46,23 @@ def load_problem(filepath: Path) -> dict:
         return yaml.safe_load(f)
 
 
+def normalize_for_unordered(value: Any) -> Any:
+    """Normalize lists for unordered comparisons."""
+    if isinstance(value, list):
+        normalized_items = [normalize_for_unordered(item) for item in value]
+        return sorted(normalized_items, key=lambda item: yaml.safe_dump(item, sort_keys=True))
+    if isinstance(value, dict):
+        return {key: normalize_for_unordered(val) for key, val in value.items()}
+    return value
+
+
+def compare_result(result: Any, expected: Any, comparison: str) -> bool:
+    """Compare a result using the configured comparison strategy."""
+    if comparison == "unordered_array" and isinstance(result, list) and isinstance(expected, list):
+        return normalize_for_unordered(result) == normalize_for_unordered(expected)
+    return result == expected
+
+
 def execute_solution_local(reference_solution: str, function_name: str, test_input: list) -> Any:
     """Execute the reference solution locally using Python's exec()."""
     # Create a namespace for execution
@@ -71,6 +88,7 @@ def execute_solution_judge0(
     function_name: str,
     test_cases: list[dict],
     language: str = "python",
+    default_comparison: str | None = None,
 ) -> list[dict]:
     """
     Execute the reference solution via Judge0 API.
@@ -92,12 +110,17 @@ def execute_solution_judge0(
 
     # Create mock TestCase objects for the wrapper
     class MockTestCase:
-        def __init__(self, input_data, expected):
+        def __init__(self, input_data, expected, comparison):
             self.input = input_data
             self.expected = expected
+            self.comparison = comparison
 
     mock_test_cases = [
-        MockTestCase(tc.get("input", []), tc.get("expected"))
+        MockTestCase(
+            tc.get("input", []),
+            tc.get("expected"),
+            tc.get("comparison", default_comparison),
+        )
         for tc in test_cases
     ]
 
@@ -159,14 +182,16 @@ def verify_problem_local(filepath: Path, verbose: bool = False) -> tuple[bool, i
     total = len(test_cases)
     errors = []
 
+    default_comparison = data.get("comparison")
     for i, tc in enumerate(test_cases, 1):
         test_input = tc.get("input", [])
         expected = tc.get("expected")
+        comparison = tc.get("comparison", default_comparison) or "exact"
 
         try:
             result = execute_solution_local(reference_solution, function_name, test_input)
 
-            if result == expected:
+            if compare_result(result, expected, comparison):
                 passed += 1
                 if verbose:
                     print(f"    ✓ Test {i}: input={test_input} -> {result}")
@@ -216,7 +241,13 @@ def verify_problem_judge0(filepath: Path, language: str = "python", verbose: boo
 
     # Execute all test cases via Judge0 in a single request
     try:
-        results = execute_solution_judge0(reference_solution, function_name, test_cases, language)
+        results = execute_solution_judge0(
+            reference_solution,
+            function_name,
+            test_cases,
+            language,
+            default_comparison=data.get("comparison"),
+        )
     except Exception as e:
         return False, 0, len(test_cases), [f"Judge0 error: {type(e).__name__}: {e}"]
 

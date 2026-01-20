@@ -63,9 +63,15 @@ async def _get_problem_with_details(
 class _MockTestCase:
     """Mock TestCase object for custom inputs."""
 
-    def __init__(self, input_data: list[Any], expected: Any = None):
+    def __init__(
+        self,
+        input_data: list[Any],
+        expected: Any = None,
+        comparison: str | None = None,
+    ):
         self.input = input_data
         self.expected = expected
+        self.comparison = comparison
 
 
 async def _execute_code_with_wrapper(
@@ -226,10 +232,12 @@ async def run_code(
             custom_test_count=len(request.custom_input),
         )
 
+        default_comparison = first_three_tests[0].comparison if first_three_tests else None
+
         # First, run reference solution to get expected outputs for custom inputs
         reference_code = problem_lang.reference_solution
         reference_test_cases = [
-            _MockTestCase(input_data=inp, expected=None)
+            _MockTestCase(input_data=inp, expected=None, comparison=default_comparison)
             for inp in request.custom_input
         ]
 
@@ -273,7 +281,7 @@ async def run_code(
 
         # Create custom test case objects with expected outputs
         custom_test_cases = [
-            _MockTestCase(input_data=inp, expected=exp)
+            _MockTestCase(input_data=inp, expected=exp, comparison=default_comparison)
             for inp, exp in zip(request.custom_input, expected_outputs)
         ]
 

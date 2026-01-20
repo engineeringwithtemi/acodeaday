@@ -70,6 +70,20 @@ def validate_problem_data(data: dict) -> None:
     if not data["test_cases"]:
         raise ValueError("At least one test case is required")
 
+    valid_comparisons = {"exact", "unordered_array"}
+    default_comparison = data.get("comparison")
+    if default_comparison and default_comparison not in valid_comparisons:
+        raise ValueError(
+            f"Invalid comparison: {default_comparison}. Must be one of {sorted(valid_comparisons)}"
+        )
+
+    for tc in data["test_cases"]:
+        comparison = tc.get("comparison")
+        if comparison and comparison not in valid_comparisons:
+            raise ValueError(
+                f"Invalid comparison: {comparison}. Must be one of {sorted(valid_comparisons)}"
+            )
+
 
 async def problem_exists(db: AsyncSession, title: str) -> bool:
     """Check if a problem with the given title exists (slug derived from title)."""
@@ -122,11 +136,13 @@ async def insert_problem(db: AsyncSession, data: dict) -> Problem:
         db.add(problem_lang)
 
     # Create test cases
+    default_comparison = data.get("comparison")
     for i, tc_data in enumerate(data["test_cases"]):
         test_case = TestCase(
             problem_id=problem.id,
             input=tc_data["input"],
             expected=tc_data["expected"],
+            comparison=tc_data.get("comparison", default_comparison),
             sequence=tc_data.get("sequence", i + 1),
         )
         db.add(test_case)
@@ -188,11 +204,13 @@ async def upsert_problem(db: AsyncSession, data: dict) -> Problem:
             db.add(problem_lang)
 
         # Recreate test cases
+        default_comparison = data.get("comparison")
         for i, tc_data in enumerate(data["test_cases"]):
             test_case = TestCase(
                 problem_id=existing.id,
                 input=tc_data["input"],
                 expected=tc_data["expected"],
+                comparison=tc_data.get("comparison", default_comparison),
                 sequence=tc_data.get("sequence", i + 1),
             )
             db.add(test_case)
