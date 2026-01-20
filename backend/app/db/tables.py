@@ -146,6 +146,9 @@ class TestCase(Base):
     # Expected output as JSONB: [0,1] or "hello" or {"key": "value"}
     expected: Mapped[dict] = mapped_column(JSONB, nullable=False)
 
+    # Output comparison strategy (e.g., exact, unordered_array)
+    comparison: Mapped[str | None] = mapped_column(String(32), nullable=True)
+
     # Sequence determines order of test case execution
     sequence: Mapped[int] = mapped_column(Integer, nullable=False)
 

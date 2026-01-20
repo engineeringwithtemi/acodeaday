@@ -71,6 +71,7 @@ def generate_python_wrapper(
         {
             "input": tc.input if isinstance(tc.input, list) else [tc.input],
             "expected": tc.expected,
+            "comparison": getattr(tc, "comparison", None) or "exact",
         }
         for tc in test_cases
     ]
@@ -82,6 +83,21 @@ def generate_python_wrapper(
 import json
 import sys
 import io
+
+
+def _normalize_for_unordered(value: Any) -> Any:
+    if isinstance(value, list):
+        normalized_items = [_normalize_for_unordered(item) for item in value]
+        return sorted(normalized_items, key=lambda item: json.dumps(item, sort_keys=True))
+    if isinstance(value, dict):
+        return {{key: _normalize_for_unordered(val) for key, val in value.items()}}
+    return value
+
+
+def _compare_result(result: Any, expected: Any, comparison: str) -> bool:
+    if comparison == "unordered_array" and isinstance(result, list) and isinstance(expected, list):
+        return _normalize_for_unordered(result) == _normalize_for_unordered(expected)
+    return result == expected
 
 if __name__ == "__main__":
     test_cases = {repr(test_cases_python)}
@@ -104,7 +120,8 @@ if __name__ == "__main__":
             result = solution.{function_name}(*test["input"])
 
             # Check if result matches expected
-            passed = result == test["expected"]
+            comparison = test.get("comparison", "exact")
+            passed = _compare_result(result, test["expected"], comparison)
 
             # Get captured stdout
             stdout_content = _captured_stdout.getvalue()

@@ -46,6 +46,8 @@ pattern: hash-map                 # Algorithm pattern tag
 description: |                    # Problem description (markdown)
   Given an array of integers...
 
+comparison: unordered_array       # Optional: default comparison strategy for test cases
+
 constraints:                      # List of constraints
   - "2 <= nums.length <= 10^4"
   - "-10^9 <= nums[i] <= 10^9"
@@ -84,6 +86,9 @@ test_cases:                       # Test inputs/outputs
     expected: [0, 1]              # Expected output (any JSON type)
   - input: [[3, 2, 4], 6]
     expected: [1, 2]
+  - input: [[3, 3], 6]
+    expected: [0, 1]
+    comparison: unordered_array   # Optional: override per test case
 ```
 
 ## Notes
@@ -91,4 +96,5 @@ test_cases:                       # Test inputs/outputs
 - `slug` is automatically derived from the title (e.g., "Two Sum" → "two-sum")
 - `input` is a JSON array of function arguments
 - `expected` can be any JSON type (array, object, string, number, boolean)
+- `comparison` supports `exact` (default) or `unordered_array`
 - Problems are seeded with **skip on existing** by default to protect user progress data
