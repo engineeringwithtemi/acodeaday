@@ -1,6 +1,7 @@
 title: Subsets
 sequence_number: 102
 difficulty: medium
+comparison_strategy: unordered_array  
 pattern:
   - backtracking
   - bit-manipulation

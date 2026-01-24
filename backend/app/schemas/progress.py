@@ -92,12 +92,12 @@ class ProblemWithProgressSchema(BaseModel):
 
 
 class ProgressResponse(BaseModel):
-    """Overview of user's progress across all Blind 75."""
+    """Overview of user's progress across all problems."""
 
     problems: list[ProblemWithProgressSchema] = Field(
         ..., description="All problems with user progress"
     )
-    total_problems: int = Field(..., description="Total problems in dataset (75)")
+    total_problems: int = Field(..., description="Total problems in dataset")
     completed_problems: int = Field(..., description="Problems solved at least once")
     mastered_problems: int = Field(..., description="Problems mastered (solved 2x)")
 

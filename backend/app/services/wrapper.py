@@ -25,8 +25,7 @@ def generate_python_wrapper(
     1. Imports the user's code
     2. Instantiates Solution class for each test case
     3. Calls the function with test inputs
-    4. Compares output with expected result
-    5. Outputs JSON results to stdout
+    4. Outputs JSON results to stdout (comparison done by backend)
 
     Args:
         user_code: User's submitted code (includes class Solution)
@@ -58,7 +57,7 @@ def generate_python_wrapper(
         #     for i, test in enumerate(test_cases):
         #         solution = Solution()
         #         result = solution.twoSum(*test["input"])
-        #         results.append({"test": i+1, "passed": result == test["expected"], ...})
+        #         results.append({"test": i+1, "output": result, "expected": test["expected"], ...})
         #     print(json.dumps(results))
     """
     # Validate function_name to prevent code injection
@@ -103,24 +102,17 @@ if __name__ == "__main__":
             # test["input"] is a list of arguments, so unpack with *
             result = solution.{function_name}(*test["input"])
 
-            # Check if result matches expected
-            passed = result == test["expected"]
-
             # Get captured stdout
             stdout_content = _captured_stdout.getvalue()
 
+            # Don't compute passed here - backend will do comparison
             results.append({{
                 "test_number": i + 1,
-                "passed": passed,
                 "input": test["input"],
                 "output": result,
                 "expected": test["expected"],
                 "stdout": stdout_content if stdout_content else None
             }})
-
-            # Early exit on first failure (for submit mode)
-            if {str(early_exit)} and not passed:
-                break
 
         except Exception as e:
             # Get captured stdout even on error
@@ -129,17 +121,12 @@ if __name__ == "__main__":
             # Catch runtime errors in user code
             results.append({{
                 "test_number": i + 1,
-                "passed": False,
                 "input": test["input"],
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "expected": test["expected"],
                 "stdout": stdout_content if stdout_content else None
             }})
-
-            # Early exit on error (for submit mode)
-            if {str(early_exit)}:
-                break
 
     # Restore original stdout before outputting JSON
     sys.stdout = _original_stdout
@@ -186,8 +173,11 @@ def get_execution_summary(results: list[dict[str, Any]]) -> dict[str, Any]:
     """
     Generate summary statistics from test results.
 
+    Note: This function expects results with "passed" field already computed.
+    The wrapper no longer computes "passed" - that's done by the backend.
+
     Args:
-        results: List of test results
+        results: List of test results with "passed" field
 
     Returns:
         Summary dict with total, passed, failed counts

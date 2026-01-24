@@ -97,7 +97,7 @@ async def get_progress(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Get user's overall progress across all Blind 75 problems.
+    Get user's overall progress across all problems.
 
     Returns all problems with user progress, plus summary counts.
     """

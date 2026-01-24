@@ -35,9 +35,10 @@ async def test_run_code_success(
 ):
     """Test successful code execution (mocked Judge0)."""
     # Mock Judge0 response (execute_code is synchronous)
+    # Note: wrapper no longer includes "passed" field - backend computes it
     mock_service = MagicMock()
     mock_service.execute_code.return_value = {
-        "stdout": '[{"test": 1, "passed": true, "output": [0, 1], "expected": [0, 1], "error": null}]',
+        "stdout": '[{"test_number": 1, "output": [0, 1], "expected": [0, 1], "input": [[2, 7, 11, 15], 9], "error": null}]',
         "stderr": "",
         "status": {"id": 3, "description": "Accepted"},
     }
@@ -72,10 +73,11 @@ async def test_submit_code_success(
 ):
     """Test successful code submission (mocked Judge0)."""
     # Mock Judge0 response (all tests passed, execute_code is synchronous)
+    # Note: wrapper no longer includes "passed" field - backend computes it
     mock_service = MagicMock()
     mock_service.execute_code.return_value = {
-        "stdout": '[{"test": 1, "passed": true, "output": [0, 1], "expected": [0, 1], "error": null}, '
-        '{"test": 2, "passed": true, "output": [1, 2], "expected": [1, 2], "error": null}]',
+        "stdout": '[{"test_number": 1, "output": [0, 1], "expected": [0, 1], "input": [[2, 7, 11, 15], 9], "error": null}, '
+        '{"test_number": 2, "output": [1, 2], "expected": [1, 2], "input": [[3, 2, 4], 6], "error": null}]',
         "stderr": "",
         "status": {"id": 3, "description": "Accepted"},
     }
@@ -115,10 +117,10 @@ async def test_submit_code_failed(
 ):
     """Test failed code submission (mocked Judge0)."""
     # Mock Judge0 response (test failed, execute_code is synchronous)
+    # Note: wrapper no longer includes "passed" field - backend computes it
     mock_service = MagicMock()
     mock_service.execute_code.return_value = {
-        "stdout": '[{"test": 1, "passed": false, "output": [0, 0], "expected": [0, 1], "error": null}, '
-        '{"test": 2, "passed": true, "output": [1, 2], "expected": [1, 2], "error": null}]',
+        "stdout": '[{"test_number": 1, "output": [0, 0], "expected": [0, 1], "input": [[2, 7, 11, 15], 9], "error": null}]',
         "stderr": "",
         "status": {"id": 3, "description": "Accepted"},
     }
@@ -138,7 +140,7 @@ async def test_submit_code_failed(
     data = response.json()
 
     assert data["success"] is False
-    assert data["summary"]["passed"] == 1
+    assert data["summary"]["passed"] == 0
     assert data["summary"]["failed"] == 1
 
     # No progress update on failed submission
