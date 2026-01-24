@@ -1,6 +1,6 @@
 # acodeaday
 
-> A daily coding practice app with spaced repetition to help you master the Blind 75.
+> A daily coding practice app with spaced repetition to help you master coding interviews.
 
 **Open source.** Self-host it, fork it, make it yours.
 
@@ -52,7 +52,7 @@
    # Run database migrations
    uv run alembic upgrade head
 
-   # Seed problems (first 15 Blind 75)
+   # Seed problems (150+ coding problems)
    uv run python scripts/seed_problems.py
 
    # Start backend server
@@ -263,7 +263,7 @@ Each day presents up to 3 problems:
 
 1. **Review #1**: Oldest overdue problem (if any)
 2. **Review #2**: Second oldest overdue problem (if any)
-3. **New Problem**: Next unsolved in Blind 75 sequence
+3. **New Problem**: Next unsolved problem in sequence
 
 ### Code Execution Flow
 

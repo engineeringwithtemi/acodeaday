@@ -175,7 +175,7 @@ export interface paths {
         };
         /**
          * Get Progress
-         * @description Get user's overall progress across all Blind 75 problems.
+         * @description Get user's overall progress across all problems.
          *
          *     Returns all problems with user progress, plus summary counts.
          */
@@ -851,7 +851,7 @@ export interface components {
         };
         /**
          * ProgressResponse
-         * @description Overview of user's progress across all Blind 75.
+         * @description Overview of user's progress across all problems.
          */
         ProgressResponse: {
             /**

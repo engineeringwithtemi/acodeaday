@@ -1,6 +1,7 @@
 title: Permutations
 sequence_number: 104
 difficulty: medium
+comparison_strategy: unordered_array  
 pattern:
   - backtracking
 

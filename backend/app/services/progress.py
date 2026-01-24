@@ -502,3 +502,32 @@ async def apply_rating(
         "review_count": progress.review_count,
         "times_solved": progress.times_solved,
     }
+
+
+async def get_problems_by_pattern(
+    db: AsyncSession, user_id: str
+) -> dict[str, list[tuple[Problem, UserProgress | None]]]:
+    """
+    Get all problems grouped by their primary pattern (first pattern in list).
+
+    Returns:
+        Dict mapping pattern name to list of (Problem, UserProgress | None) tuples
+    """
+    # Get all problems with their progress
+    problems_with_progress = await get_all_problems_with_progress(db, user_id)
+
+    # Group by primary pattern (first pattern in the array)
+    pattern_groups: dict[str, list[tuple[Problem, UserProgress | None]]] = {}
+
+    for problem, progress in problems_with_progress:
+        if problem.pattern and len(problem.pattern) > 0:
+            primary_pattern = problem.pattern[0]
+            if primary_pattern not in pattern_groups:
+                pattern_groups[primary_pattern] = []
+            pattern_groups[primary_pattern].append((problem, progress))
+
+    # Sort problems within each pattern group by sequence number
+    for pattern in pattern_groups:
+        pattern_groups[pattern].sort(key=lambda x: x[0].sequence_number)
+
+    return pattern_groups

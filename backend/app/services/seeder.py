@@ -106,6 +106,7 @@ async def insert_problem(db: AsyncSession, data: dict) -> Problem:
         sequence_number=data["sequence_number"],
         constraints=data["constraints"],
         examples={"examples": data["examples"]},
+        comparison_strategy=data.get("comparison_strategy"),  # Optional field
     )
     db.add(problem)
     await db.flush()  # Get problem.id
@@ -167,6 +168,7 @@ async def upsert_problem(db: AsyncSession, data: dict) -> Problem:
         existing.sequence_number = data["sequence_number"]
         existing.constraints = data["constraints"]
         existing.examples = {"examples": data["examples"]}
+        existing.comparison_strategy = data.get("comparison_strategy")  # Optional field
 
         # Delete and recreate languages and test cases
         await db.execute(

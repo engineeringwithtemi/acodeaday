@@ -1,6 +1,7 @@
 title: N-Queens
 sequence_number: 109
 difficulty: hard
+comparison_strategy: unordered_array  
 pattern:
   - backtracking
 

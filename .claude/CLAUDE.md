@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-acodeaday is a daily coding practice app that uses spaced repetition to help users master the Blind 75 interview problems. Users solve one new problem per day plus review problems at optimal intervals.
+acodeaday is a daily coding practice app that uses spaced repetition to help users master coding interview problems. Users solve one new problem per day plus review problems at optimal intervals.
 
 **Core Philosophy**: "A code a day keeps rejection away" - focused on understanding through consistent practice, not cramming.
 
@@ -46,14 +46,14 @@ The app implements the Anki SM-2 spaced repetition algorithm:
 Each day presents up to 3 problems in priority order:
 1. **Review #1**: Oldest overdue problem (if any)
 2. **Review #2**: Second oldest overdue problem (if any)
-3. **New Problem**: Next unsolved in Blind 75 sequence
+3. **New Problem**: Next unsolved problem in sequence
 
 ### Database Schema
 
 Seven core tables (see `backend/app/db/tables.py` for complete SQLAlchemy model definitions):
 
 1. **problems**: Core problem metadata
-   - `sequence_number` (1-75) determines order in Blind 75
+   - `sequence_number` determines problem order
    - `difficulty` (ENUM: easy/medium/hard), `pattern` (ARRAY), `constraints` (ARRAY), `examples` (JSONB)
 
 2. **problem_languages**: Language-specific code
@@ -105,7 +105,7 @@ See spec.md:167-211 for complete example.
 
 - `/` - Dashboard showing today's review + new problems
 - `/problem/:slug` - Split-pane: description left, Monaco editor right
-- `/progress` - Blind 75 progress overview
+- `/progress` - Problem-solving progress overview
 - `/mastered` - List of mastered problems with "Show Again" option
 
 ## API Endpoints
@@ -126,7 +126,7 @@ See spec.md:167-211 for complete example.
 
 **Progress** (prefix: `/api`):
 - `GET /api/today` - Today's session (2 reviews + 1 new problem)
-- `GET /api/progress` - Overall progress on all 75 problems
+- `GET /api/progress` - Overall progress on all problems
 - `GET /api/mastered` - List all mastered problems
 - `POST /api/mastered/{problem_id}/show-again` - Re-add to review rotation
 
@@ -142,7 +142,7 @@ See spec.md:167-211 for complete example.
 
 ## Current Features
 
-- First 15 Blind 75 problems seeded
+- 150+ coding problems seeded
 - Python and JavaScript support
 - Anki SM-2 spaced repetition with ratings
 - Monaco editor with auto-save

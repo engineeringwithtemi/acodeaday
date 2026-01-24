@@ -1,7 +1,7 @@
 # Continuity Ledger - acodeaday
 
 ## Goal
-Build a daily coding practice app using spaced repetition (Anki SM-2 algorithm) for Blind 75 interview problems. MVP: 16 problems seeded, Python support, LeetCode-clone UI, self-hosted Judge0 execution, AI chat assistant.
+Build a daily coding practice app using spaced repetition (Anki SM-2 algorithm) for coding interview problems. MVP: 150+ problems seeded, Python support, LeetCode-clone UI, self-hosted Judge0 execution, AI chat assistant.
 
 Success criteria: Users can solve problems daily, get spaced repetition reviews with difficulty ratings, submit code that runs in Judge0 sandbox, get AI-powered hints.
 
@@ -13,7 +13,7 @@ Success criteria: Users can solve problems daily, get spaced repetition reviews 
 - **Execution**: Judge0 CE (self-hosted, Community Edition)
 - **LLM**: litellm (multi-provider: Gemini, OpenAI, Anthropic)
 - **Docker**: All services containerized
-- **Scope**: 16 Blind 75 problems seeded, Python and JavaScript support
+- **Scope**: 150+ coding problems seeded, Python and JavaScript support
 
 ## Key Decisions
 
@@ -32,7 +32,7 @@ Success criteria: Users can solve problems daily, get spaced repetition reviews 
 
 ### 3. Schema Decisions
 - `difficulty`: Enum (easy/medium/hard) for type safety
-- `sequence_number`: Order in Blind 75 (1-75), determines "next problem"
+- `sequence_number`: Problem order, determines "next problem"
 - `constraints`: ARRAY(Text) for simple string lists
 - `examples`, `function_signature`, `input`, `expected`: JSONB for complex data
 - `user_id`: String from Supabase JWT
@@ -84,7 +84,7 @@ Success criteria: Users can solve problems daily, get spaced repetition reviews 
   - Chat: Full AI chat session/message endpoints
 - Anki SM-2 spaced repetition in services/progress.py
 - Judge0 integration with Python wrapper
-- 16 Blind 75 problems seeded
+- 150+ coding problems seeded
 
 #### Phase 4: Frontend Implementation ✅
 - TanStack (React 19) with file-based routing

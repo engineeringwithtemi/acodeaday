@@ -1,6 +1,6 @@
 # acodeaday
 
-> A daily coding practice app with spaced repetition to help you master the Blind 75.
+> A daily coding practice app with spaced repetition to help you master coding interviews.
 
 **Open source.** Self-host it, fork it, make it yours.
 
@@ -8,7 +8,7 @@
 
 ## Overview
 
-acodeaday helps you prepare for technical interviews by serving one new problem per day from the Blind 75 list, plus review problems using spaced repetition. The goal is understanding, not cramming.
+acodeaday helps you prepare for technical interviews by serving one new problem per day, plus review problems using spaced repetition. The goal is understanding, not cramming.
 
 ---
 
@@ -84,7 +84,7 @@ Users solve one new problem daily. Problems they've solved before resurface at o
 |----------|------|-------------|
 | 1 | Review | Oldest due problem |
 | 2 | Review | Second oldest due problem |
-| 3 | New | Next unsolved in Blind 75 sequence |
+| 3 | New | Next unsolved problem in sequence |
 
 ---
 
@@ -155,7 +155,7 @@ CREATE TABLE problems (
   description     TEXT NOT NULL,
   difficulty      TEXT CHECK (difficulty IN ('easy', 'medium', 'hard')),
   pattern         TEXT NOT NULL,
-  sequence_number INTEGER UNIQUE NOT NULL,  -- 1-75 (order in Blind 75)
+  sequence_number INTEGER UNIQUE NOT NULL,  -- problem order (determines next problem)
   constraints     JSONB NOT NULL,           -- array of constraint strings
   examples        JSONB NOT NULL,           -- array of {input, output, explanation?}
   created_at      TIMESTAMP DEFAULT NOW()
@@ -645,7 +645,7 @@ The problem-solving UI is a **LeetCode clone**. No reinventing — same layout, 
 |------|-------------|
 | `/` | Dashboard — today's problems |
 | `/problem/:slug` | Problem view with editor (LeetCode layout) |
-| `/progress` | Blind 75 progress overview |
+| `/progress` | Problem-solving progress overview |
 | `/mastered` | List of mastered problems |
 
 ### Dashboard Layout
@@ -917,7 +917,7 @@ The modal shows:
 - [x] Docker setup (Judge0 CE with workers, redis, postgres)
 - [x] FastAPI backend with async SQLAlchemy 2.0
 - [x] Supabase Auth integration (JWT Bearer token validation)
-- [x] 16 Blind 75 problems with test cases (YAML seed files)
+- [x] 150+ coding problems with test cases (YAML seed files)
 - [x] Code execution (Run Code, Submit via Judge0)
 - [x] Daily session logic (2 reviews + 1 new)
 - [x] Anki SM-2 spaced repetition with ratings
@@ -936,7 +936,6 @@ The modal shows:
 - [x] Rating modal for spaced repetition
 
 ### Phase 3 - Future
-- [ ] Full Blind 75 (all 75 problems)
 - [ ] Custom test case support
 - [ ] JavaScript execution support
 - [ ] Additional languages
@@ -961,8 +960,7 @@ MVP is complete. Both backend and frontend are fully functional:
 **Frontend**: TanStack React 19 with file-based routing, Monaco Editor with auto-save, split-pane layout, all pages implemented.
 
 **Next Steps**:
-1. Add more Blind 75 problems (currently 16 seeded)
-2. Implement JavaScript execution support
+1. Implement JavaScript execution support
 3. Add frontend tests
 4. Improve error handling and edge cases
 

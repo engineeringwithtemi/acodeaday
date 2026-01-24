@@ -95,15 +95,17 @@ async def cmd_seed(args: argparse.Namespace) -> int:
             data = load_problem_yaml(filepath)
             validate_problem_data(data)
 
-            exists = await problem_exists(db, data["slug"])
+            # Derive slug from title (YAML doesn't have slug field)
+            slug = title_to_slug(data["title"])
+            exists = await problem_exists(db, data["title"])
             if exists and not args.force:
-                print(f"Skipped: {data['slug']} (already exists, use --force to update)")
+                print(f"Skipped: {slug} (already exists, use --force to update)")
                 return 0
 
             await upsert_problem(db, data)
             await db.commit()
             action = "Updated" if exists else "Inserted"
-            print(f"{action}: {data['slug']}")
+            print(f"{action}: {slug}")
         else:
             # Seed all files
             yaml_files = list(DATA_DIR.glob("*.yaml"))
