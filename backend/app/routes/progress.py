@@ -10,6 +10,8 @@ from app.middleware.auth import get_current_user
 from app.schemas.progress import (
     MasteredProblemSchema,
     MasteredProblemsResponse,
+    PatternGroupSchema,
+    PatternsResponse,
     ProblemBasicSchema,
     ProblemProgressSchema,
     ProblemWithProgressSchema,
@@ -22,6 +24,7 @@ from app.schemas.progress import (
 from app.services.progress import (
     get_all_problems_with_progress,
     get_mastered_problems,
+    get_problems_by_pattern,
     get_todays_problems,
     get_user_progress_stats,
     mark_show_again,
@@ -225,3 +228,76 @@ async def show_again(
         return ShowAgainResponse(success=True, message="Problem re-added to rotation")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/patterns", response_model=PatternsResponse)
+async def get_patterns(
+    user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get all problems grouped by their primary pattern.
+
+    Returns problems organized by pattern with user progress,
+    allowing users to focus on specific concepts.
+    """
+    user_id = user["id"]
+
+    # Get problems grouped by pattern
+    pattern_groups = await get_problems_by_pattern(db, user_id)
+
+    # Build response
+    patterns_list = []
+    for pattern_name, problems_with_progress in pattern_groups.items():
+        problems_list = []
+        solved_count = 0
+        mastered_count = 0
+
+        for problem, progress in problems_with_progress:
+            problem_schema = ProblemBasicSchema(
+                id=problem.id,
+                title=problem.title,
+                slug=problem.slug,
+                difficulty=problem.difficulty,
+                pattern=problem.pattern,
+                sequence_number=problem.sequence_number,
+            )
+
+            progress_schema = None
+            if progress:
+                progress_schema = UserProgressBasicSchema(
+                    times_solved=progress.times_solved,
+                    last_solved_at=progress.last_solved_at,
+                    next_review_date=progress.next_review_date,
+                    is_mastered=progress.is_mastered,
+                    show_again=progress.show_again,
+                )
+                if progress.times_solved > 0:
+                    solved_count += 1
+                if progress.is_mastered:
+                    mastered_count += 1
+
+            problems_list.append(
+                ProblemWithProgressSchema(
+                    problem=problem_schema,
+                    user_progress=progress_schema,
+                )
+            )
+
+        patterns_list.append(
+            PatternGroupSchema(
+                pattern=pattern_name,
+                problems=problems_list,
+                total_count=len(problems_list),
+                solved_count=solved_count,
+                mastered_count=mastered_count,
+            )
+        )
+
+    # Sort patterns alphabetically
+    patterns_list.sort(key=lambda p: p.pattern)
+
+    return PatternsResponse(
+        patterns=patterns_list,
+        total_patterns=len(patterns_list),
+    )
