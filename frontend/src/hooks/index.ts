@@ -1,6 +1,7 @@
 // Central export for all custom hooks
 export { useAuth } from './useAuth'
 export { useTodayProblems } from './useTodayProblems'
+export { usePatterns } from './usePatterns'
 export { useSubmitCode } from './useSubmitCode'
 export { useRunCode } from './useRunCode'
 export { useSubmissions } from './useSubmissions'

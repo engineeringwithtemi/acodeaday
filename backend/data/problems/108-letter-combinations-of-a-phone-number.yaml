@@ -1,6 +1,7 @@
 title: Letter Combinations of a Phone Number
 sequence_number: 108
 difficulty: medium
+comparison_strategy: unordered_array  
 pattern:
   - backtracking
   - string

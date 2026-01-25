@@ -34,7 +34,9 @@
       "Bash(tee:*)",
       "Bash(npx --package=typescript tsc:*)",
       "Bash(source ~/.nvm/nvm.sh)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(source .venv/bin/activate)",
+      "Bash(alembic current:*)"
     ],
     "deny": [],
     "ask": []

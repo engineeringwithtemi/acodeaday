@@ -1,6 +1,7 @@
 title: Combination Sum
 sequence_number: 103
 difficulty: medium
+comparison_strategy: unordered_array  
 pattern:
   - backtracking
   - array

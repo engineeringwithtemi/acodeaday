@@ -294,7 +294,7 @@ acodeaday/
       difficulty: Mapped[Difficulty] = mapped_column(Enum(Difficulty), nullable=False)  # ENUM!
       pattern: Mapped[str] = mapped_column(String(50), nullable=False)  # e.g., "hash-map", "two-pointers"
 
-      # SEQUENCE_NUMBER: Determines order in Blind 75 (1-75)
+      # SEQUENCE_NUMBER: Determines problem order
       # Used to find "next unsolved problem": SELECT * WHERE sequence_number = (min unsolved)
       sequence_number: Mapped[int] = mapped_column(Integer, unique=True, nullable=False)
 
@@ -442,7 +442,7 @@ acodeaday/
 
 - [x] **Key Schema Decisions Explained**:
   - `difficulty`: Enum (easy/medium/hard) for type safety
-  - `sequence_number`: Order in Blind 75 (1-75), used to find "next problem"
+  - `sequence_number`: Problem order, used to find "next problem"
   - `constraints`: ARRAY(Text) because it's just a list of strings
   - `examples`, `function_signature`, `input`, `expected`: JSONB for complex nested data
   - `user_id`: String (username) since no auth table needed
@@ -507,7 +507,7 @@ acodeaday/
 
 ### 2.6 Seed Data
 - [x] Create seed system: YAML files + CLI seeder (app/services/seeder.py)
-- [x] Add 16 Blind 75 problems as YAML files in data/problems/:
+- [x] Add 150+ coding problems as YAML files in data/problems/:
   - [x] Problem metadata (title, slug, description, difficulty, pattern, sequence)
   - [x] Python language config (starter code, reference solution, function signature)
   - [x] Test cases (minimum 5 per problem: 3 visible, 2 hidden)
@@ -778,7 +778,7 @@ acodeaday/
 
 ### 4.9 Progress Page (/progress)
 - [x] Fetch progress data from GET /api/progress
-- [x] Display Blind 75 list with status indicators
+- [x] Display problem list with status indicators
 - [x] Show sequence numbers
 - [x] Show overall completion stats
 
@@ -869,7 +869,7 @@ acodeaday/
 - [x] "Run Code" executes against visible test cases
 - [x] "Submit" executes against all test cases with rating prompt
 - [x] Spaced repetition works (Anki SM-2 algorithm)
-- [x] 16 Blind 75 problems seeded and working
+- [x] 150+ coding problems seeded and working
 - [x] Python execution works via Judge0
 - [x] All services run via docker-compose
 - [x] Error handling throughout
@@ -1037,7 +1037,7 @@ You may assume that each input would have exactly one solution, and you may not 
 You can return the answer in any order.""",
             difficulty=Difficulty.EASY,
             pattern="hash-map",
-            sequence_number=1,  # First problem in Blind 75
+            sequence_number=1,  # First problem in sequence
             constraints=[
                 "2 <= nums.length <= 10^4",
                 "-10^9 <= nums[i] <= 10^9",

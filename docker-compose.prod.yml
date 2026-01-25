@@ -198,7 +198,7 @@ services:
       # =========================================================================
       # Email and password for the default admin user created on startup
       - AUTH_USER_EMAIL=admin@acodeaday.vercel.app
-      - AUTH_PASSWORD=temi@2025
+      - AUTH_PASSWORD=admin12345
 
       # =========================================================================
       # CORS ORIGINS - Configure allowed frontend URLs
