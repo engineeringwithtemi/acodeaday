@@ -1,5 +1,6 @@
 title: Edit Distance
 sequence_number: 122
+leetcode_no: 72
 difficulty: medium
 pattern:
   - dynamic-programming

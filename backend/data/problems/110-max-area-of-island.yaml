@@ -1,5 +1,6 @@
 title: Max Area of Island
 sequence_number: 110
+leetcode_no: 695
 difficulty: medium
 pattern:
   - graph

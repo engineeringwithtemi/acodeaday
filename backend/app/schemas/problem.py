@@ -48,6 +48,7 @@ class ProblemSchema(BaseModel):
     difficulty: Difficulty
     pattern: list[str]
     sequence_number: int
+    leetcode_no: int | None = None
 
     model_config = {"from_attributes": True}
 
@@ -66,6 +67,7 @@ class ProblemDetailSchema(BaseModel):
     difficulty: Difficulty
     pattern: list[str]
     sequence_number: int
+    leetcode_no: int | None = None
     constraints: list[str]
     examples: list[ProblemExampleSchema]
     created_at: datetime

@@ -1,5 +1,6 @@
 title: Longest Consecutive Sequence
 sequence_number: 31
+leetcode_no: 128
 difficulty: medium
 pattern:
   - hash-set

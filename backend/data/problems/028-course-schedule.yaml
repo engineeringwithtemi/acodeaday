@@ -1,5 +1,6 @@
 title: Course Schedule
 sequence_number: 28
+leetcode_no: 207
 difficulty: medium
 pattern:
   - graph

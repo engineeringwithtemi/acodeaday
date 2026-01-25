@@ -1,5 +1,6 @@
 title: Meeting Rooms II
 sequence_number: 39
+leetcode_no: 253
 difficulty: medium
 pattern:
   - intervals

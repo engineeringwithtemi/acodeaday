@@ -1,5 +1,6 @@
 title: Multiply Strings
 sequence_number: 150
+leetcode_no: 43
 difficulty: medium
 pattern:
   - math

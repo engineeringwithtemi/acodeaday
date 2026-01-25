@@ -1,5 +1,6 @@
 title: Jump Game II
 sequence_number: 130
+leetcode_no: 45
 difficulty: medium
 pattern:
   - greedy

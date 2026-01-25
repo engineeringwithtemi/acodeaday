@@ -1,5 +1,6 @@
 title: Task Scheduler
 sequence_number: 100
+leetcode_no: 621
 difficulty: medium
 pattern:
   - heap

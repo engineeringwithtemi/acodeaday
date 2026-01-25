@@ -1,5 +1,6 @@
 title: Search in Rotated Sorted Array
 sequence_number: 8
+leetcode_no: 33
 difficulty: medium
 pattern:
   - binary-search

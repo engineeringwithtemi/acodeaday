@@ -1,5 +1,6 @@
 title: Climbing Stairs
 sequence_number: 16
+leetcode_no: 70
 difficulty: easy
 pattern:
   - dynamic-programming

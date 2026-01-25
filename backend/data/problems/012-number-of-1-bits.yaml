@@ -1,5 +1,6 @@
 title: Number of 1 Bits
 sequence_number: 12
+leetcode_no: 191
 difficulty: easy
 pattern:
   - bit-manipulation

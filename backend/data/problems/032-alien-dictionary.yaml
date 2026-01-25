@@ -1,5 +1,6 @@
 title: Alien Dictionary
 sequence_number: 32
+leetcode_no: 269
 difficulty: hard
 pattern:
   - graph

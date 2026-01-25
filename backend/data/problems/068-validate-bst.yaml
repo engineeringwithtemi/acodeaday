@@ -1,5 +1,6 @@
 title: Validate Binary Search Tree
 sequence_number: 68
+leetcode_no: 98
 difficulty: medium
 pattern:
   - tree

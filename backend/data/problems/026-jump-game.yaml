@@ -1,5 +1,6 @@
 title: Jump Game
 sequence_number: 26
+leetcode_no: 55
 difficulty: medium
 pattern:
   - dynamic-programming

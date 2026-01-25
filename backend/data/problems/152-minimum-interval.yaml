@@ -1,5 +1,6 @@
 title: Minimum Interval to Include Each Query
 sequence_number: 152
+leetcode_no: 1851
 difficulty: hard
 pattern:
   - heap

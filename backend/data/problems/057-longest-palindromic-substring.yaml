@@ -1,5 +1,6 @@
 title: Longest Palindromic Substring
 sequence_number: 57
+leetcode_no: 5
 difficulty: medium
 pattern:
   - string

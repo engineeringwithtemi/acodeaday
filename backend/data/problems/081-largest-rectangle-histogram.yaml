@@ -1,5 +1,6 @@
 title: Largest Rectangle in Histogram
 sequence_number: 81
+leetcode_no: 84
 difficulty: hard
 pattern:
   - stack

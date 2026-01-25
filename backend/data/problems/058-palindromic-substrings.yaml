@@ -1,5 +1,6 @@
 title: Palindromic Substrings
 sequence_number: 58
+leetcode_no: 647
 difficulty: medium
 pattern:
   - string

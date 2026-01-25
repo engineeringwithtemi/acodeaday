@@ -1,5 +1,6 @@
 title: Missing Number
 sequence_number: 14
+leetcode_no: 268
 difficulty: easy
 pattern:
   - bit-manipulation

@@ -1,5 +1,6 @@
 title: Kth Smallest Element in a BST
 sequence_number: 69
+leetcode_no: 230
 difficulty: medium
 pattern:
   - tree

@@ -1,5 +1,6 @@
 title: Spiral Matrix
 sequence_number: 47
+leetcode_no: 54
 difficulty: medium
 pattern:
   - matrix

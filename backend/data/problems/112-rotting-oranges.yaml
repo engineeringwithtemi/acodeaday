@@ -1,5 +1,6 @@
 title: Rotting Oranges
 sequence_number: 112
+leetcode_no: 994
 difficulty: medium
 pattern:
   - graph

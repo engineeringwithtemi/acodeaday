@@ -1,5 +1,6 @@
 title: Number of Islands
 sequence_number: 30
+leetcode_no: 200
 difficulty: medium
 pattern:
   - graph

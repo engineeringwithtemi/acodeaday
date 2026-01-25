@@ -1,5 +1,6 @@
 title: Generate Parentheses
 sequence_number: 78
+leetcode_no: 22
 difficulty: medium
 pattern:
   - stack

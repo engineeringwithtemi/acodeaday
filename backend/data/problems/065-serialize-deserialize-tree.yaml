@@ -1,5 +1,6 @@
 title: Serialize and Deserialize Binary Tree
 sequence_number: 65
+leetcode_no: 297
 difficulty: hard
 pattern:
   - tree

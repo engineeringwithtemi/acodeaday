@@ -54,6 +54,7 @@ Seven core tables (see `backend/app/db/tables.py` for complete SQLAlchemy model 
 
 1. **problems**: Core problem metadata
    - `sequence_number` determines problem order
+   - `leetcode_no` (optional) maps to LeetCode problem number for easy reference
    - `difficulty` (ENUM: easy/medium/hard), `pattern` (ARRAY), `constraints` (ARRAY), `examples` (JSONB)
 
 2. **problem_languages**: Language-specific code
@@ -93,9 +94,11 @@ See spec.md:247-274 for Python wrapper example.
 
 ## Problem Format
 
-Problems stored as JSON with structure:
+Problems stored as YAML with structure:
+- `title`, `sequence_number`, `leetcode_no` (optional LeetCode problem number)
+- `difficulty`, `pattern` (array of tags), `description`
 - Function signature metadata (name, params, return type)
-- Starter code per language (Python, JavaScript planned)
+- Starter code per language (Python, JavaScript)
 - Test cases as JSON arrays
 - Examples, constraints, and pattern tags
 

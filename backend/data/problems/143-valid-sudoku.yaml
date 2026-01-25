@@ -1,5 +1,6 @@
 title: Valid Sudoku
 sequence_number: 143
+leetcode_no: 36
 difficulty: medium
 pattern:
   - hash-map

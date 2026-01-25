@@ -1,5 +1,6 @@
 title: Graph Valid Tree
 sequence_number: 33
+leetcode_no: 261
 difficulty: medium
 pattern:
   - graph

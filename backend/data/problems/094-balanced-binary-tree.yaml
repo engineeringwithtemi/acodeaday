@@ -1,5 +1,6 @@
 title: Balanced Binary Tree
 sequence_number: 94
+leetcode_no: 110
 difficulty: easy
 pattern:
   - trees

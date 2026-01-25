@@ -1,5 +1,6 @@
 title: Swim in Rising Water
 sequence_number: 118
+leetcode_no: 778
 difficulty: hard
 pattern:
   - graph

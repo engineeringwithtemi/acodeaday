@@ -1,5 +1,6 @@
 title: Lowest Common Ancestor of a BST
 sequence_number: 70
+leetcode_no: 235
 difficulty: medium
 pattern:
   - tree
