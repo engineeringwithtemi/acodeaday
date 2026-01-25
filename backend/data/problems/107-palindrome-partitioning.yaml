@@ -1,5 +1,6 @@
 title: Palindrome Partitioning
 sequence_number: 107
+leetcode_no: 131
 difficulty: medium
 pattern:
   - backtracking

@@ -1,5 +1,6 @@
 title: Target Sum
 sequence_number: 124
+leetcode_no: 494
 difficulty: medium
 pattern:
   - dynamic-programming

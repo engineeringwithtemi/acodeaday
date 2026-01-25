@@ -1,5 +1,6 @@
 title: Implement Trie (Prefix Tree)
 sequence_number: 71
+leetcode_no: 208
 difficulty: medium
 pattern:
   - trie

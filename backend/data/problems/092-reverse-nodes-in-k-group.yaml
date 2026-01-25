@@ -1,5 +1,6 @@
 title: Reverse Nodes in K-Group
 sequence_number: 92
+leetcode_no: 25
 difficulty: hard
 pattern:
   - linked-list

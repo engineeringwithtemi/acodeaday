@@ -1,5 +1,6 @@
 title: Reconstruct Itinerary
 sequence_number: 146
+leetcode_no: 332
 difficulty: hard
 pattern:
   - graph

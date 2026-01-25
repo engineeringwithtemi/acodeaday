@@ -1,5 +1,6 @@
 title: Reorder List
 sequence_number: 45
+leetcode_no: 143
 difficulty: medium
 pattern:
   - linked-list

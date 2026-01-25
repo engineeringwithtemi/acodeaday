@@ -36,7 +36,9 @@
       "Bash(source ~/.nvm/nvm.sh)",
       "Bash(find:*)",
       "Bash(source .venv/bin/activate)",
-      "Bash(alembic current:*)"
+      "Bash(alembic current:*)",
+      "Skill(remotion-best-practices)",
+      "Bash(head:*)"
     ],
     "deny": [],
     "ask": []

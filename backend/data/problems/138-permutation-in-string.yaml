@@ -1,5 +1,6 @@
 title: Permutation in String
 sequence_number: 138
+leetcode_no: 567
 difficulty: medium
 pattern:
   - sliding-window

@@ -1,5 +1,6 @@
 title: Merge Triplets to Form Target Triplet
 sequence_number: 133
+leetcode_no: 1899
 difficulty: medium
 pattern:
   - greedy

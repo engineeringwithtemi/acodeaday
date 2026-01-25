@@ -1,5 +1,6 @@
 title: Longest Substring Without Repeating Characters
 sequence_number: 50
+leetcode_no: 3
 difficulty: medium
 pattern:
   - string

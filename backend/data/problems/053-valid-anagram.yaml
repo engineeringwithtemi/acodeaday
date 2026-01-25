@@ -1,5 +1,6 @@
 title: Valid Anagram
 sequence_number: 53
+leetcode_no: 242
 difficulty: easy
 pattern:
   - string

@@ -1,5 +1,6 @@
 title: House Robber
 sequence_number: 22
+leetcode_no: 198
 difficulty: medium
 pattern:
   - dynamic-programming

@@ -1,5 +1,6 @@
 title: Merge K Sorted Lists
 sequence_number: 43
+leetcode_no: 23
 difficulty: hard
 pattern:
   - linked-list

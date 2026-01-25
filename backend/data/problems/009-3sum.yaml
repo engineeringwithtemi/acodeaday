@@ -1,5 +1,6 @@
 title: 3Sum
 sequence_number: 9
+leetcode_no: 15
 difficulty: medium
 pattern:
   - two-pointers

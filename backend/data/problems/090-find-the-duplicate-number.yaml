@@ -1,5 +1,6 @@
 title: Find the Duplicate Number
 sequence_number: 90
+leetcode_no: 287
 difficulty: medium
 pattern:
   - linked-list

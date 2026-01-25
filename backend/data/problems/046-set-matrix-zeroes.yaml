@@ -1,5 +1,6 @@
 title: Set Matrix Zeroes
 sequence_number: 46
+leetcode_no: 73
 difficulty: medium
 pattern:
   - matrix

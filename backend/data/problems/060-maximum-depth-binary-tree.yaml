@@ -1,5 +1,6 @@
 title: Maximum Depth of Binary Tree
 sequence_number: 60
+leetcode_no: 104
 difficulty: easy
 pattern:
   - tree

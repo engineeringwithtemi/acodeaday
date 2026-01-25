@@ -1,5 +1,6 @@
 title: Valid Palindrome
 sequence_number: 56
+leetcode_no: 125
 difficulty: easy
 pattern:
   - string

@@ -1,5 +1,6 @@
 title: Burst Balloons
 sequence_number: 125
+leetcode_no: 312
 difficulty: hard
 pattern:
   - dynamic-programming

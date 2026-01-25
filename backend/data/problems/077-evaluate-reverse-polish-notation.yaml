@@ -1,5 +1,6 @@
 title: Evaluate Reverse Polish Notation
 sequence_number: 77
+leetcode_no: 150
 difficulty: medium
 pattern:
   - stack

@@ -1,5 +1,6 @@
 title: Walls and Gates
 sequence_number: 145
+leetcode_no: 286
 difficulty: medium
 pattern:
   - bfs

@@ -1,5 +1,6 @@
 title: Single Number
 sequence_number: 142
+leetcode_no: 136
 difficulty: easy
 pattern:
   - bit-manipulation

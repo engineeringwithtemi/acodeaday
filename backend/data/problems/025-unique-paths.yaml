@@ -1,5 +1,6 @@
 title: Unique Paths
 sequence_number: 25
+leetcode_no: 62
 difficulty: medium
 pattern:
   - dynamic-programming

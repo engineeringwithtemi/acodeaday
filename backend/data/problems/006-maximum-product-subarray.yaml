@@ -1,5 +1,6 @@
 title: Maximum Product Subarray
 sequence_number: 6
+leetcode_no: 152
 difficulty: medium
 pattern:
   - dynamic-programming

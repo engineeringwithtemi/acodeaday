@@ -1,5 +1,6 @@
 title: Design Twitter
 sequence_number: 101
+leetcode_no: 355
 difficulty: medium
 pattern:
   - heap

@@ -1,5 +1,6 @@
 title: Meeting Rooms
 sequence_number: 38
+leetcode_no: 252
 difficulty: easy
 pattern:
   - intervals

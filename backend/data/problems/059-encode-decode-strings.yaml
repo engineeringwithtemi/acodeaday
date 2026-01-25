@@ -1,5 +1,6 @@
 title: Encode and Decode Strings
 sequence_number: 59
+leetcode_no: 271
 difficulty: medium
 pattern:
   - string

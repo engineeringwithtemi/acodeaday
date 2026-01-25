@@ -1,5 +1,6 @@
 title: Merge Intervals
 sequence_number: 36
+leetcode_no: 56
 difficulty: medium
 pattern:
   - intervals

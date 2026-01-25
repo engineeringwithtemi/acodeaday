@@ -1,5 +1,6 @@
 title: Binary Search
 sequence_number: 82
+leetcode_no: 704
 difficulty: easy
 pattern:
   - binary-search

@@ -1,5 +1,6 @@
 title: Diameter of Binary Tree
 sequence_number: 93
+leetcode_no: 543
 difficulty: easy
 pattern:
   - trees

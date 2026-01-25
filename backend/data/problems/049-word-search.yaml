@@ -1,5 +1,6 @@
 title: Word Search
 sequence_number: 49
+leetcode_no: 79
 difficulty: medium
 pattern:
   - matrix

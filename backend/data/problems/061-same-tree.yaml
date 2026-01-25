@@ -1,5 +1,6 @@
 title: Same Tree
 sequence_number: 61
+leetcode_no: 100
 difficulty: easy
 pattern:
   - tree

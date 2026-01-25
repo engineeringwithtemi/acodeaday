@@ -1,5 +1,6 @@
 title: Contains Duplicate
 sequence_number: 3
+leetcode_no: 217
 difficulty: easy
 pattern:
   - hash-map

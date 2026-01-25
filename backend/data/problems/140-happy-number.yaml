@@ -1,5 +1,6 @@
 title: Happy Number
 sequence_number: 140
+leetcode_no: 202
 difficulty: easy
 pattern:
   - math
