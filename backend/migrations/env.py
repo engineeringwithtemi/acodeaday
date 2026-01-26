@@ -70,6 +70,9 @@ async def run_async_migrations() -> None:
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        # Required for Supabase connection pooler (Supavisor) compatibility
+        # pgbouncer/Supavisor in transaction mode doesn't support prepared statements
+        connect_args={"statement_cache_size": 0},
     )
 
     async with connectable.connect() as connection:
