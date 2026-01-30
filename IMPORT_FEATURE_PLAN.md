@@ -90,8 +90,7 @@ ORCHESTRATOR (DBOS Workflow)
 | Component | Purpose |
 |-----------|---------|
 | **pydantic-ai** | Multi-agent orchestration, structured LLM outputs |
-| **dbos** | Durable workflow execution, step checkpointing, events |
-| *(no new infra)* | DBOS uses your existing Supabase PostgreSQL |
+| *(no new infra)* | Background tasks via `asyncio.create_task()` with `import_jobs` table for state tracking |
 
 ---
 
@@ -125,9 +124,6 @@ class ImportJob(Base):
     progress: Mapped[int | None] = mapped_column(Integer, nullable=True)
     total: Mapped[int | None] = mapped_column(Integer, nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
-
-    # Internal DBOS workflow ID (never exposed to user)
-    workflow_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     completed_at: Mapped[datetime | None] = mapped_column(nullable=True)
@@ -214,15 +210,15 @@ class GeneratedProblemExample(BaseModel):
 class GeneratedProblem(BaseModel):
     """Full generated problem matching existing YAML structure."""
     title: str
-    slug: str
+    # No slug — derived at persist time via title_to_slug(title)
     difficulty: Literal["easy", "medium", "hard"]
     pattern: list[str]
     description: str
     constraints: list[str]
     examples: list[GeneratedProblemExample]
     languages: dict[str, GeneratedProblemLanguage]  # { "python": { ... } }
-    leetcode_no: int | None = None  # LeetCode problem number (if known)
-    comparison_strategy: str | None = None  # "exact", "unordered_array", etc.
+    leetcode_no: int  # REQUIRED — every problem must have a LeetCode number
+    comparison_strategy: str | None = None  # "exact", "unordered_array" (v1 only)
 
 class GeneratedTestCase(BaseModel):
     """A single test case."""
@@ -340,16 +336,13 @@ test_case_generator_agent = Agent(
 
 ```python
 # ── services/import_workflow.py ──
+# No DBOS — uses asyncio.create_task() with direct DB state tracking.
 
-from dbos import DBOS
-
-@DBOS.step()
 async def parse_intent(prompt: str) -> ImportPlan:
     """Parse user prompt into structured plan."""
     result = await intent_parser_agent.run(prompt)
     return result.output
 
-@DBOS.step()
 async def query_existing_by_pattern(pattern: str) -> list[str]:
     """Query DB for existing problem slugs matching pattern."""
     async with get_db() as db:
@@ -358,35 +351,38 @@ async def query_existing_by_pattern(pattern: str) -> list[str]:
         )
         return [row[0] for row in result.fetchall()]
 
-@DBOS.step()
-async def query_all_existing_slugs() -> list[str]:
-    """Query DB for ALL existing problem slugs (for specific problem imports)."""
+async def query_existing_leetcode_nos() -> list[int]:
+    """Query DB for ALL existing leetcode_no values to prevent duplicates."""
     async with get_db() as db:
-        result = await db.execute(select(Problem.slug))
+        result = await db.execute(
+            select(Problem.leetcode_no).where(Problem.leetcode_no.isnot(None))
+        )
         return [row[0] for row in result.fetchall()]
 
-@DBOS.step()
 async def generate_problem_step(
     pattern: str,
     exclude_slugs: list[str],
+    exclude_leetcode_nos: list[int],
     difficulty: str | None,
     specific_problem: str | None,
+    leetcode_number: int | None,
 ) -> GeneratedProblem:
     """Generate a single problem using the LLM agent."""
     if specific_problem:
         prompt = (
-            f"Generate the LeetCode problem '{specific_problem}' with full details. "
-            f"These slugs already exist, ensure yours is different: {exclude_slugs}"
+            f"Generate LeetCode problem #{leetcode_number} ('{specific_problem}') with full details. "
+            f"The leetcode_no must be {leetcode_number}."
         )
     else:
         prompt = (
-            f"Generate a {difficulty + ' ' if difficulty else ''}{pattern} coding problem. "
-            f"It must be DIFFERENT from these existing problems: {exclude_slugs}"
+            f"Generate a {difficulty + ' ' if difficulty else ''}{pattern} coding problem "
+            f"from LeetCode. It must be a REAL LeetCode problem with the correct leetcode_no. "
+            f"Do NOT use any of these LeetCode numbers (already in system): {exclude_leetcode_nos}. "
+            f"Do NOT generate problems with these titles/slugs: {exclude_slugs}"
         )
     result = await problem_generator_agent.run(prompt)
     return result.output
 
-@DBOS.step()
 async def verify_problem_step(problem: GeneratedProblem) -> VerificationResult:
     """Verify generated problem quality."""
     result = await problem_verifier_agent.run(
@@ -394,86 +390,107 @@ async def verify_problem_step(problem: GeneratedProblem) -> VerificationResult:
     )
     return result.output
 
-@DBOS.step()
-async def regenerate_problem_step(
+async def refine_problem_step(
     problem: GeneratedProblem,
     issues: list[str],
     exclude_slugs: list[str],
+    exclude_leetcode_nos: list[int],
 ) -> GeneratedProblem:
-    """Regenerate a problem incorporating verifier feedback."""
+    """Refine a problem incorporating verifier feedback. Preserves good parts."""
     result = await problem_generator_agent.run(
-        f"Regenerate this problem, fixing these issues: {issues}\n\n"
+        f"Fix these issues with the problem below: {issues}\n\n"
         f"Original problem:\n{problem.model_dump_json(indent=2)}\n\n"
-        f"Exclude these slugs: {exclude_slugs}"
+        f"Preserve what's correct. Only fix what's broken.\n"
+        f"Excluded slugs: {exclude_slugs}\n"
+        f"Excluded leetcode_nos: {exclude_leetcode_nos}"
     )
     return result.output
 
-@DBOS.step()
 async def generate_test_cases_step(problem: GeneratedProblem) -> list[GeneratedTestCase]:
     """Generate test cases for a verified problem."""
     result = await test_case_generator_agent.run(
         f"Generate test cases for:\n{problem.model_dump_json(indent=2)}"
     )
     return result.output.test_cases
-
-@DBOS.step()
 async def validate_with_judge0_step(
     reference_solution: str,
     function_signature: dict,
     language: str,
     test_cases: list[GeneratedTestCase],
+    comparison_strategy: str | None,
 ) -> ExecutionResult:
-    """Run reference solution against test cases via Judge0."""
-    # Uses existing Judge0 integration (wrapper.py + judge0.py)
-    # Build the wrapped code + stdin JSON, submit to Judge0, parse results
+    """Run reference solution against test cases via Judge0.
+    Uses services/execution_validator.py (extracted shared logic).
+    Calls judge0 via asyncio.to_thread() to avoid blocking the event loop.
+    """
     ...
 
-@DBOS.step()
 async def persist_problem_step(
     problem: GeneratedProblem,
     test_cases: list[GeneratedTestCase],
     import_job_id: uuid.UUID,
 ) -> str:
-    """Save problem to DB and link to import job. Returns problem_id."""
-    async with get_db() as db:
-        # Get next sequence number
-        max_seq_result = await db.execute(select(func.max(Problem.sequence_number)))
-        next_seq = (max_seq_result.scalar() or 0) + 1
+    """Save problem to DB and link to import job. Returns problem_id.
+    Inserts directly — does NOT use seeder's insert_problem().
+    Derives slug from title via title_to_slug() for consistency."""
+    from app.services.seeder import title_to_slug
 
-        # Insert problem (reuse existing seeder logic)
-        problem_data = {
-            "title": problem.title,
-            "sequence_number": next_seq,
-            "difficulty": problem.difficulty,
-            "pattern": problem.pattern,
-            "description": problem.description,
-            "constraints": problem.constraints,
-            "examples": [e.model_dump() for e in problem.examples],
-            "languages": {
-                lang: {
-                    "starter_code": data.starter_code,
-                    "reference_solution": data.reference_solution,
-                    "function_signature": data.function_signature,
-                }
-                for lang, data in problem.languages.items()
-            },
-            "test_cases": [
-                {"input": tc.input, "expected": tc.expected}
-                for tc in test_cases
-            ],
-        }
-        db_problem = await insert_problem(db, problem_data)
+    async with get_db() as db:
+        slug = title_to_slug(problem.title)
+
+        # Retry on IntegrityError (sequence_number or slug conflict)
+        for attempt in range(3):
+            try:
+                max_seq_result = await db.execute(select(func.max(Problem.sequence_number)))
+                next_seq = (max_seq_result.scalar() or 0) + 1
+
+                db_problem = Problem(
+                    title=problem.title,
+                    slug=slug,
+                    description=problem.description,
+                    difficulty=Difficulty(problem.difficulty),
+                    pattern=problem.pattern,
+                    sequence_number=next_seq,
+                    leetcode_no=problem.leetcode_no,
+                    constraints=problem.constraints,
+                    examples={"examples": [e.model_dump() for e in problem.examples]},
+                    comparison_strategy=problem.comparison_strategy,
+                )
+                db.add(db_problem)
+                await db.flush()
+                break
+            except IntegrityError:
+                await db.rollback()
+                continue
+
+        # Create language configs
+        for lang_key, lang_data in problem.languages.items():
+            db.add(ProblemLanguage(
+                problem_id=db_problem.id,
+                language=Language(lang_key),
+                starter_code=lang_data.starter_code,
+                reference_solution=lang_data.reference_solution,
+                function_signature=lang_data.function_signature,
+            ))
+
+        # Create test cases
+        for i, tc in enumerate(test_cases):
+            db.add(TestCase(
+                problem_id=db_problem.id,
+                input=tc.input,
+                expected=tc.expected,
+                sequence=i + 1,
+            ))
 
         # Link to import job
-        link = ImportJobProblem(
+        db.add(ImportJobProblem(
             import_job_id=import_job_id,
             problem_id=db_problem.id,
-        )
-        db.add(link)
+        ))
+
         await db.commit()
         return str(db_problem.id)
 
-@DBOS.step()
 async def update_import_job_status(
     import_job_id: uuid.UUID,
     status: str,
@@ -498,11 +515,11 @@ async def update_import_job_status(
 ### Main Workflow
 
 ```python
-@DBOS.workflow()
 async def import_problems_workflow(import_job_id: str, prompt: str) -> None:
     """
-    Main orchestration workflow. Durable — resumes from last step on failure.
-    Updates import_job record directly (user-facing table, not DBOS events).
+    Main orchestration workflow. Runs as asyncio.create_task().
+    Updates import_jobs table directly for user-facing status.
+    No DBOS — no pause/resume. On crash, startup recovery marks stuck jobs as failed.
     """
     job_id = uuid.UUID(import_job_id)
     MAX_RETRIES = 3
@@ -512,42 +529,75 @@ async def import_problems_workflow(import_job_id: str, prompt: str) -> None:
         await update_import_job_status(job_id, "processing", "Analyzing your request...")
         plan = await parse_intent(prompt)
 
+        # For specific LeetCode imports, check if it already exists
+        if plan.intent == "specific" and plan.leetcode_number:
+            async with get_db() as db:
+                existing = await db.execute(
+                    select(Problem).where(Problem.leetcode_no == plan.leetcode_number)
+                )
+                if existing.scalar_one_or_none():
+                    await update_import_job_status(
+                        job_id, "failed",
+                        f"LeetCode #{plan.leetcode_number} already exists in the system.",
+                        error="duplicate",
+                    )
+                    return
+
         total = plan.count
         await update_import_job_status(
             job_id, "processing",
             f"Will generate {total} problem(s)", progress=0, total=total,
         )
 
-        # ── Phase 2: Query existing problems ──
+        # ── Phase 2: Query existing problems for exclusion ──
         if plan.intent == "pattern" and plan.pattern:
             exclude_slugs = await query_existing_by_pattern(plan.pattern)
         else:
-            exclude_slugs = await query_all_existing_slugs()
+            exclude_slugs = []
+
+        exclude_leetcode_nos = await query_existing_leetcode_nos()
 
         # ── Phase 3: Generate, verify, test, persist each problem ──
         succeeded = 0
         failed = 0
-        batch_slugs: list[str] = []
+        batch_leetcode_nos: list[int] = []
 
         for i in range(total):
+            # ── Check for cancellation ──
+            async with get_db() as db:
+                job = await db.get(ImportJob, job_id)
+                if job.status == ImportJobStatus.CANCELLED:
+                    break
+
             await update_import_job_status(
                 job_id, "processing",
                 f"Generating problem {i + 1} of {total}...",
                 progress=i, total=total,
             )
 
-            problem = None
-            all_excludes = exclude_slugs + batch_slugs
+            all_exclude_slugs = exclude_slugs[:]
+            all_exclude_nos = exclude_leetcode_nos + batch_leetcode_nos
+
+            # ── Retry loop with refinement ──
+            previous_problem: GeneratedProblem | None = None
+            issues: list[str] = []
 
             for attempt in range(MAX_RETRIES):
                 try:
-                    # 3a. Generate
-                    problem = await generate_problem_step(
-                        plan.pattern or "",
-                        all_excludes,
-                        plan.difficulty,
-                        plan.problem_name if plan.intent == "specific" else None,
-                    )
+                    # 3a. Generate (or refine)
+                    if previous_problem and issues:
+                        problem = await refine_problem_step(
+                            previous_problem, issues, all_exclude_slugs, all_exclude_nos,
+                        )
+                    else:
+                        problem = await generate_problem_step(
+                            plan.pattern or "",
+                            all_exclude_slugs,
+                            all_exclude_nos,
+                            plan.difficulty,
+                            plan.problem_name if plan.intent == "specific" else None,
+                            plan.leetcode_number if plan.intent == "specific" else None,
+                        )
 
                     # 3b. Verify
                     await update_import_job_status(
@@ -558,12 +608,9 @@ async def import_problems_workflow(import_job_id: str, prompt: str) -> None:
                     verification = await verify_problem_step(problem)
 
                     if not verification.valid:
-                        problem = await regenerate_problem_step(
-                            problem, verification.issues, all_excludes,
-                        )
-                        verification = await verify_problem_step(problem)
-                        if not verification.valid:
-                            continue  # retry outer loop
+                        previous_problem = problem
+                        issues = verification.issues
+                        continue  # retry with refinement
 
                     # 3c. Generate test cases
                     await update_import_job_status(
@@ -586,13 +633,14 @@ async def import_problems_workflow(import_job_id: str, prompt: str) -> None:
                             python_lang.function_signature,
                             "python",
                             test_cases,
+                            problem.comparison_strategy,
                         )
                         if not execution.all_passed:
-                            # Add failure context and retry
-                            all_excludes.append(problem.slug)
+                            previous_problem = problem
+                            issues = [f"Judge0 validation failed: {execution.failures}"]
                             continue
 
-                    # 3e. Persist
+                    # 3e. Persist (inserts directly, not via seeder)
                     await update_import_job_status(
                         job_id, "processing",
                         f"Saving {problem.title}",
@@ -600,14 +648,16 @@ async def import_problems_workflow(import_job_id: str, prompt: str) -> None:
                     )
                     await persist_problem_step(problem, test_cases, job_id)
 
-                    batch_slugs.append(problem.slug)
+                    batch_leetcode_nos.append(problem.leetcode_no)
                     succeeded += 1
                     break  # success, next problem
 
                 except IntegrityError:
-                    # Duplicate slug — add to excludes and retry
+                    # Duplicate slug or leetcode_no — add to excludes and retry fresh
                     if problem:
-                        all_excludes.append(problem.slug)
+                        all_exclude_nos.append(problem.leetcode_no)
+                    previous_problem = None
+                    issues = []
                     continue
 
             else:
@@ -635,7 +685,6 @@ async def import_problems_workflow(import_job_id: str, prompt: str) -> None:
             job_id, "failed", f"Workflow error: {str(e)}",
             error=str(e),
         )
-        raise  # Re-raise so DBOS marks workflow as failed
 ```
 
 ---
@@ -647,7 +696,7 @@ async def import_problems_workflow(import_job_id: str, prompt: str) -> None:
 ```python
 # ── routes/imports.py ──
 
-router = APIRouter(prefix="/api/import", tags=["import"])
+router = APIRouter(prefix="/api/imports", tags=["imports"])
 
 # ─── Start Import ───
 @router.post("/")
@@ -681,16 +730,11 @@ async def start_import(
     await db.commit()
     await db.refresh(job)
 
-    # Start DBOS workflow in background
-    handle = await DBOS.start_workflow(
-        import_problems_workflow,
-        str(job.id),
-        request.prompt,
+    # Start background task (asyncio, not DBOS)
+    import asyncio
+    asyncio.create_task(
+        import_problems_workflow(str(job.id), request.prompt)
     )
-
-    # Store workflow_id for internal tracking
-    job.workflow_id = handle.workflow_id
-    await db.commit()
 
     return ImportJobResponse.from_orm(job)
 
@@ -922,9 +966,8 @@ Sequence number assignment uses `MAX(sequence_number) + 1` inside the persist st
 ## Implementation Steps
 
 ### Phase 1: Dependencies & Config
-1. Add `pydantic-ai` and `dbos` to `pyproject.toml`
-2. Configure DBOS to use existing Supabase PostgreSQL
-3. Add LLM model configuration (reuse existing litellm config or use pydantic-ai's model config)
+1. Add `pydantic-ai` to `pyproject.toml`
+2. Add LLM model configuration (reuse existing litellm config or use pydantic-ai's model config)
 
 ### Phase 2: Database Schema
 4. Create `ImportJob` and `ImportJobProblem` SQLAlchemy models in `tables.py`
@@ -936,11 +979,14 @@ Sequence number assignment uses `MAX(sequence_number) + 1` inside the persist st
 8. Create structured output schemas (`GeneratedProblem`, `VerificationResult`, etc.)
 9. Write agent system prompts with examples from existing YAML problems
 
-### Phase 4: Workflow Steps
-10. Create `services/import_workflow.py` with all `@DBOS.step()` functions
-11. Implement `persist_problem_step` reusing existing `seeder.py` logic
-12. Implement `validate_with_judge0_step` reusing existing `judge0.py` + `wrapper.py`
-13. Implement main `@DBOS.workflow()` orchestration function
+### Phase 4: Workflow & Services
+10. Create `services/import_workflow.py` with all step functions
+11. Implement `persist_problem_step` with direct DB insertion (not seeder)
+12. Create `services/execution_validator.py` — extract shared parse-and-compare logic from `routes/execution.py`
+13. Add `judge0.async_execute_code()` or wrap sync call with `asyncio.to_thread()`
+14. Implement `validate_with_judge0_step` using the extracted validator
+15. Implement main `import_problems_workflow()` orchestration function
+16. Add startup recovery: mark stuck "processing" jobs as "failed" on app boot
 
 ### Phase 5: API Routes
 14. Create `routes/imports.py` with POST/GET endpoints
@@ -971,7 +1017,7 @@ Sequence number assignment uses `MAX(sequence_number) + 1` inside the persist st
 | JavaScript support | Generate JS solutions alongside Python | Start with Python only, add JS in Phase 2 |
 | Import history UI location | Modal tab / Dedicated page / Dashboard section | Dashboard section + modal for active imports |
 | Max problems per import | Unlimited / Capped | Cap at 20 per request to control cost and runtime |
-| DBOS tables location | Same database / Separate database | Same Supabase PostgreSQL (simpler, DBOS manages its own tables) |
+| Background execution | DBOS / Temporal / asyncio.create_task | `asyncio.create_task()` for v1 with startup recovery for stuck jobs. No pause/resume — re-submit skips already-persisted problems. |
 
 ---
 
@@ -1100,13 +1146,25 @@ One edge case: if the process crashed and the job is stuck in "processing", the 
 
 **Concern**: Ambiguities around `leetcode_no` and `UNIQUE` constraint.
 
-**Analysis**: The reviewer raises three questions. The third one needs more thought than I initially gave it.
+**Analysis**: `leetcode_no` is **mandatory** for all generated problems. Every problem in the system must map to a real LeetCode problem number. This means:
 
-For pattern-based imports like "Add 10 sliding window problems", should the LLM populate `leetcode_no`? I initially said "yes, when the LLM knows the canonical number." But this is **dangerous**: the LLM could hallucinate a wrong number. If it generates "Sliding Window Median" and guesses `leetcode_no: 480` (which is correct) but problem 480 is already seeded, the insert fails with an `IntegrityError` on `leetcode_no`. The retry logic would then need to handle not just slug conflicts but also `leetcode_no` conflicts — and the fix isn't "try a different leetcode_no", it's "set it to NULL."
+1. The generator agent must always output a valid `leetcode_no`.
+2. For `intent: "specific"` (e.g., "Add LeetCode 4") — the number is known upfront.
+3. For `intent: "pattern"` (e.g., "10 sliding window problems") — the agent must identify real LeetCode problems that match the pattern and output their correct numbers.
+
+The `UNIQUE(leetcode_no)` constraint means we must check for conflicts before persisting. Two scenarios:
+
+- **Conflict with existing seeded problem**: LeetCode #3 (Longest Substring) is already seeded. If the agent tries to generate it again, the persist step catches the `IntegrityError` and skips it.
+- **Conflict within same batch**: Agent generates two problems that both claim `leetcode_no: 567`. The second fails on insert.
+
+In both cases, the agent needs the existing `leetcode_no` values in its exclusion context.
 
 **Decision:**
-- For `intent: "specific"` (e.g., "Add LeetCode 4"): Check if `leetcode_no = 4` already exists in DB BEFORE starting generation. If yes, return immediately: `"LeetCode #4 already exists."` If no, generate with `leetcode_no = 4`.
-- For `intent: "pattern"` (e.g., "10 sliding window problems"): **Always set `leetcode_no = None`.** The purpose of pattern-based import is generating practice problems, not cataloguing LeetCode's problem set. Avoids hallucinated numbers and `UNIQUE` conflicts entirely.
+- `leetcode_no` is a **required field** on `GeneratedProblem` (not optional).
+- Before generation, query ALL existing `leetcode_no` values from DB and pass them to the agent as an exclusion list alongside slug exclusions.
+- For `intent: "specific"`: Check if `leetcode_no` already exists BEFORE starting generation. If yes, return immediately: `"LeetCode #4 already exists in the system."`
+- For `intent: "pattern"`: Agent must identify real LeetCode problems and provide correct numbers. The exclusion list prevents duplicates. On `IntegrityError` for `leetcode_no`, add to exclusion list and retry.
+- The verifier agent should sanity-check that the `leetcode_no` is plausible for the given problem title (e.g., "Two Sum" = 1, not 999).
 
 ### 9. Retry Logic Flow
 
