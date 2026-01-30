@@ -221,6 +221,8 @@ class GeneratedProblem(BaseModel):
     constraints: list[str]
     examples: list[GeneratedProblemExample]
     languages: dict[str, GeneratedProblemLanguage]  # { "python": { ... } }
+    leetcode_no: int | None = None  # LeetCode problem number (if known)
+    comparison_strategy: str | None = None  # "exact", "unordered_array", etc.
 
 class GeneratedTestCase(BaseModel):
     """A single test case."""
@@ -973,96 +975,134 @@ Sequence number assignment uses `MAX(sequence_number) + 1` inside the persist st
 
 ---
 
-## Review — Questions & Clarifications Needed
+## Review — Questions, Answers & Decisions
 
-The following items were raised during plan review. Each needs a decision or clarification before implementation begins.
+The following items were raised during plan review. Each has been resolved with a decision.
 
 ### 1. DBOS Complexity vs. Simpler Alternatives
 
-DBOS introduces its own system tables (`dbos_*`) into the Supabase-managed database and adds a non-trivial dependency. The main value — durable resume-from-last-step — may not be critical here since successfully persisted problems survive any crash, and the user can re-import for any remainder.
+**Concern**: DBOS introduces its own system tables (`dbos_*`) into the Supabase-managed database and adds a non-trivial dependency. The main value — durable resume-from-last-step — may not be critical here since successfully persisted problems survive any crash, and the user can re-import for any remainder.
 
 **Question**: Has `asyncio.create_task()` (or FastAPI `BackgroundTasks`) with direct `import_jobs` table updates been considered as a lighter alternative? If DBOS is preferred, has its async compatibility been verified — specifically, do `@DBOS.workflow()` and `@DBOS.step()` support `async def` functions natively?
 
+**Decision: Start with `asyncio.create_task()` + direct `import_jobs` table updates.** The workflow already writes progress to `import_jobs` after each problem succeeds. If the process dies, successfully persisted problems survive (they're committed to DB). The user can re-submit and we detect "N problems already linked to a prior job with the same prompt" and skip them. DBOS can be added later if the simpler approach proves insufficient. DBOS does support `async def` natively — verified from their docs and examples.
+
 ### 2. Sequence Number Race Condition
 
-The plan states sequence numbers are assigned via `MAX(sequence_number) + 1` "protected by Postgres serialization." However, two concurrent `persist_problem_step` calls (from different workflows or even the same batch) can both read the same `MAX` value before either commits, violating the `UNIQUE(sequence_number)` constraint.
+**Concern**: Two concurrent `persist_problem_step` calls can both read the same `MAX(sequence_number)` value before either commits, violating the `UNIQUE(sequence_number)` constraint.
 
-**Question**: Should we use a PostgreSQL `SEQUENCE` object instead (e.g., `CREATE SEQUENCE problems_sequence_number_seq`)? Or should the persist step use `SELECT MAX(sequence_number) FROM problems FOR UPDATE` to serialize access? The sequence approach is simpler and avoids lock contention.
+**Question**: Should we use a PostgreSQL `SEQUENCE` object or `SELECT ... FOR UPDATE`?
+
+**Decision: Use a PostgreSQL `SEQUENCE`.** It's atomic, lock-free, and purpose-built for this:
+
+```sql
+CREATE SEQUENCE problems_sequence_number_seq
+    START WITH <current max + 1>;
+```
+
+Then in the persist step: `nextval('problems_sequence_number_seq')`. If a problem insert fails (e.g., duplicate slug), the sequence number is "burned" — gaps in sequence numbers don't matter. This avoids lock contention entirely. The Alembic migration should initialize the sequence from the current max `sequence_number` in the `problems` table.
 
 ### 3. `validate_with_judge0_step` Implementation Details
 
-This is the most critical quality gate in the pipeline — the only non-LLM verification — but the implementation is currently `...` (placeholder). Several integration questions need answers:
+**Concern**: This is the most critical quality gate and was left as a placeholder.
 
-**Questions**:
-- Will this reuse `generate_python_wrapper()` from `wrapper.py`? That function uses `repr()` for test case serialization rather than JSON — does the `GeneratedTestCase` schema (which stores `input` as `list[Any]`) align with what the wrapper expects?
-- What happens if Judge0 is unavailable (down, rate-limited, Docker not running)? Should the workflow retry with backoff, skip validation, or fail the problem?
-- How are Judge0 execution errors (timeout, runtime error, memory limit) distinguished from incorrect solutions?
+**Questions & Answers**:
+
+- **Will this reuse `generate_python_wrapper()`?** Yes. The wrapper expects test cases as objects with `.input` (list) and `.expected` (any) attributes. The `GeneratedTestCase` schema stores `input` as `list[Any]` which aligns. We'll create mock test case objects (like the existing `_MockTestCase` in `execution.py:64-69`) from the generated test case data.
+
+- **What if Judge0 is unavailable?** Retry with backoff (3 attempts: 5s, 15s, 30s). If still down, **fail the problem** — not skip. The whole point of this step is validation; skipping it defeats the purpose. The import job continues to the next problem.
+
+- **How are execution errors distinguished?** Judge0 returns distinct status codes already handled in `execution.py:137-152`: status 6 = compilation error, status 11/12/13 = runtime error / time limit / memory limit. The `_parse_execution_results()` function in `execution.py` already maps these. The import workflow can reuse this function directly, passing the problem's `comparison_strategy` so the comparison service (`comparison.py`) applies the correct logic.
 
 ### 4. `insert_problem` Interface Compatibility
 
-The plan calls `await insert_problem(db, problem_data)` in `persist_problem_step`, reusing the existing seeder. However, the existing `seeder.py:insert_problem()` expects a dict matching the YAML structure (with `slug` derived internally via `title_to_slug()`, and specific nesting for `languages` and `test_cases`).
+**Concern**: The `persist_problem_step` dict may not match the existing `seeder.py:insert_problem()` expected format.
 
-**Question**: Does the `problem_data` dict constructed in `persist_problem_step` exactly match the existing seeder's expected format? If not, should we write a dedicated `insert_generated_problem()` function, or adapt the seeder to accept `GeneratedProblem` directly?
+**Decision: Write a thin adapter function `generated_problem_to_seed_dict()`.** The seeder expects specific nesting: `languages` as `{ "python": { "starter_code": ..., "reference_solution": ..., "function_signature": ... } }`, `test_cases` as `[{ "input": [...], "expected": ... }]`, and `examples` as a flat list (which the seeder wraps in `{"examples": [...]}`). The adapter converts `GeneratedProblem` + `list[GeneratedTestCase]` into this dict format. This avoids modifying the existing seeder while keeping the contract explicit. It also handles the new `leetcode_no` and `comparison_strategy` fields that `insert_problem()` now accepts via `data.get()`.
 
-### 5. Missing `comparison_strategy` Field
+### 5. `comparison_strategy` Field
 
-The existing `problems` table has a `comparison_strategy` column (values: `exact`, `unordered_array`, `in_place_only`, `in_place_with_length`) used by the comparison service at submission time. The `GeneratedProblem` schema does not include this field.
+**Concern**: The `problems` table has a `comparison_strategy` column (`exact`, `unordered_array`, `in_place_only`, `in_place_with_length`) used by `comparison.py` at submission time. The `GeneratedProblem` schema did not include this field.
 
-**Question**: Should the problem generator agent determine the appropriate comparison strategy (e.g., set `unordered_array` for "find all permutations" problems)? Or should all generated problems default to `"exact"`? If the latter, problems with order-independent outputs will fail at submission.
+**Decision: The problem generator agent must determine the appropriate `comparison_strategy`.** Add it to the `GeneratedProblem` schema:
+
+```python
+class GeneratedProblem(BaseModel):
+    ...
+    comparison_strategy: str | None = None  # "exact", "unordered_array", etc.
+```
+
+The generator agent's system prompt must include guidance:
+- `exact` (default): Output must match expected exactly (most problems)
+- `unordered_array`: When the problem says "return in any order" (e.g., Two Sum, permutations)
+- `in_place_only`: When the problem mutates input in-place and return value is ignored
+- `in_place_with_length`: When the problem returns a count `k` and mutates first `k` elements
+
+The verifier agent should also check that the chosen strategy is consistent with the problem description. `NULL` defaults to `exact` in the comparison service, so omitting it is safe as a fallback.
 
 ### 6. Rate Limiting & Cost Controls
 
-Each problem requires 4+ LLM calls (parse, generate, verify, test cases), potentially many more with retries. A batch of 10 problems is 40+ LLM calls minimum. There's currently no per-user throttling.
+**Concern**: Each problem requires 4+ LLM calls, potentially many more with retries. No per-user throttling exists.
 
-**Questions**:
-- Should there be a hard cap on problems per import (the "Open Decisions" table suggests 20 — should this be a firm limit)?
-- Should there be a per-user daily limit on total imports or total problems generated?
-- Is there any cost tracking planned (e.g., logging token usage per import job)?
+**Decision**:
+- **Hard cap**: 20 problems per import, enforced at the API validation layer
+- **Concurrent limit**: Max 3 active import jobs per user (status = `queued` or `processing`)
+- **No daily limit** initially — the concurrent job limit naturally throttles
+- **Cost tracking**: Log token usage via Pydantic AI's `result.usage()` to structlog. Add an optional `total_tokens` column on `import_jobs` for visibility. Not a blocker for v1.
 
 ### 7. Cancel Mechanism
 
-There's no way for a user to cancel an in-progress import. If someone accidentally requests 20 problems, they must wait through potentially minutes of LLM and Judge0 calls.
+**Concern**: No way for a user to cancel an in-progress import.
 
-**Question**: Should we add a `POST /api/import/{import_id}/cancel` endpoint? The workflow loop would check `import_job.status == "cancelled"` at each iteration and bail early. This seems important for UX but is not currently in scope.
+**Decision: Yes, add `POST /api/imports/{import_id}/cancel`.** Implementation: set `import_jobs.status = "cancelled"` in DB. The workflow loop checks at the top of each problem iteration:
+
+```python
+for i in range(total):
+    job = await get_import_job_status(job_id)
+    if job.status == ImportJobStatus.CANCELLED:
+        break
+```
+
+Already-persisted problems from the cancelled batch remain in the DB — they're valid, fully verified problems. The import job shows status "cancelled" with partial results.
 
 ### 8. LeetCode-Specific Import Handling
 
-The plan supports `"Add LeetCode 4"` via the `intent: "specific"` path. A few things are unclear:
+**Concern**: The `intent: "specific"` path for "Add LeetCode 4" has several ambiguities around `leetcode_no` and the `UNIQUE(leetcode_no)` constraint.
 
-**Questions**:
-- Is the intent to recreate the exact LeetCode problem, or to generate an "inspired by" variant? Exact recreation has copyright implications.
-- The `intent_parser_agent` outputs `leetcode_number: int` but the generator receives `specific_problem: str`. How is the number mapped — does the generator just get the name, or is the number preserved for the `leetcode_no` column?
-- If `leetcode_no` is populated on the generated problem, the existing `UNIQUE(leetcode_no)` constraint could conflict with already-seeded problems.
+**Questions & Answers**:
+
+- **Recreate exact or "inspired by"?** Recreate faithfully from LLM knowledge. These are well-known public problems. Descriptions are generated, not scraped.
+
+- **How is `leetcode_number` mapped?** The intent parser outputs both `leetcode_number: int` and resolves `problem_name: str` (e.g., `4` → `"Median of Two Sorted Arrays"`). Both are passed to the generator. The generator populates `leetcode_no` on the `GeneratedProblem`. Add `leetcode_no: int | None = None` to the `GeneratedProblem` schema.
+
+- **`UNIQUE(leetcode_no)` conflict?** Before generation, query the DB for the existing `leetcode_no`. If it already exists, return early with a clear message: "LeetCode #4 already exists in the system." For pattern-based imports (e.g., "10 sliding window problems"), `leetcode_no` should be populated when the LLM knows the canonical LeetCode number, and `None` otherwise. The `UNIQUE` constraint is nullable, so `NULL` values don't conflict.
 
 ### 9. Retry Logic Flow
 
-In the main workflow, the retry logic nests verification re-attempts inside the outer retry loop:
+**Concern**: The nested retry logic is hard to reason about.
+
+**Decision: Flatten into a single loop.** One generate + one verify per attempt:
 
 ```python
+issues: list[str] = []
 for attempt in range(MAX_RETRIES):
-    ...
-    if not verification.valid:
-        problem = await regenerate_problem_step(...)
-        verification = await verify_problem_step(problem)
-        if not verification.valid:
-            continue  # back to outer loop
-```
-
-This means each `attempt` iteration can consume two generation + two verification calls (the initial pair plus the inner regeneration pair) before hitting `continue`. The effective retry behavior is hard to reason about.
-
-**Question**: Should this be flattened into a single loop with a clear attempt counter? For example:
-
-```python
-for attempt in range(MAX_RETRIES):
-    problem = await generate_problem_step(...)
+    problem = await generate_problem_step(
+        ..., previous_issues=issues
+    )
     verification = await verify_problem_step(problem)
     if verification.valid:
         break
-    # feed issues back on next iteration
+    issues = verification.issues
+else:
+    # All retries exhausted — skip this problem
+    failed += 1
+    continue
 ```
+
+Clean, predictable, and the `issues` list carries feedback between iterations so the generator improves on each attempt.
 
 ### 10. Route Registration Order
 
-The plan defines both `GET /api/import/` (list) and `GET /api/import/{import_id}` (detail) on the same router. FastAPI matches routes in registration order.
+**Concern**: `GET /api/import/` (list) and `GET /api/import/{import_id}` (detail) could conflict in FastAPI.
 
-**Question**: Is the list endpoint registered before the detail endpoint? If not, a request to `GET /api/import/` could be interpreted as `import_id = ""`, returning a 422. This is a minor detail but worth verifying during implementation.
+**Decision: Use pluralized list endpoint.** `GET /api/imports` (list, plural) and `GET /api/imports/{import_id}` (detail). Register the list route first. The router prefix becomes `/api/imports`. This avoids the ambiguity entirely and is consistent with REST conventions (`/api/problems`, `/api/submissions`).
