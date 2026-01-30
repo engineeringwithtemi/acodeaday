@@ -2,7 +2,7 @@
 
 ## Overview
 
-A feature that allows users to import coding problems via natural language prompts. A multi-agent pipeline generates, verifies, and persists problems using Pydantic AI with DBOS for durable background execution. All generated problems are first-class citizens — identical to manually seeded ones in the `problems` table.
+A feature that allows users to import coding problems via natural language prompts. A multi-agent pipeline generates, verifies, and persists problems using Pydantic AI for agent orchestration and `asyncio.create_task()` for background execution. All generated problems are first-class citizens — identical to manually seeded ones in the `problems` table.
 
 **User input examples:**
 - `"Add 10 sliding window problems"`
@@ -20,7 +20,7 @@ User submits prompt
        │
        ▼
 POST /api/import  ──→  Creates ImportJob record
-                        Starts DBOS workflow in background
+                        Starts background task (asyncio.create_task)
                         Returns { id, status: "queued" }
        │
        ▼
@@ -38,7 +38,7 @@ Returns clean ImportJob:
 ### Multi-Agent Pipeline
 
 ```
-ORCHESTRATOR (DBOS Workflow)
+ORCHESTRATOR (asyncio background task)
 │
 ├─ Step 1: PARSE INTENT
 │  Input:  "Add 10 sliding window problems"
@@ -77,8 +77,8 @@ ORCHESTRATOR (DBOS Workflow)
 │  │          Link to import_job via import_job_problems junction table
 │  │  On IntegrityError(slug): Add to exclude list, retry from 3a
 │  │
-│  └─ 3f. EMIT PROGRESS EVENT
-│     DBOS.set_event("results", [...accumulated results...])
+│  └─ 3f. UPDATE PROGRESS
+│     Update import_jobs table with progress/message
 │
 └─ Final: Mark ImportJob as completed
 ```
@@ -330,7 +330,7 @@ test_case_generator_agent = Agent(
 
 ---
 
-## DBOS Workflow Implementation
+## Workflow Implementation
 
 ### Workflow Steps
 
@@ -1002,7 +1002,7 @@ Sequence number assignment uses `MAX(sequence_number) + 1` inside the persist st
 
 ### Phase 7: Testing
 22. Unit test each agent with mocked LLM responses
-23. Test DBOS workflow with mocked steps
+23. Test workflow orchestration with mocked steps
 24. Test duplicate prevention (concurrent inserts)
 25. Test API endpoints
 26. End-to-end test: prompt → problems in DB
@@ -1017,7 +1017,99 @@ Sequence number assignment uses `MAX(sequence_number) + 1` inside the persist st
 | JavaScript support | Generate JS solutions alongside Python | Start with Python only, add JS in Phase 2 |
 | Import history UI location | Modal tab / Dedicated page / Dashboard section | Dashboard section + modal for active imports |
 | Max problems per import | Unlimited / Capped | Cap at 20 per request to control cost and runtime |
-| Background execution | DBOS / Temporal / asyncio.create_task | `asyncio.create_task()` for v1 with startup recovery for stuck jobs. No pause/resume — re-submit skips already-persisted problems. |
+| Background execution | DBOS / Temporal / asyncio.create_task | `asyncio.create_task()` — see Build vs Buy analysis below |
+
+---
+
+## Build vs Buy: Job Tracking & Durable Execution
+
+### Options Evaluated
+
+We evaluated four approaches for background workflow execution:
+
+| Option | Infrastructure | Code Overhead | Crash Recovery | Verdict |
+|--------|---------------|---------------|----------------|---------|
+| **Custom** (`asyncio.create_task()` + `import_jobs` table) | None — just our existing Postgres | ~100 lines | Startup recovery marks stuck jobs "failed"; user re-submits | **Selected for v1** |
+| **DBOS** (via Pydantic AI integration) | DBOS system tables in Postgres (`dbos` schema) | ~100 lines (neutral — removes startup recovery, adds init/decorators) | Automatic resume from last completed step | Strong option, but adds complexity |
+| **Temporal** | Separate multi-component server (frontend, matching, history, worker) | ~100+ additional lines + rearchitect into 2 services | Full replay-based recovery | Overkill |
+| **Prefect** | Prefect server or Prefect Cloud | Flow/task decorators + server config | Task-level retry and recovery | Designed for data pipelines, not API background tasks |
+
+**Temporal and Prefect rejected immediately.** Temporal requires running a separate multi-component server and rearchitecting into two services (API server + Temporal worker). Prefect requires its own server/cloud and is designed for data pipelines, not background API tasks. Both are heavy infrastructure for a simple background import job.
+
+### Custom vs DBOS: Detailed Comparison
+
+#### Code Overhead (roughly neutral)
+
+| Component | Custom | DBOS |
+|-----------|--------|------|
+| `import_jobs` + `import_job_problems` tables | ~50 lines | ~50 lines (still needed) |
+| `update_import_job_status()` | ~15 lines | ~15 lines (still needed) |
+| Startup recovery | ~20 lines | 0 (DBOS handles) |
+| Cancel endpoint | ~15 lines | ~15 lines (cooperative either way) |
+| DBOS init + config | 0 | ~10 lines |
+| `@DBOS.workflow()` + `@DBOS.step()` + `DBOSAgent` | 0 | ~10 lines |
+| New dependency | 0 | `dbos` library |
+| System tables in Postgres | 0 | `dbos.workflow_status`, `dbos.operation_outputs`, `dbos.events` |
+
+DBOS removes ~20 lines of startup recovery code but adds ~20 lines of initialization and decorators. Net code difference: **~0 lines.**
+
+#### The Dual-State Problem (DBOS weakness)
+
+With DBOS, we'd have **two state tracking systems**:
+
+1. **DBOS system tables** (`dbos.workflow_status`, `dbos.operation_outputs`) — for durability and crash recovery
+2. **Our `import_jobs` table** — for user-facing API queries (list by user, filter by status, link to problems)
+
+We cannot drop our `import_jobs` table because:
+- DBOS doesn't provide user-scoped workflow queries
+- We need `import_job_problems` junction table for linking problems to imports
+- Our API response schemas are our own, not DBOS's internal format
+
+Maintaining two systems tracking the same workflow state is **more complex** than either system alone. They must stay in sync, and discrepancies would create confusing bugs.
+
+#### Crash Recovery: How Often Does It Matter?
+
+| Scenario | Probability per Import | Impact Without DBOS | Impact With DBOS |
+|----------|----------------------|---------------------|-----------------|
+| Deploy during import | ~1-2% (15 min window / 24h × ~2 deploys/day) | Already-persisted problems survive. Job marked "failed". User re-submits, skips duplicates. ~$0.01-0.05 in wasted LLM calls. | Automatic resume from last step. Seamless. |
+| OOM kill | Very low (no large data in memory) | Same as deploy | Same benefit |
+| Unhandled exception | Near zero (top-level try/catch) | Caught and handled | Same |
+
+The crash scenario is rare (~1-2% of imports), and when it occurs, our custom approach handles it gracefully:
+- Each problem is committed individually, so partial progress survives
+- Startup recovery marks the stuck job as `"failed"` with message `"Interrupted — please retry"`
+- Re-submission detects already-persisted problems via `UNIQUE(slug)` and `UNIQUE(leetcode_no)` and skips them
+
+User experience on crash: *"Your import was interrupted. We saved 7 of 10 problems. Please retry for the remaining 3."*
+
+#### DBOS Determinism Constraint
+
+DBOS replays workflows from the beginning on recovery, checking Postgres for cached step outputs at each step. This requires the workflow to be **deterministic** — same steps in same order on every execution. Our workflow has a subtlety: the "query existing problems for exclusion" step reads from the DB. Between original execution and replay, another workflow might have persisted new problems, changing the result. We'd need to make this a DBOS step so the original result is cached during replay, which means understanding DBOS's replay semantics deeply and designing around them.
+
+#### Migration Path (trivial either direction)
+
+If we later decide DBOS is worth adding:
+1. `pip install pydantic-ai[dbos]`
+2. Add `DBOS.launch()` to app startup
+3. Add `@DBOS.workflow()` to `import_problems_workflow()`
+4. Add `@DBOS.step()` to each step function
+5. Remove startup recovery code
+
+Total: ~20 lines of changes. The workflow logic, agent definitions, and DB schema remain identical. The hard work is the same regardless of execution strategy.
+
+### Decision: Custom for v1
+
+**`asyncio.create_task()` + `import_jobs` table + startup recovery.**
+
+Our custom approach **is** the DBOS pattern, just simpler: we checkpoint each problem by committing individually, we track state in `import_jobs`, and we recover stuck jobs on startup. The only gap vs DBOS is step-level replay — but our idempotent re-submission achieves the same end result (user gets all their problems).
+
+The marginal benefit of automatic resume on the ~1-2% of imports affected by crashes does not justify:
+- A new dependency on a relatively young library
+- Dual-state complexity (DBOS tables + our `import_jobs` table)
+- Determinism constraints on workflow logic
+- Additional system tables in our Postgres
+
+If crash recovery proves important in production (e.g., we're deploying much more frequently or imports are much longer), adding DBOS is a ~20-line migration.
 
 ---
 
@@ -1027,15 +1119,13 @@ Sequence number assignment uses `MAX(sequence_number) + 1` inside the persist st
 
 **Concern**: DBOS adds system tables and a dependency. `asyncio.create_task()` could be lighter.
 
-**Analysis**: The concern has merit, but `asyncio.create_task()` has a real weakness the reviewer didn't mention: **if the FastAPI process restarts (deploy, crash, OOM), every in-flight task is silently lost.** The `import_jobs` record stays stuck in `"processing"` forever. For a workflow that can run 5–15 minutes (10 problems × 4 LLM calls × 5–30s each), this is not hypothetical.
-
-However, DBOS is overkill for v1. The practical fix is simpler:
+**Analysis**: See the **"Build vs Buy: Job Tracking & Durable Execution"** section above for the full comparative analysis.
 
 **Decision: Use `asyncio.create_task()` + a startup recovery mechanism.**
-- On app startup, query `import_jobs` for records stuck in `"processing"` that haven't updated in >10 minutes.
+- On app startup, query `import_jobs` for records stuck in `"processing"` that haven't been updated recently.
 - Mark them as `"failed"` with message `"Interrupted — please retry"`.
-- Since each problem is committed to DB individually, the already-persisted problems survive. If the user re-submits the same prompt, the workflow detects existing problems linked to the prior job via `import_job_problems` and skips them.
-- Migrate to DBOS or a task queue only if the failure rate proves unacceptable.
+- Since each problem is committed to DB individually, the already-persisted problems survive. If the user re-submits the same prompt, the workflow detects existing problems via `UNIQUE(slug)` / `UNIQUE(leetcode_no)` and skips them.
+- Migrate to DBOS is a ~20-line change if crash recovery proves important in production.
 
 ### 2. Sequence Number Race Condition
 
