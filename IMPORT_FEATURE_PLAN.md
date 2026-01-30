@@ -1296,3 +1296,258 @@ This way the generator can fix specific issues ("constraint bounds wrong", "exam
 **Analysis**: Minor concern, trivial fix. Use `/api/imports` (plural) for the router prefix. List = `GET /api/imports`, Detail = `GET /api/imports/{import_id}`. Consistent with existing routes (`/api/problems`, `/api/submissions`).
 
 **Decision: Router prefix = `/api/imports`.** Register list before detail. No ambiguity.
+
+---
+
+## Experiment Plan: Validate Before Building
+
+Five focused spikes to prove the approach works before committing to the full implementation. Each spike is isolated, testable, and answers a specific architectural question. If any spike fails, we stop and re-evaluate before wasting effort on the rest.
+
+### Prerequisites
+
+```bash
+# 1. Install pydantic-ai (add to pyproject.toml)
+uv add pydantic-ai
+
+# 2. Ensure test infrastructure is running
+docker compose --profile test up -d postgres-test   # Test DB on :54325
+docker compose up -d judge0-server judge0-workers judge0-db judge0-redis  # Judge0 stack
+
+# 3. Set LLM API key (for agent spikes)
+export ANTHROPIC_API_KEY=sk-ant-...   # or whichever provider
+```
+
+All experiment code goes in `backend/tests/experiments/` — isolated from production code. Nothing from this directory ships. Each spike has a `test_spike_*.py` file that can be run independently.
+
+---
+
+### Spike 1: Pydantic AI Structured Output Quality
+
+**Question**: Can Pydantic AI reliably produce a `GeneratedProblem` that matches our schema, has valid code, and correct `leetcode_no`?
+
+**What to build** (`tests/experiments/test_spike_structured_output.py`):
+```python
+# 1. Define GeneratedProblem schema (copy from plan)
+# 2. Create a minimal problem_generator agent with output_type=GeneratedProblem
+# 3. Call it 3 times with different prompts:
+#    - "Generate LeetCode #1 (Two Sum)" → verify leetcode_no=1
+#    - "Generate a sliding window problem" → verify pattern contains "sliding-window"
+#    - "Generate a medium difficulty tree problem" → verify difficulty="medium"
+# 4. For each output, assert:
+#    - All required fields are present and valid types
+#    - leetcode_no is a positive integer
+#    - languages["python"].reference_solution contains "class Solution"
+#    - languages["python"].starter_code contains "pass"
+#    - function_signature has name, params, return_type
+#    - examples has at least 2 entries
+#    - constraints is non-empty
+```
+
+**Success criteria**:
+- 3/3 outputs parse into `GeneratedProblem` without validation errors
+- `leetcode_no` is correct for the specific request (Two Sum = 1)
+- Reference solution syntax is valid Python (compile check)
+
+**Failure action**: If structured output is unreliable, we may need to switch models, add retry logic, or simplify the schema.
+
+**What this does NOT test**: Verifier quality, test case quality, Judge0 execution. Those are separate spikes.
+
+---
+
+### Spike 2: Background Task + DB State Tracking
+
+**Question**: Does `asyncio.create_task()` work correctly with our async SQLAlchemy session factory? Can we update `import_jobs` from a background task while the API serves status polls?
+
+**What to build**:
+
+1. **Migration** (`alembic revision`): Add `import_jobs` and `import_job_problems` tables exactly as specified in the plan. This is real — it ships. Run it against the test DB.
+
+2. **Test file** (`tests/experiments/test_spike_background_task.py`):
+```python
+# 1. Create an ImportJob record via direct DB insert
+# 2. Start a fake background task (asyncio.create_task) that:
+#    - Sleeps 0.5s
+#    - Updates import_jobs.status to "processing", message to "Working..."
+#    - Sleeps 0.5s
+#    - Updates import_jobs.status to "completed"
+# 3. While the task runs, poll import_jobs via a second DB session
+#    and verify the status transitions: queued → processing → completed
+# 4. Verify the background task uses its OWN db session from AsyncSessionLocal
+#    (not the request's session — that's the key isolation question)
+```
+
+3. **Startup recovery test** (`tests/experiments/test_spike_startup_recovery.py`):
+```python
+# 1. Insert an ImportJob with status="processing", updated_at=10 minutes ago
+# 2. Call the startup recovery function
+# 3. Assert status changed to "failed", message contains "Interrupted"
+# 4. Insert an ImportJob with status="processing", updated_at=1 minute ago
+# 5. Call startup recovery again
+# 6. Assert status is STILL "processing" (not stale enough to mark failed)
+```
+
+**Success criteria**:
+- Background task can read/write `import_jobs` via its own `AsyncSessionLocal()` session
+- No session conflicts with the request-scoped session
+- Status transitions are visible to concurrent readers
+- Startup recovery correctly identifies stale vs active jobs
+
+**Failure action**: If session isolation doesn't work, we need a different DB session strategy for background tasks (e.g., a dedicated session factory, or running the workflow in a separate process via `multiprocessing`).
+
+---
+
+### Spike 3: Judge0 Validates AI-Generated Code
+
+**Question**: Can AI-generated reference solutions run through our existing wrapper + Judge0 pipeline? Does `asyncio.to_thread()` work for the sync Judge0 client?
+
+**What to build** (`tests/experiments/test_spike_judge0_validation.py`):
+```python
+# 1. Hardcode a known-good GeneratedProblem (Two Sum, from Spike 1 output or manually crafted)
+# 2. Hardcode matching test cases: [{"input": [[2,7,11,15], 9], "expected": [0,1]}, ...]
+# 3. Use existing generate_python_wrapper() to wrap the reference solution
+# 4. Call Judge0 via asyncio.to_thread(judge0_service.execute_code, ...)
+# 5. Parse the stdout JSON result
+# 6. Assert all test cases pass
+#
+# Also test a FAILING case:
+# 7. Modify the reference solution to return wrong answer
+# 8. Run through Judge0
+# 9. Assert at least one test case fails
+```
+
+**This spike requires Judge0 running locally** (`docker compose up judge0-server judge0-workers`).
+
+**Success criteria**:
+- `generate_python_wrapper()` works with AI-generated function signatures and test cases
+- `asyncio.to_thread(judge0_service.execute_code, ...)` doesn't block or deadlock
+- JSON output from Judge0 parses correctly
+- Correct solution passes, incorrect solution fails
+
+**Failure action**: If the wrapper can't handle AI-generated code format, we need adapter logic between `GeneratedProblem` and the wrapper's expected input format.
+
+---
+
+### Spike 4: End-to-End Single Problem (The Big One)
+
+**Question**: Can we go from prompt → generate → verify → test cases → Judge0 → persist → query back via existing API?
+
+**What to build** (`tests/experiments/test_spike_e2e_single.py`):
+```python
+# This spike chains Spikes 1-3 together for ONE problem.
+#
+# 1. Call intent_parser_agent with "Add LeetCode 1"
+#    Assert: intent="specific", leetcode_number=1
+#
+# 2. Call problem_generator_agent with the parsed intent
+#    Assert: GeneratedProblem with leetcode_no=1, title contains "Two Sum"
+#
+# 3. Call problem_verifier_agent with the generated problem
+#    Assert: valid=True (or if not, log the issues for manual review)
+#
+# 4. Call test_case_generator_agent with the verified problem
+#    Assert: ≥10 test cases, each has input (list) and expected (value)
+#
+# 5. Run reference solution through Judge0 with generated test cases
+#    Assert: all_passed=True
+#
+# 6. Persist to test DB:
+#    - Insert Problem (sequence_number = MAX + 1)
+#    - Insert ProblemLanguage
+#    - Insert TestCases
+#    - Insert ImportJob + ImportJobProblem link
+#    Assert: no IntegrityError, problem has valid slug
+#
+# 7. Query back via existing API:
+#    GET /api/problems/{slug} with auth headers
+#    Assert: returns the problem with starter_code, test_cases, etc.
+#    Assert: response schema matches ProblemDetailSchema exactly
+#
+# 8. (Optional) Submit the reference solution via POST /api/submit
+#    Assert: all test cases pass, submission recorded
+```
+
+**Success criteria**:
+- Full pipeline completes without errors for 1 problem
+- Persisted problem is queryable via existing API
+- Response matches existing problem schema (no missing fields)
+- (Bonus) Submitting the reference solution passes all tests
+
+**Failure action**: Depends on which step fails. The isolated spikes (1-3) should have already caught most issues, so failures here are likely in the persist/query integration.
+
+---
+
+### Spike 5: Regression Check
+
+**Question**: Do the new `import_jobs` / `import_job_problems` tables and migration break anything?
+
+**What to build**:
+```bash
+# No new test code — just run the existing test suite against the
+# DB that now has the new tables from Spike 2's migration.
+
+# 1. Run the full existing test suite:
+uv run pytest tests/ -v --ignore=tests/experiments/
+
+# 2. Specifically verify:
+#    - test_routes_problems.py: problem listing/detail still works
+#    - test_routes_execution.py: code execution still works
+#    - test_routes_progress.py: spaced repetition still works
+#    - test_routes_submissions.py: submission history still works
+#    - test_comparison.py: comparison service still works
+```
+
+**Success criteria**: All existing tests pass with zero changes. The new migration adds tables but doesn't modify existing ones, so this should be a formality — but verify anyway.
+
+**Failure action**: If any existing test breaks, the migration touched something it shouldn't have. Fix the migration before proceeding.
+
+---
+
+### Execution Order & Dependencies
+
+```
+Spike 1 (Structured Output)     ──┐
+Spike 2 (Background Task + DB)  ──┼── can run in parallel (independent)
+                                   │
+Spike 3 (Judge0 Validation)     ──┘
+         │
+         ▼
+Spike 4 (End-to-End)           ── depends on all three above
+         │
+         ▼
+Spike 5 (Regression)           ── depends on Spike 2 (needs migration applied)
+```
+
+- **Spikes 1, 2, and 3 are independent** — run them in parallel to save time
+- **Spike 4 chains them together** — only start once all three pass
+- **Spike 5 runs after Spike 2** — needs the migration applied
+
+### Estimated Effort
+
+| Spike | Code to Write | External Dependencies | Approximate LLM Cost |
+|-------|--------------|----------------------|---------------------|
+| 1. Structured Output | ~80 lines | Anthropic API key | ~$0.05 (3 agent calls) |
+| 2. Background Task | ~120 lines + migration | Test Postgres | $0 (no LLM) |
+| 3. Judge0 Validation | ~60 lines | Judge0 running locally | $0 (no LLM) |
+| 4. End-to-End | ~150 lines | All of the above | ~$0.10 (6 agent calls) |
+| 5. Regression | 0 lines (run existing tests) | Test Postgres | $0 |
+
+Total: ~410 lines of throwaway test code, ~$0.15 in LLM costs.
+
+### Go / No-Go Decision
+
+After all spikes pass:
+
+| Question | Where Answered | Go Criteria |
+|----------|---------------|-------------|
+| Can Pydantic AI produce valid problems? | Spike 1 | ≥2/3 outputs valid without retry |
+| Does background DB state tracking work? | Spike 2 | Status transitions visible to concurrent readers |
+| Can Judge0 run AI-generated code? | Spike 3 | Correct solution passes, wrong solution fails |
+| Does the full pipeline work end-to-end? | Spike 4 | Problem persisted and queryable via existing API |
+| Do existing features still work? | Spike 5 | All existing tests pass |
+
+If ALL five pass → proceed with full implementation.
+If Spike 1 fails → re-evaluate LLM model or schema complexity.
+If Spike 2 fails → re-evaluate session management or consider process-based execution.
+If Spike 3 fails → re-evaluate wrapper compatibility.
+If Spike 4 fails → identify which integration point broke and fix.
+If Spike 5 fails → fix migration before any implementation work.
