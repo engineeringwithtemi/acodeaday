@@ -975,134 +975,176 @@ Sequence number assignment uses `MAX(sequence_number) + 1` inside the persist st
 
 ---
 
-## Review — Questions, Answers & Decisions
-
-The following items were raised during plan review. Each has been resolved with a decision.
+## Review — Critical Analysis & Decisions
 
 ### 1. DBOS Complexity vs. Simpler Alternatives
 
-**Concern**: DBOS introduces its own system tables (`dbos_*`) into the Supabase-managed database and adds a non-trivial dependency. The main value — durable resume-from-last-step — may not be critical here since successfully persisted problems survive any crash, and the user can re-import for any remainder.
+**Concern**: DBOS adds system tables and a dependency. `asyncio.create_task()` could be lighter.
 
-**Question**: Has `asyncio.create_task()` (or FastAPI `BackgroundTasks`) with direct `import_jobs` table updates been considered as a lighter alternative? If DBOS is preferred, has its async compatibility been verified — specifically, do `@DBOS.workflow()` and `@DBOS.step()` support `async def` functions natively?
+**Analysis**: The concern has merit, but `asyncio.create_task()` has a real weakness the reviewer didn't mention: **if the FastAPI process restarts (deploy, crash, OOM), every in-flight task is silently lost.** The `import_jobs` record stays stuck in `"processing"` forever. For a workflow that can run 5–15 minutes (10 problems × 4 LLM calls × 5–30s each), this is not hypothetical.
 
-**Decision: Start with `asyncio.create_task()` + direct `import_jobs` table updates.** The workflow already writes progress to `import_jobs` after each problem succeeds. If the process dies, successfully persisted problems survive (they're committed to DB). The user can re-submit and we detect "N problems already linked to a prior job with the same prompt" and skip them. DBOS can be added later if the simpler approach proves insufficient. DBOS does support `async def` natively — verified from their docs and examples.
+However, DBOS is overkill for v1. The practical fix is simpler:
+
+**Decision: Use `asyncio.create_task()` + a startup recovery mechanism.**
+- On app startup, query `import_jobs` for records stuck in `"processing"` that haven't updated in >10 minutes.
+- Mark them as `"failed"` with message `"Interrupted — please retry"`.
+- Since each problem is committed to DB individually, the already-persisted problems survive. If the user re-submits the same prompt, the workflow detects existing problems linked to the prior job via `import_job_problems` and skips them.
+- Migrate to DBOS or a task queue only if the failure rate proves unacceptable.
 
 ### 2. Sequence Number Race Condition
 
-**Concern**: Two concurrent `persist_problem_step` calls can both read the same `MAX(sequence_number)` value before either commits, violating the `UNIQUE(sequence_number)` constraint.
+**Concern**: `MAX(sequence_number) + 1` isn't safe under concurrency. Suggested PG SEQUENCE.
 
-**Question**: Should we use a PostgreSQL `SEQUENCE` object or `SELECT ... FOR UPDATE`?
+**Analysis**: The concern is valid, but a PG SEQUENCE introduces a **coordination problem with YAML seeding.** Existing problems are seeded with hardcoded sequence numbers (001–153 in filenames). If the sequence starts at 154 but someone later seeds YAML file `154-new-problem.yaml`, the sequence and the seeded data collide. Keeping the sequence in sync with two different insertion paths (YAML seeding and import workflow) is fragile.
 
-**Decision: Use a PostgreSQL `SEQUENCE`.** It's atomic, lock-free, and purpose-built for this:
+**Decision: Use `MAX(sequence_number) + 1` with retry on `IntegrityError`.** This is the same pattern we already use for duplicate slugs. If two concurrent inserts race on the same sequence number, one gets an `IntegrityError`, retries with a fresh `MAX + 1`, and succeeds. No new infrastructure, no coordination with the seeding path, and the race is extremely unlikely in practice (how often will two imports persist at the exact same instant?).
 
-```sql
-CREATE SEQUENCE problems_sequence_number_seq
-    START WITH <current max + 1>;
+```python
+for attempt in range(3):
+    try:
+        max_seq = await db.execute(select(func.max(Problem.sequence_number)))
+        next_seq = (max_seq.scalar() or 0) + 1
+        problem.sequence_number = next_seq
+        db.add(problem)
+        await db.flush()
+        break
+    except IntegrityError:
+        await db.rollback()
+        continue
 ```
-
-Then in the persist step: `nextval('problems_sequence_number_seq')`. If a problem insert fails (e.g., duplicate slug), the sequence number is "burned" — gaps in sequence numbers don't matter. This avoids lock contention entirely. The Alembic migration should initialize the sequence from the current max `sequence_number` in the `problems` table.
 
 ### 3. `validate_with_judge0_step` Implementation Details
 
-**Concern**: This is the most critical quality gate and was left as a placeholder.
+**Concern**: Placeholder implementation, questions about wrapper compatibility and error handling.
 
-**Questions & Answers**:
+**Analysis**: Three issues the reviewer raised, plus one they missed:
 
-- **Will this reuse `generate_python_wrapper()`?** Yes. The wrapper expects test cases as objects with `.input` (list) and `.expected` (any) attributes. The `GeneratedTestCase` schema stores `input` as `list[Any]` which aligns. We'll create mock test case objects (like the existing `_MockTestCase` in `execution.py:64-69`) from the generated test case data.
+1. **Wrapper compatibility**: `generate_python_wrapper()` in `wrapper.py:69-75` builds test case data from `tc.input` (list) and `tc.expected`. It uses `repr()` to serialize into the wrapper source code (`wrapper.py:86`). `GeneratedTestCase.input: list[Any]` aligns — `repr()` handles all JSON-compatible types (int, float, str, bool, None, list, dict) correctly.
 
-- **What if Judge0 is unavailable?** Retry with backoff (3 attempts: 5s, 15s, 30s). If still down, **fail the problem** — not skip. The whole point of this step is validation; skipping it defeats the purpose. The import job continues to the next problem.
+2. **Judge0 unavailable**: Retry 3x with backoff, then **fail the problem** and continue to the next. Agreed.
 
-- **How are execution errors distinguished?** Judge0 returns distinct status codes already handled in `execution.py:137-152`: status 6 = compilation error, status 11/12/13 = runtime error / time limit / memory limit. The `_parse_execution_results()` function in `execution.py` already maps these. The import workflow can reuse this function directly, passing the problem's `comparison_strategy` so the comparison service (`comparison.py`) applies the correct logic.
+3. **Error distinction**: Judge0 status codes (6=compile, 11/12/13=runtime/TLE/MLE) are already handled in `execution.py`. However, `_parse_execution_results()` is a **private function** in `routes/execution.py` (underscore prefix). It's coupled to the HTTP route layer — it returns `TestResult` Pydantic schemas for API responses. The import workflow doesn't need HTTP response schemas.
+
+4. **Issue the reviewer missed**: `judge0.execute_code()` uses `httpx.Client()` (synchronous) — see `judge0.py:64`. This blocks the event loop. In the import workflow (which runs inside `asyncio.create_task()`), this would block other async tasks. We need an `async` version using `httpx.AsyncClient()` or run the sync call in a thread executor.
+
+**Decision: Extract shared validation logic into `services/execution_validator.py`.**
+- Move the core parse-and-compare logic out of the private route function into a reusable service.
+- Both the route layer and the import workflow call this service.
+- Create `judge0.async_execute_code()` using `httpx.AsyncClient` for the import workflow, or wrap the sync call with `asyncio.to_thread()`.
 
 ### 4. `insert_problem` Interface Compatibility
 
-**Concern**: The `persist_problem_step` dict may not match the existing `seeder.py:insert_problem()` expected format.
+**Concern**: The seeder's expected dict format may not match.
 
-**Decision: Write a thin adapter function `generated_problem_to_seed_dict()`.** The seeder expects specific nesting: `languages` as `{ "python": { "starter_code": ..., "reference_solution": ..., "function_signature": ... } }`, `test_cases` as `[{ "input": [...], "expected": ... }]`, and `examples` as a flat list (which the seeder wraps in `{"examples": [...]}`). The adapter converts `GeneratedProblem` + `list[GeneratedTestCase]` into this dict format. This avoids modifying the existing seeder while keeping the contract explicit. It also handles the new `leetcode_no` and `comparison_strategy` fields that `insert_problem()` now accepts via `data.get()`.
+**Analysis**: The reviewer is right there's a format mismatch, but there's a **deeper issue they didn't catch**: `seeder.py:93` derives the slug internally via `title_to_slug(data["title"])`. It **ignores any slug in the data dict.** Meanwhile, the import workflow uses the agent-generated slug for deduplication throughout the pipeline (exclude lists, `IntegrityError` handling). If `title_to_slug("Sliding Window Maximum")` produces `"sliding-window-maximum"` but the agent generated `slug: "sliding-window-max"`, the slug stored in DB differs from what the workflow thinks it is. Subsequent deduplication checks would fail to find the problem.
+
+**Decision: Don't use the seeder's `insert_problem()`. Insert directly in the persist step.** The persist step builds the `Problem`, `ProblemLanguage`, and `TestCase` objects itself — it's not much code, and we maintain full control over the slug. We reuse `title_to_slug()` from the seeder as a utility to GENERATE the slug (rather than trusting the LLM's slug), ensuring consistency with existing problems.
+
+```python
+from app.services.seeder import title_to_slug
+
+async def persist_problem(db, problem: GeneratedProblem, test_cases: list[GeneratedTestCase], import_job_id):
+    slug = title_to_slug(problem.title)  # Derive slug deterministically, don't trust LLM
+    # ... insert Problem, ProblemLanguage, TestCase directly ...
+```
+
+This means the `slug` field on `GeneratedProblem` is **unused** — we always derive it from the title. The agent doesn't need to generate slugs at all. Remove `slug` from the schema and derive it at persist time.
 
 ### 5. `comparison_strategy` Field
 
-**Concern**: The `problems` table has a `comparison_strategy` column (`exact`, `unordered_array`, `in_place_only`, `in_place_with_length`) used by `comparison.py` at submission time. The `GeneratedProblem` schema did not include this field.
+**Concern**: The generator agent should determine the comparison strategy.
 
-**Decision: The problem generator agent must determine the appropriate `comparison_strategy`.** Add it to the `GeneratedProblem` schema:
+**Analysis**: The concern is valid, but the answer of "let the agent determine all 4 strategies" is **too optimistic for v1.** Looking at the actual code:
 
-```python
-class GeneratedProblem(BaseModel):
-    ...
-    comparison_strategy: str | None = None  # "exact", "unordered_array", etc.
-```
+- `in_place_only` expects the wrapper to return `{"mutated_input": [...], "return_value": ...}` — but the current wrapper (`wrapper.py:103`) just returns `solution.func(*test["input"])`. It does NOT capture mutations to the input array. For in-place problems, **the wrapper itself would need modification** to snapshot the input before and after execution.
+- `in_place_with_length` has the same issue plus additional logic for `first k elements`.
 
-The generator agent's system prompt must include guidance:
-- `exact` (default): Output must match expected exactly (most problems)
-- `unordered_array`: When the problem says "return in any order" (e.g., Two Sum, permutations)
-- `in_place_only`: When the problem mutates input in-place and return value is ignored
-- `in_place_with_length`: When the problem returns a count `k` and mutates first `k` elements
+Asking the LLM to pick `in_place_only` is meaningless if the wrapper can't execute it. Generated problems using these strategies would pass Judge0 validation (because the reference solution runs against itself), but **fail at user submission time** when the comparison service tries to compare in-place outputs that the wrapper doesn't capture.
 
-The verifier agent should also check that the chosen strategy is consistent with the problem description. `NULL` defaults to `exact` in the comparison service, so omitting it is safe as a fallback.
+**Decision: Restrict v1 to `exact` and `unordered_array` only.** The generator prompt should:
+- Default to `exact` (NULL) for most problems
+- Use `unordered_array` when the problem description says "return in any order" or output order is undefined
+- **Never generate** in-place mutation problems until the wrapper supports capturing mutations
+
+Add a validation check in the persist step: reject any problem with `comparison_strategy` set to `in_place_only` or `in_place_with_length`.
 
 ### 6. Rate Limiting & Cost Controls
 
-**Concern**: Each problem requires 4+ LLM calls, potentially many more with retries. No per-user throttling exists.
+**Concern**: 40+ LLM calls per batch, no throttling.
 
-**Decision**:
-- **Hard cap**: 20 problems per import, enforced at the API validation layer
-- **Concurrent limit**: Max 3 active import jobs per user (status = `queued` or `processing`)
-- **No daily limit** initially — the concurrent job limit naturally throttles
-- **Cost tracking**: Log token usage via Pydantic AI's `result.usage()` to structlog. Add an optional `total_tokens` column on `import_jobs` for visibility. Not a blocker for v1.
+**Analysis**: The concern is valid. The numbers:
+- 10 problems × (1 generate + 1 verify + 1 test cases + 1 Judge0 validation) = 40 LLM calls minimum
+- With retries: could be 60–80 calls
+- At ~$0.003–0.01 per call (Sonnet): $0.12–0.80 per import
+- At 20 problems max: up to $1.60 per import
+
+The 3 concurrent job limit means one user could trigger $4.80 in parallel. That's manageable, but the reviewer didn't ask the real question: **is this feature for all users or admin-only?**
+
+**Decision:**
+- **Hard cap**: 20 problems per import, enforced at API validation
+- **Concurrent limit**: Max 3 active import jobs per user
+- **Feature access**: For v1, available to all authenticated users. Add admin-only restriction if cost becomes a concern. This is a product decision we can revisit.
+- **Cost tracking**: Log token usage per agent call via structlog. Not a blocker for v1, but implement from the start since Pydantic AI's `result.usage()` makes it trivial.
 
 ### 7. Cancel Mechanism
 
-**Concern**: No way for a user to cancel an in-progress import.
+**Concern**: No cancel endpoint.
 
-**Decision: Yes, add `POST /api/imports/{import_id}/cancel`.** Implementation: set `import_jobs.status = "cancelled"` in DB. The workflow loop checks at the top of each problem iteration:
+**Analysis**: Valid concern. With `asyncio.create_task()`, the cancel is **cooperative** — we set a DB flag, the task checks it at the top of each iteration. If the task is mid-LLM-call (which can take 30+ seconds), it won't cancel until the call returns. This is acceptable UX — the user clicks cancel, sees "cancelling...", and within a minute the status flips to "cancelled".
 
-```python
-for i in range(total):
-    job = await get_import_job_status(job_id)
-    if job.status == ImportJobStatus.CANCELLED:
-        break
-```
+One edge case: if the process crashed and the job is stuck in "processing", the cancel endpoint should still work — the startup recovery mechanism (from Decision #1) will handle it.
 
-Already-persisted problems from the cancelled batch remain in the DB — they're valid, fully verified problems. The import job shows status "cancelled" with partial results.
+**Decision: Yes, add `POST /api/imports/{import_id}/cancel`.** The workflow checks `import_jobs.status` at the top of each problem iteration. Already-persisted problems survive. The cancel is cooperative, not instant — document this in the API response.
 
 ### 8. LeetCode-Specific Import Handling
 
-**Concern**: The `intent: "specific"` path for "Add LeetCode 4" has several ambiguities around `leetcode_no` and the `UNIQUE(leetcode_no)` constraint.
+**Concern**: Ambiguities around `leetcode_no` and `UNIQUE` constraint.
 
-**Questions & Answers**:
+**Analysis**: The reviewer raises three questions. The third one needs more thought than I initially gave it.
 
-- **Recreate exact or "inspired by"?** Recreate faithfully from LLM knowledge. These are well-known public problems. Descriptions are generated, not scraped.
+For pattern-based imports like "Add 10 sliding window problems", should the LLM populate `leetcode_no`? I initially said "yes, when the LLM knows the canonical number." But this is **dangerous**: the LLM could hallucinate a wrong number. If it generates "Sliding Window Median" and guesses `leetcode_no: 480` (which is correct) but problem 480 is already seeded, the insert fails with an `IntegrityError` on `leetcode_no`. The retry logic would then need to handle not just slug conflicts but also `leetcode_no` conflicts — and the fix isn't "try a different leetcode_no", it's "set it to NULL."
 
-- **How is `leetcode_number` mapped?** The intent parser outputs both `leetcode_number: int` and resolves `problem_name: str` (e.g., `4` → `"Median of Two Sorted Arrays"`). Both are passed to the generator. The generator populates `leetcode_no` on the `GeneratedProblem`. Add `leetcode_no: int | None = None` to the `GeneratedProblem` schema.
-
-- **`UNIQUE(leetcode_no)` conflict?** Before generation, query the DB for the existing `leetcode_no`. If it already exists, return early with a clear message: "LeetCode #4 already exists in the system." For pattern-based imports (e.g., "10 sliding window problems"), `leetcode_no` should be populated when the LLM knows the canonical LeetCode number, and `None` otherwise. The `UNIQUE` constraint is nullable, so `NULL` values don't conflict.
+**Decision:**
+- For `intent: "specific"` (e.g., "Add LeetCode 4"): Check if `leetcode_no = 4` already exists in DB BEFORE starting generation. If yes, return immediately: `"LeetCode #4 already exists."` If no, generate with `leetcode_no = 4`.
+- For `intent: "pattern"` (e.g., "10 sliding window problems"): **Always set `leetcode_no = None`.** The purpose of pattern-based import is generating practice problems, not cataloguing LeetCode's problem set. Avoids hallucinated numbers and `UNIQUE` conflicts entirely.
 
 ### 9. Retry Logic Flow
 
-**Concern**: The nested retry logic is hard to reason about.
+**Concern**: Nested retry is hard to reason about.
 
-**Decision: Flatten into a single loop.** One generate + one verify per attempt:
+**Analysis**: Agreed, flatten it. But the reviewer's flattened version generates a **completely new** problem each attempt. This wastes the good parts of the previous attempt. If the verifier says "the constraint bounds are wrong but everything else is fine," regenerating from scratch throws away a good description, solution, and examples.
+
+Better approach: **pass the previous problem AND issues for refinement**, not just issues:
 
 ```python
+previous_problem: GeneratedProblem | None = None
 issues: list[str] = []
+
 for attempt in range(MAX_RETRIES):
-    problem = await generate_problem_step(
-        ..., previous_issues=issues
-    )
+    if previous_problem and issues:
+        # Refine the previous attempt
+        problem = await refine_problem_step(previous_problem, issues, exclude_slugs)
+    else:
+        # Fresh generation
+        problem = await generate_problem_step(pattern, exclude_slugs, ...)
+
     verification = await verify_problem_step(problem)
     if verification.valid:
         break
+
+    previous_problem = problem
     issues = verification.issues
 else:
-    # All retries exhausted — skip this problem
     failed += 1
     continue
 ```
 
-Clean, predictable, and the `issues` list carries feedback between iterations so the generator improves on each attempt.
+This way the generator can fix specific issues ("constraint bounds wrong", "example output incorrect") without discarding the rest. If the problem is fundamentally flawed (e.g., "this isn't actually a sliding window problem"), the refinement prompt should handle that too — the agent has enough context to decide whether to patch or start over.
 
 ### 10. Route Registration Order
 
-**Concern**: `GET /api/import/` (list) and `GET /api/import/{import_id}` (detail) could conflict in FastAPI.
+**Concern**: `GET /api/import/` and `GET /api/import/{import_id}` could conflict.
 
-**Decision: Use pluralized list endpoint.** `GET /api/imports` (list, plural) and `GET /api/imports/{import_id}` (detail). Register the list route first. The router prefix becomes `/api/imports`. This avoids the ambiguity entirely and is consistent with REST conventions (`/api/problems`, `/api/submissions`).
+**Analysis**: Minor concern, trivial fix. Use `/api/imports` (plural) for the router prefix. List = `GET /api/imports`, Detail = `GET /api/imports/{import_id}`. Consistent with existing routes (`/api/problems`, `/api/submissions`).
+
+**Decision: Router prefix = `/api/imports`.** Register list before detail. No ambiguity.
