@@ -1,5 +1,6 @@
 title: Longest Increasing Path in a Matrix
 sequence_number: 127
+leetcode_no: 329
 difficulty: hard
 pattern:
   - dynamic-programming

@@ -1,5 +1,6 @@
 title: Longest Increasing Subsequence
 sequence_number: 18
+leetcode_no: 300
 difficulty: medium
 pattern:
   - dynamic-programming

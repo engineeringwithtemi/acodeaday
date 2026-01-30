@@ -1,6 +1,8 @@
 title: Top K Frequent Elements
 sequence_number: 74
+leetcode_no: 347
 difficulty: medium
+comparison_strategy: unordered_array  
 pattern:
   - heap
   - hash-table

@@ -1,5 +1,6 @@
 title: Two Sum II - Input Array Is Sorted
 sequence_number: 137
+leetcode_no: 167
 difficulty: medium
 pattern:
   - two-pointers

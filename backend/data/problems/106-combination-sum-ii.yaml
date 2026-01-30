@@ -1,5 +1,6 @@
 title: Combination Sum II
 sequence_number: 106
+leetcode_no: 40
 difficulty: medium
 pattern:
   - backtracking

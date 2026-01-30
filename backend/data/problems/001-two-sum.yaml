@@ -1,6 +1,8 @@
 title: Two Sum
 sequence_number: 1
+leetcode_no: 1
 difficulty: easy
+comparison_strategy: unordered_array  # Result indices can be in any order
 pattern:
   - hash-map
   - arrays

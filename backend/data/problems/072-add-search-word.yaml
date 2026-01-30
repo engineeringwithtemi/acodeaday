@@ -1,5 +1,6 @@
 title: Design Add and Search Words Data Structure
 sequence_number: 72
+leetcode_no: 211
 difficulty: medium
 pattern:
   - trie

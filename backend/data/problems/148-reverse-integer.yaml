@@ -1,5 +1,6 @@
 title: Reverse Integer
 sequence_number: 148
+leetcode_no: 7
 difficulty: medium
 pattern:
   - math

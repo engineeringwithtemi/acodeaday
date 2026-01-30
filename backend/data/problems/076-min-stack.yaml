@@ -1,5 +1,6 @@
 title: Min Stack
 sequence_number: 76
+leetcode_no: 155
 difficulty: medium
 pattern:
   - stack

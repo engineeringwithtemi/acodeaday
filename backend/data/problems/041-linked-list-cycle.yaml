@@ -1,5 +1,6 @@
 title: Linked List Cycle
 sequence_number: 41
+leetcode_no: 141
 difficulty: easy
 pattern:
   - linked-list

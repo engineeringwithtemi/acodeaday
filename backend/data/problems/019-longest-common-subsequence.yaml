@@ -1,5 +1,6 @@
 title: Longest Common Subsequence
 sequence_number: 19
+leetcode_no: 1143
 difficulty: medium
 pattern:
   - dynamic-programming

@@ -29,6 +29,20 @@ export type MasteredProblemsResponse = components['schemas']['MasteredProblemsRe
 export type MasteredProblemSchema = components['schemas']['MasteredProblemSchema']
 export type ShowAgainResponse = components['schemas']['ShowAgainResponse']
 
+// Pattern types - manually defined until backend regenerates OpenAPI schema
+export interface PatternGroupSchema {
+  pattern: string
+  problems: ProblemWithProgressSchema[]
+  total_count: number
+  solved_count: number
+  mastered_count: number
+}
+
+export interface PatternsResponse {
+  patterns: PatternGroupSchema[]
+  total_patterns: number
+}
+
 // Execution types
 export type RunCodeRequest = components['schemas']['RunCodeRequest']
 export type RunCodeResponse = components['schemas']['RunCodeResponse']

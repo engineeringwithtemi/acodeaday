@@ -1,5 +1,6 @@
 title: Trapping Rain Water
 sequence_number: 87
+leetcode_no: 42
 difficulty: hard
 pattern:
   - two-pointers

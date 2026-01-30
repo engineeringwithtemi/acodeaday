@@ -1,5 +1,6 @@
 title: Copy List with Random Pointer
 sequence_number: 88
+leetcode_no: 138
 difficulty: medium
 pattern:
   - linked-list

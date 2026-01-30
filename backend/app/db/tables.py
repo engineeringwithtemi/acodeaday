@@ -49,8 +49,17 @@ class MessageRole(enum.StrEnum):
     SYSTEM = "system"
 
 
+class ComparisonStrategy(enum.StrEnum):
+    """Comparison strategies for test results."""
+
+    EXACT = "exact"
+    UNORDERED_ARRAY = "unordered_array"
+    IN_PLACE_ONLY = "in_place_only"
+    IN_PLACE_WITH_LENGTH = "in_place_with_length"
+
+
 class Problem(Base):
-    """Core problem data from Blind 75."""
+    """Core problem data for coding practice."""
 
     __tablename__ = "problems"
 
@@ -64,15 +73,21 @@ class Problem(Base):
     # Patterns as ARRAY of strings (e.g., ["hash-map", "arrays", "complement-search"])
     pattern: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False)
 
-    # SEQUENCE_NUMBER: Determines order in Blind 75 (1-75)
+    # SEQUENCE_NUMBER: Determines problem order
     # Used to find "next unsolved problem": SELECT * WHERE sequence_number = (min unsolved)
     sequence_number: Mapped[int] = mapped_column(Integer, unique=True, nullable=False)
+
+    # LeetCode problem number (optional, for mapping to leetcode.com/problems/)
+    leetcode_no: Mapped[int | None] = mapped_column(Integer, unique=True, nullable=True)
 
     # Constraints as ARRAY of strings (not JSONB)
     constraints: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False)
 
     # Examples stored as JSONB (complex structure with input/output/explanation)
     examples: Mapped[dict] = mapped_column(JSONB, nullable=False)
+
+    # Comparison strategy for test results (NULL defaults to EXACT)
+    comparison_strategy: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 

@@ -1,5 +1,6 @@
 title: Decode Ways
 sequence_number: 24
+leetcode_no: 91
 difficulty: medium
 pattern:
   - dynamic-programming

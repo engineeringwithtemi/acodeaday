@@ -22,6 +22,7 @@ from app.schemas.execution import (
     SubmitCodeResponse,
     TestResult,
 )
+from app.services.comparison import compare
 from app.services.judge0 import get_judge0_service
 from app.services.progress import VALID_RATINGS, apply_rating, update_user_progress
 from app.services.wrapper import generate_python_wrapper
@@ -32,7 +33,7 @@ router = APIRouter(prefix="/api", tags=["execution"])
 
 async def _get_problem_with_details(
     db: AsyncSession, slug: str, language: str
-) -> tuple[Problem, ProblemLanguage, list[TestCase]]:
+) -> tuple[Problem, ProblemLanguage, list[TestCase], str | None]:
     """Helper to fetch problem with all related data."""
     result = await db.execute(
         select(Problem)
@@ -57,7 +58,7 @@ async def _get_problem_with_details(
     # Sort test cases by sequence
     test_cases = sorted(problem.test_cases, key=lambda tc: tc.sequence)
 
-    return problem, problem_lang, test_cases
+    return problem, problem_lang, test_cases, problem.comparison_strategy
 
 
 class _MockTestCase:
@@ -73,14 +74,15 @@ async def _execute_code_with_wrapper(
     language: str,
     function_name: str,
     test_cases: list[TestCase],
+    comparison_strategy: str | None = None,
     early_exit: bool = False,
 ) -> dict:
     """Execute user code with wrapper and return parsed results."""
     judge0 = get_judge0_service()
 
-    # Generate wrapper code
+    # Generate wrapper code (no longer includes comparison logic)
     if language == "python":
-        wrapped_code = generate_python_wrapper(user_code, test_cases, function_name, early_exit=early_exit)
+        wrapped_code = generate_python_wrapper(user_code, test_cases, function_name, early_exit=False)
     else:
         raise HTTPException(
             status_code=400, detail=f"Language '{language}' not yet supported"
@@ -92,17 +94,27 @@ async def _execute_code_with_wrapper(
         function=function_name,
         test_count=len(test_cases),
         early_exit=early_exit,
+        comparison_strategy=comparison_strategy,
     )
 
     # Execute on Judge0
     result = judge0.execute_code(source_code=wrapped_code, language=language)
 
-    # Parse results from stdout
-    return _parse_execution_results(result, test_cases)
+    # Parse results from stdout and apply comparison
+    return _parse_execution_results(result, test_cases, comparison_strategy, early_exit)
 
 
-def _parse_execution_results(judge0_result: dict, test_cases: list[TestCase]) -> dict:
-    """Parse Judge0 execution results and return structured test results."""
+def _parse_execution_results(
+    judge0_result: dict,
+    test_cases: list[TestCase],
+    comparison_strategy: str | None = None,
+    early_exit: bool = False,
+) -> dict:
+    """
+    Parse Judge0 execution results and return structured test results.
+
+    Applies comparison using the comparison service to determine pass/fail.
+    """
     stdout = judge0_result.get("stdout", "")
     stderr = judge0_result.get("stderr", "")
     compile_output = judge0_result.get("compile_output", "")
@@ -151,21 +163,34 @@ def _parse_execution_results(judge0_result: dict, test_cases: list[TestCase]) ->
             "summary": {"total": len(test_cases), "passed": 0, "failed": len(test_cases)},
         }
 
-    # Convert to TestResult schemas
+    # Convert to TestResult schemas and apply comparison
     test_results = []
     for i, result_data in enumerate(results_data):
-        test_results.append(
-            TestResult(
-                test_number=result_data.get("test_number", i + 1),
-                passed=result_data.get("passed", False),
-                input=result_data.get("input"),
-                output=result_data.get("output"),
-                expected=result_data.get("expected"),
-                error=result_data.get("error"),
-                error_type=result_data.get("error_type"),
-                stdout=result_data.get("stdout"),
-            )
+        # Determine if test passed using comparison service
+        has_error = result_data.get("error") is not None
+        passed = False
+
+        if not has_error:
+            # Apply comparison strategy to determine if test passed
+            output = result_data.get("output")
+            expected = result_data.get("expected")
+            passed = compare(output, expected, comparison_strategy)
+
+        test_result = TestResult(
+            test_number=result_data.get("test_number", i + 1),
+            passed=passed,
+            input=result_data.get("input"),
+            output=result_data.get("output"),
+            expected=result_data.get("expected"),
+            error=result_data.get("error"),
+            error_type=result_data.get("error_type"),
+            stdout=result_data.get("stdout"),
         )
+        test_results.append(test_result)
+
+        # Early exit on first failure (for submit mode)
+        if early_exit and not passed:
+            break
 
     passed_count = sum(1 for r in test_results if r.passed)
     all_passed = passed_count == len(test_results)
@@ -196,7 +221,7 @@ async def run_code(
     This is the "Run Code" button - shows first 3 test cases by sequence order,
     or runs against custom inputs if provided.
     """
-    problem, problem_lang, test_cases = await _get_problem_with_details(
+    problem, problem_lang, test_cases, comparison_strategy = await _get_problem_with_details(
         db, request.problem_slug, request.language.value
     )
 
@@ -238,6 +263,7 @@ async def run_code(
             language=request.language.value,
             function_name=function_name,
             test_cases=reference_test_cases,
+            comparison_strategy=comparison_strategy,
         )
 
         # Check for actual errors (compile/runtime), not success
@@ -286,6 +312,7 @@ async def run_code(
         language=request.language.value,
         function_name=function_name,
         test_cases=tests_to_run,
+        comparison_strategy=comparison_strategy,
     )
 
     return RunCodeResponse(**execution_result)
@@ -304,7 +331,7 @@ async def submit_code(
     """
     user_id = user["id"]
 
-    problem, problem_lang, test_cases = await _get_problem_with_details(
+    problem, problem_lang, test_cases, comparison_strategy = await _get_problem_with_details(
         db, request.problem_slug, request.language.value
     )
 
@@ -326,6 +353,7 @@ async def submit_code(
         language=request.language.value,
         function_name=function_name,
         test_cases=test_cases,
+        comparison_strategy=comparison_strategy,
         early_exit=True,  # Stop at first failure for submit
     )
 

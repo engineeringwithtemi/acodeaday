@@ -1,5 +1,6 @@
 title: Median of Two Sorted Arrays
 sequence_number: 86
+leetcode_no: 4
 difficulty: hard
 pattern:
   - binary-search

@@ -31,6 +31,7 @@ class ProblemProgressSchema(BaseModel):
     difficulty: Difficulty
     pattern: list[str]
     sequence_number: int
+    leetcode_no: int | None = None
 
     # User progress
     times_solved: int = 0
@@ -68,6 +69,7 @@ class ProblemBasicSchema(BaseModel):
     difficulty: Difficulty
     pattern: list[str]
     sequence_number: int
+    leetcode_no: int | None = None
 
     model_config = {"from_attributes": True}
 
@@ -92,12 +94,12 @@ class ProblemWithProgressSchema(BaseModel):
 
 
 class ProgressResponse(BaseModel):
-    """Overview of user's progress across all Blind 75."""
+    """Overview of user's progress across all problems."""
 
     problems: list[ProblemWithProgressSchema] = Field(
         ..., description="All problems with user progress"
     )
-    total_problems: int = Field(..., description="Total problems in dataset (75)")
+    total_problems: int = Field(..., description="Total problems in dataset")
     completed_problems: int = Field(..., description="Problems solved at least once")
     mastered_problems: int = Field(..., description="Problems mastered (solved 2x)")
 
@@ -161,3 +163,27 @@ class ShowAgainResponse(BaseModel):
 
     success: bool = Field(..., description="Whether the operation succeeded")
     message: str = Field(..., description="Status message")
+
+
+# --- Schemas for pattern grouping ---
+
+
+class PatternGroupSchema(BaseModel):
+    """A group of problems sharing the same primary pattern."""
+
+    pattern: str = Field(..., description="The pattern name (e.g., 'dynamic-programming')")
+    problems: list[ProblemWithProgressSchema] = Field(
+        ..., description="Problems with this primary pattern"
+    )
+    total_count: int = Field(..., description="Total problems in this pattern")
+    solved_count: int = Field(..., description="Problems solved at least once")
+    mastered_count: int = Field(..., description="Problems mastered in this pattern")
+
+
+class PatternsResponse(BaseModel):
+    """Response with all problems grouped by their primary pattern."""
+
+    patterns: list[PatternGroupSchema] = Field(
+        ..., description="Problems grouped by primary pattern, sorted by pattern name"
+    )
+    total_patterns: int = Field(..., description="Total unique patterns")

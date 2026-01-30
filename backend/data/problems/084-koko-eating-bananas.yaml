@@ -1,5 +1,6 @@
 title: Koko Eating Bananas
 sequence_number: 84
+leetcode_no: 875
 difficulty: medium
 pattern:
   - binary-search

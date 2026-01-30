@@ -1,5 +1,6 @@
 title: Network Delay Time
 sequence_number: 117
+leetcode_no: 743
 difficulty: medium
 pattern:
   - graph

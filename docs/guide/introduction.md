@@ -94,7 +94,7 @@ After solving a problem, you rate how difficult it was:
 
 The implementation includes:
 
-- **16 Blind 75 problems** seeded and ready to practice
+- **150+ coding problems** seeded and ready to practice
 - **Python support** with JavaScript coming soon
 - **Anki SM-2 spaced repetition** with difficulty ratings
 - **Monaco editor** with auto-save

@@ -1,5 +1,6 @@
 title: Minimum Window Substring
 sequence_number: 52
+leetcode_no: 76
 difficulty: hard
 pattern:
   - string

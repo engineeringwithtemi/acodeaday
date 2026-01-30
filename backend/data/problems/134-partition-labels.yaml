@@ -1,5 +1,6 @@
 title: Partition Labels
 sequence_number: 134
+leetcode_no: 763
 difficulty: medium
 pattern:
   - greedy

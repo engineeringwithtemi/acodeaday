@@ -1,5 +1,6 @@
 title: Coin Change
 sequence_number: 17
+leetcode_no: 322
 difficulty: medium
 pattern:
   - dynamic-programming

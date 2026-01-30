@@ -1,5 +1,6 @@
 title: Group Anagrams
 sequence_number: 54
+leetcode_no: 49
 difficulty: medium
 pattern:
   - string

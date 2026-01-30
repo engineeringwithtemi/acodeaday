@@ -1,6 +1,8 @@
 title: Permutations
 sequence_number: 104
+leetcode_no: 46
 difficulty: medium
+comparison_strategy: unordered_array  
 pattern:
   - backtracking
 

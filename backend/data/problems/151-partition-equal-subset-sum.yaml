@@ -1,5 +1,6 @@
 title: Partition Equal Subset Sum
 sequence_number: 151
+leetcode_no: 416
 difficulty: medium
 pattern:
   - dynamic-programming

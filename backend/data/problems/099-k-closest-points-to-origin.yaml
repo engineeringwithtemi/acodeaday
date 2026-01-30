@@ -1,6 +1,8 @@
 title: K Closest Points to Origin
 sequence_number: 99
+leetcode_no: 973
 difficulty: medium
+comparison_strategy: unordered_array  
 pattern:
   - heap
   - sorting

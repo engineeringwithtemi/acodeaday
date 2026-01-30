@@ -1,6 +1,8 @@
 title: Subsets
 sequence_number: 102
+leetcode_no: 78
 difficulty: medium
+comparison_strategy: unordered_array  
 pattern:
   - backtracking
   - bit-manipulation

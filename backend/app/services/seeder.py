@@ -70,6 +70,12 @@ def validate_problem_data(data: dict) -> None:
     if not data["test_cases"]:
         raise ValueError("At least one test case is required")
 
+    # Validate leetcode_no if provided (optional field)
+    leetcode_no = data.get("leetcode_no")
+    if leetcode_no is not None:
+        if not isinstance(leetcode_no, int) or leetcode_no < 1:
+            raise ValueError(f"leetcode_no must be a positive integer, got: {leetcode_no}")
+
 
 async def problem_exists(db: AsyncSession, title: str) -> bool:
     """Check if a problem with the given title exists (slug derived from title)."""
@@ -104,8 +110,10 @@ async def insert_problem(db: AsyncSession, data: dict) -> Problem:
         difficulty=Difficulty(data["difficulty"]),
         pattern=pattern,
         sequence_number=data["sequence_number"],
+        leetcode_no=data.get("leetcode_no"),  # Optional LeetCode problem number
         constraints=data["constraints"],
         examples={"examples": data["examples"]},
+        comparison_strategy=data.get("comparison_strategy"),  # Optional field
     )
     db.add(problem)
     await db.flush()  # Get problem.id
@@ -165,8 +173,10 @@ async def upsert_problem(db: AsyncSession, data: dict) -> Problem:
         existing.difficulty = Difficulty(data["difficulty"])
         existing.pattern = pattern
         existing.sequence_number = data["sequence_number"]
+        existing.leetcode_no = data.get("leetcode_no")  # Optional LeetCode problem number
         existing.constraints = data["constraints"]
         existing.examples = {"examples": data["examples"]}
+        existing.comparison_strategy = data.get("comparison_strategy")  # Optional field
 
         # Delete and recreate languages and test cases
         await db.execute(
@@ -328,6 +338,7 @@ def generate_problem_template(title: str, sequence_number: int, languages: list[
 
     template = f"""title: {title}
 sequence_number: {sequence_number}
+leetcode_no: null  # LeetCode problem number (optional, e.g., 1 for Two Sum)
 difficulty: easy  # easy, medium, hard
 pattern: array  # hash-map, two-pointers, sliding-window, etc.
 

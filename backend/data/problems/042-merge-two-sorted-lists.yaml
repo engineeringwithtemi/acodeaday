@@ -1,5 +1,6 @@
 title: Merge Two Sorted Lists
 sequence_number: 42
+leetcode_no: 21
 difficulty: easy
 pattern:
   - linked-list

@@ -1,5 +1,6 @@
 title: Word Ladder
 sequence_number: 115
+leetcode_no: 127
 difficulty: hard
 pattern:
   - graph

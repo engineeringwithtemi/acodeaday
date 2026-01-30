@@ -1,5 +1,6 @@
 title: Maximum Subarray
 sequence_number: 5
+leetcode_no: 53
 difficulty: medium
 pattern:
   - dynamic-programming

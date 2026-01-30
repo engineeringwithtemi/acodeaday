@@ -1,5 +1,6 @@
 title: Valid Parentheses
 sequence_number: 55
+leetcode_no: 20
 difficulty: easy
 pattern:
   - string

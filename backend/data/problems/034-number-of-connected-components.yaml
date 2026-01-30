@@ -1,5 +1,6 @@
 title: Number of Connected Components in an Undirected Graph
 sequence_number: 34
+leetcode_no: 323
 difficulty: medium
 pattern:
   - graph
