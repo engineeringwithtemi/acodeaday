@@ -15,7 +15,9 @@ import { DiagramPanel } from '@/components/DiagramPanel'
 import { LanguageSelector } from '@/components/LanguageSelector'
 import Editor from '@monaco-editor/react'
 import { useQueryClient } from '@tanstack/react-query'
+import { apiPost } from '@/lib/api-client'
 import type { RunCodeResponse, SubmitCodeResponse, SubmissionSchema, TestResult, FunctionSignature, Language } from '@/types/api'
+import type { DiagramData } from '@/types/diagram'
 
 export const Route = createFileRoute('/problem/$slug')({
   component: ProblemSolver,
@@ -45,6 +47,8 @@ function ProblemSolver() {
   const [showAIChat, setShowAIChat] = useState(false)
   const [chatInitialMessage, setChatInitialMessage] = useState<string | null>(null)
   const [chatInitialTitle, setChatInitialTitle] = useState<string | null>(null)
+  const [chatDiagramData, setChatDiagramData] = useState<DiagramData | null>(null)
+  const [chatDiagramLoading, setChatDiagramLoading] = useState(false)
 
   // Get starter code from problem data
   const starterCode = problem?.languages?.[0]?.starter_code || ''
@@ -288,6 +292,23 @@ ${solutionCode}
     setChatInitialTitle(null)
   }, [])
 
+  // Handle diagram generation request from ChatPanel
+  const handleDiagramRequest = useCallback(async (code: string) => {
+    setLeftPaneTab('diagram')
+    setChatDiagramLoading(true)
+    try {
+      const result = await apiPost<DiagramData>('/api/diagram/pseudocode', {
+        code,
+        language,
+      })
+      setChatDiagramData(result)
+    } catch (err) {
+      console.error('Diagram generation failed:', err)
+    } finally {
+      setChatDiagramLoading(false)
+    }
+  }, [language])
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -380,7 +401,13 @@ ${solutionCode}
                   onAskAI={handleAskAIAboutSolution}
                 />
               ) : (
-                <DiagramPanel code={code} language={language} />
+                <DiagramPanel
+                  code={code}
+                  language={language}
+                  chatDiagramData={chatDiagramData}
+                  chatDiagramLoading={chatDiagramLoading}
+                  onChatDiagramShown={() => setChatDiagramData(null)}
+                />
               )}
             </div>
           </div>
@@ -541,6 +568,7 @@ ${solutionCode}
               initialMessage={chatInitialMessage}
               initialSessionTitle={chatInitialTitle}
               onInitialMessageSent={handleInitialMessageSent}
+              onDiagramRequest={handleDiagramRequest}
             />
           </Allotment.Pane>
         )}

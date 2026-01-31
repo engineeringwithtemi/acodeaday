@@ -11,11 +11,14 @@ type ViewMode = 'code' | 'pseudocode'
 interface DiagramPanelProps {
   code: string
   language: string
+  chatDiagramData?: DiagramData | null
+  chatDiagramLoading?: boolean
+  onChatDiagramShown?: () => void
 }
 
 const COOLDOWN_MS = 5000
 
-export function DiagramPanel({ code, language }: DiagramPanelProps) {
+export function DiagramPanel({ code, language, chatDiagramData, chatDiagramLoading, onChatDiagramShown }: DiagramPanelProps) {
   const { svg, reason, error, isLoading } = useDebouncedDiagram(code, language)
 
   const [viewMode, setViewMode] = useState<ViewMode>('code')
@@ -69,6 +72,29 @@ export function DiagramPanel({ code, language }: DiagramPanelProps) {
       if (cooldownRef.current) clearInterval(cooldownRef.current)
     }
   }, [])
+
+  // Show loading state when chat diagram generation starts
+  useEffect(() => {
+    if (chatDiagramLoading) {
+      setViewMode('pseudocode')
+      setPseudoData(null)
+      setPseudoError(null)
+      setPseudoLoading(true)
+    }
+  }, [chatDiagramLoading])
+
+  // Accept diagram data from chat when it arrives
+  useEffect(() => {
+    if (chatDiagramData) {
+      setPseudoData(chatDiagramData)
+      setPseudoError(null)
+      setPseudoLoading(false)
+      setViewMode('pseudocode')
+      setCodeStale(false)
+      lastCodeRef.current = code
+      onChatDiagramShown?.()
+    }
+  }, [chatDiagramData, code, onChatDiagramShown])
 
   const generatePseudocode = useCallback(async () => {
     if (!code.trim() || cooldownSecs > 0) return

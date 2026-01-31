@@ -116,8 +116,8 @@ export function useStreamChat(sessionId: string | null) {
   const queryClient = useQueryClient()
 
   const sendMessage = useCallback(
-    async (content: string, currentCode?: string, testResults?: any) => {
-      if (!sessionId || isStreaming) return
+    async (content: string, currentCode?: string, testResults?: any): Promise<string> => {
+      if (!sessionId || isStreaming) return ''
 
       // Cancel any existing stream
       abortControllerRef.current?.abort()
@@ -130,6 +130,8 @@ export function useStreamChat(sessionId: string | null) {
 
       const abortController = new AbortController()
       abortControllerRef.current = abortController
+
+      let fullContent = ''
 
       try {
         const token = await getAccessToken()
@@ -175,6 +177,7 @@ export function useStreamChat(sessionId: string | null) {
                 const event = JSON.parse(jsonStr)
 
                 if (event.type === 'chunk') {
+                  fullContent += (event.content || '')
                   setStreamingContent((prev) => prev + (event.content || ''))
                 } else if (event.type === 'done') {
                   // Success - refresh messages
@@ -203,6 +206,8 @@ export function useStreamChat(sessionId: string | null) {
         setStreamingContent('')
         setPendingMessage(null)
       }
+
+      return fullContent
     },
     [sessionId, isStreaming, queryClient]
   )
