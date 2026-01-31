@@ -22,7 +22,7 @@ from app.schemas.import_schemas import (
 @lru_cache(maxsize=1)
 def get_intent_parser_agent() -> Agent:
     return Agent(
-        settings.import_agent_model,
+        settings.import_intent_parser_model or settings.import_agent_model,
         output_type=ImportPlan,
         system_prompt="""\
 You parse user requests for importing coding problems into a practice app.
@@ -50,7 +50,7 @@ For pattern names, use kebab-case: "sliding-window", "two-pointers", "binary-sea
 @lru_cache(maxsize=1)
 def get_problem_generator_agent() -> Agent:
     return Agent(
-        settings.import_agent_model,
+        settings.import_problem_generator_model or settings.import_agent_model,
         output_type=GeneratedProblem,
         system_prompt="""\
 You generate LeetCode-style coding problems. You must generate REAL LeetCode problems
@@ -88,7 +88,7 @@ IMPORTANT: Generate problems DIFFERENT from the excluded list provided in the pr
 @lru_cache(maxsize=1)
 def get_problem_verifier_agent() -> Agent:
     return Agent(
-        settings.import_agent_model,
+        settings.import_problem_verifier_model or settings.import_agent_model,
         output_type=VerificationResult,
         system_prompt="""\
 You verify the quality and correctness of coding problems. Check ALL of the following:
@@ -116,7 +116,7 @@ Set valid=true only if ALL checks pass. List specific issues in the issues array
 @lru_cache(maxsize=1)
 def get_test_case_generator_agent() -> Agent:
     return Agent(
-        settings.import_agent_model,
+        settings.import_test_case_generator_model or settings.import_agent_model,
         output_type=GeneratedTestCases,
         system_prompt="""\
 You generate comprehensive test cases for coding problems.
