@@ -9,7 +9,8 @@ from supabase import acreate_client
 from app.config.logging import configure_logging, get_logger
 from app.config.settings import settings
 from app.db.connection import engine
-from app.routes import chat, code, execution, problems, progress, submissions
+from app.routes import chat, code, execution, imports, problems, progress, submissions
+from app.services.import_workflow import recover_stuck_import_jobs
 
 configure_logging()
 logger = get_logger(__name__)
@@ -69,6 +70,12 @@ async def lifespan(app: FastAPI):
 
     await ensure_default_user_exists(supabase_client, admin_client)
 
+    # Recover import jobs that were stuck in processing when the server restarted
+    try:
+        await recover_stuck_import_jobs()
+    except Exception as e:
+        logger.warning("import_recovery_failed", error=str(e))
+
     yield
 
     logger.info("application_shutting_down")
@@ -98,6 +105,7 @@ app.include_router(progress.router)
 app.include_router(submissions.router)
 app.include_router(code.router)
 app.include_router(chat.router)
+app.include_router(imports.router)
 
 
 @app.get("/")

@@ -58,6 +58,16 @@ class ComparisonStrategy(enum.StrEnum):
     IN_PLACE_WITH_LENGTH = "in_place_with_length"
 
 
+class ImportJobStatus(enum.StrEnum):
+    """Import job lifecycle statuses."""
+
+    QUEUED = "queued"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
 class Problem(Base):
     """Core problem data for coding practice."""
 
@@ -339,3 +349,72 @@ class ChatMessage(Base):
     session: Mapped["ChatSession"] = relationship(back_populates="messages")
 
     __table_args__ = (Index("ix_chat_messages_session_id", "session_id"),)
+
+
+class ImportJob(Base):
+    """Tracks user-initiated problem import requests."""
+
+    __tablename__ = "import_jobs"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    user_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    prompt: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[ImportJobStatus] = mapped_column(
+        Enum(ImportJobStatus, values_callable=lambda obj: [e.value for e in obj]),
+        nullable=False,
+        default=ImportJobStatus.QUEUED,
+    )
+    message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    progress: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    total: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), onupdate=func.now()
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(nullable=True)
+
+    # Relationships
+    import_problems: Mapped[list["ImportJobProblem"]] = relationship(
+        back_populates="import_job", cascade="all, delete", passive_deletes=True
+    )
+
+    __table_args__ = (
+        Index("ix_import_jobs_user_id", "user_id"),
+        Index("ix_import_jobs_status", "status"),
+    )
+
+
+class ImportJobProblem(Base):
+    """Junction table linking import jobs to generated problems."""
+
+    __tablename__ = "import_job_problems"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    import_job_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("import_jobs.id", ondelete="CASCADE"), nullable=False
+    )
+    problem_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("problems.id", ondelete="CASCADE"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+    # Relationships
+    import_job: Mapped["ImportJob"] = relationship(back_populates="import_problems")
+    problem: Mapped["Problem"] = relationship()
+
+    __table_args__ = (
+        Index("ix_import_job_problems_job_id", "import_job_id"),
+        Index("ix_import_job_problems_problem_id", "problem_id"),
+        Index(
+            "ix_import_job_problems_unique",
+            "import_job_id",
+            "problem_id",
+            unique=True,
+        ),
+    )

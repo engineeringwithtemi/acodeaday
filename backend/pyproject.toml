@@ -17,6 +17,7 @@ dependencies = [
     "supabase>=2.0.0",
     "pyyaml>=6.0",
     "litellm>=1.52.18",
+    "pydantic-ai>=0.1.0",
 ]
 
 [project.optional-dependencies]

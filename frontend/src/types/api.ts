@@ -97,3 +97,49 @@ export interface FunctionSignature {
 
 // Rating enum (backend uses string, but we want type safety)
 export type Rating = 'again' | 'hard' | 'good' | 'mastered'
+
+// Import types - manually defined until backend regenerates OpenAPI schema
+export type ImportJobStatus = 'queued' | 'processing' | 'completed' | 'failed' | 'cancelled'
+
+export interface ImportRequest {
+  prompt: string
+}
+
+export interface ImportJobResponse {
+  id: string
+  prompt: string
+  status: ImportJobStatus
+  message: string | null
+  created_at: string
+}
+
+export interface ImportedProblemResponse {
+  id: string
+  title: string
+  slug: string
+  difficulty: string
+  pattern: string[]
+}
+
+export interface ImportJobDetailResponse {
+  id: string
+  prompt: string
+  status: ImportJobStatus
+  message: string | null
+  progress: number | null
+  total: number | null
+  problems: ImportedProblemResponse[]
+  created_at: string
+  completed_at: string | null
+}
+
+export interface ImportJobSummaryResponse {
+  id: string
+  prompt: string
+  status: ImportJobStatus
+  message: string | null
+  progress: number | null
+  total: number | null
+  created_at: string
+  completed_at: string | null
+}
