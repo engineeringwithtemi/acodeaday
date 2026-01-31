@@ -67,6 +67,12 @@ class Settings(BaseSettings):
     openai_api_key: str | None = Field(None, description="OpenAI API key")
     anthropic_api_key: str | None = Field(None, description="Anthropic API key")
 
+    # Import agent settings
+    import_agent_model: str = Field(
+        "anthropic:claude-sonnet-4-20250514",
+        description="Pydantic AI model for import agents (e.g., anthropic:claude-sonnet-4-20250514, openai:gpt-4o)",
+    )
+
     model_config = SettingsConfigDict(env_file=("../.env", ".env"), extra="ignore")
 
 
