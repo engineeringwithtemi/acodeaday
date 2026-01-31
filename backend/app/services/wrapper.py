@@ -1,7 +1,8 @@
 """Code wrapper generator for Judge0 execution."""
 
 import json
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from app.config.logging import get_logger
 from app.db.tables import TestCase

@@ -64,7 +64,7 @@ def _floats_equal(a: Any, b: Any, rel_tol: float = 1e-9, abs_tol: float = 1e-9) 
 
     Handles nested structures containing floats.
     """
-    if type(a) != type(b):
+    if type(a) is not type(b):
         return False
 
     if isinstance(a, float) and isinstance(b, float):

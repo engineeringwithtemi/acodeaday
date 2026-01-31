@@ -38,11 +38,12 @@ function LoginPage() {
       const redirect = searchParams.get('redirect') || '/'
 
       // Navigate to the redirect URL or home
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic route from search params
       await navigate({ to: redirect as any })
       router.invalidate()
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(
-        err?.message ||
+        (err instanceof Error ? err.message : null) ||
           'Login failed. Please check your credentials and Supabase backend configuration.'
       )
     } finally {

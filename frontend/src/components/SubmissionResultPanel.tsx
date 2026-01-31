@@ -72,7 +72,7 @@ export function SubmissionResultPanel({
   }
 
   // Format input params
-  const formatInputParams = (input: any) => {
+  const formatInputParams = (input: unknown) => {
     if (input === undefined || input === null) return 'N/A'
 
     const paramNames = functionSignature?.params?.map(p => p.name) || []
@@ -90,8 +90,8 @@ export function SubmissionResultPanel({
   // Calculate test counts
   // summary.passed = tests that passed (use this for X in "X / Y")
   // total_test_cases = total tests in problem (use this for Y in "X / Y")
-  const testsPassed = ((result.summary as any)?.passed as number) ?? 0
-  const totalTests = result.total_test_cases ?? ((result.summary as any)?.total as number) ?? 0
+  const testsPassed = ((result.summary as { passed?: number })?.passed as number) ?? 0
+  const totalTests = result.total_test_cases ?? ((result.summary as { total?: number })?.total as number) ?? 0
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">

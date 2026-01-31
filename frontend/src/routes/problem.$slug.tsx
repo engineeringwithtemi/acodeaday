@@ -37,7 +37,7 @@ function ProblemSolver() {
   const [isRunning, setIsRunning] = useState(false)
   const [leftPaneTab, setLeftPaneTab] = useState<'description' | 'submissions' | 'solutions'>('description')
   const [bottomPaneTab, setBottomPaneTab] = useState<'testcase' | 'result'>('testcase')
-  const [customInputs, setCustomInputs] = useState<any[][]>([])
+  const [customInputs, setCustomInputs] = useState<unknown[][]>([])
   const [showSubmissionResult, setShowSubmissionResult] = useState(false)
   const [submissionResult, setSubmissionResult] = useState<SubmitCodeResponse | null>(null)
   const [submittedCode, setSubmittedCode] = useState<string>('')
@@ -111,6 +111,7 @@ function ProblemSolver() {
       }
       // After initial load, don't update code from query (user may have edited)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally omit hasStartedDueSession/markDueSessionStarted/problem to run only on ID/due changes
   }, [problem?.id, problem?.is_due, problem?.user_code, starterCode])
 
   // Auto-save code to server with 500ms debounce
@@ -131,6 +132,7 @@ function ProblemSolver() {
     }, 500)
 
     return () => clearTimeout(timer)
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- saveCode is stable, including it causes infinite loop
   }, [code, slug, language, problem])
 
   // Reset code to starter code

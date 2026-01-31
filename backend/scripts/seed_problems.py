@@ -116,7 +116,7 @@ async def cmd_seed(args: argparse.Namespace) -> int:
             print(f"Found {len(yaml_files)} problem files")
             inserted, skipped = await seed_from_directory(db, DATA_DIR, force=args.force)
 
-            print(f"\nResults:")
+            print("\nResults:")
             print(f"  Inserted: {inserted}")
             print(f"  Skipped:  {skipped}")
 

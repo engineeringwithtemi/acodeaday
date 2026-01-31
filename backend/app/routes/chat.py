@@ -26,7 +26,7 @@ from app.services.chat import (
     process_message_and_stream,
     update_session,
 )
-from app.services.llm import get_available_models, get_default_model
+from app.services.llm import get_available_models
 
 logger = get_logger(__name__)
 
@@ -82,6 +82,7 @@ async def create_chat_session(
     try:
         # Import here to avoid circular dependency
         from sqlalchemy import select
+
         from app.db.tables import Problem
 
         # Get problem by slug

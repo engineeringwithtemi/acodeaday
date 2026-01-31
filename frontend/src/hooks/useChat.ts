@@ -109,14 +109,14 @@ export function useStreamChat(sessionId: string | null) {
   const [lastFailedMessage, setLastFailedMessage] = useState<{
     content: string
     code?: string
-    testResults?: any
+    testResults?: Record<string, unknown> | null
   } | null>(null)
 
   const abortControllerRef = useRef<AbortController | null>(null)
   const queryClient = useQueryClient()
 
   const sendMessage = useCallback(
-    async (content: string, currentCode?: string, testResults?: any) => {
+    async (content: string, currentCode?: string, testResults?: Record<string, unknown> | null) => {
       if (!sessionId || isStreaming) return
 
       // Cancel any existing stream

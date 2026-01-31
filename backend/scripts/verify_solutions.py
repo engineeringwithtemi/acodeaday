@@ -353,7 +353,7 @@ def main():
     print(f"Results: {total_passed} passed, {total_failed} failed")
 
     if failed_problems:
-        print(f"\nFailed problems:")
+        print("\nFailed problems:")
         for filename, title, _ in failed_problems:
             print(f"  - {filename}: {title}")
         return 1

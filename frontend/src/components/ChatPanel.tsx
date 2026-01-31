@@ -31,7 +31,7 @@ import type { ChatMode, ChatMessageSchema } from '../types/api'
 interface ChatPanelProps {
   problemSlug: string
   currentCode?: string
-  testResults?: any
+  testResults?: Record<string, unknown> | null
   onClose: () => void
   initialMessage?: string | null
   initialSessionTitle?: string | null
@@ -83,6 +83,7 @@ export function ChatPanel({ problemSlug, currentCode, testResults, onClose, init
   // Auto-select first session if available (but not if we have an initial message to send)
   useEffect(() => {
     if (sessions && sessions.length > 0 && !activeSessionId && !initialMessage) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: sync derived state from loaded sessions
       setActiveSessionId(sessions[0].id)
     }
   }, [sessions, activeSessionId, initialMessage])
@@ -103,7 +104,7 @@ export function ChatPanel({ problemSlug, currentCode, testResults, onClose, init
     message: string
     sessionId: string
     code?: string
-    testResults?: any
+    testResults?: Record<string, unknown> | null
   } | null>(null)
 
   // Update ref when initialMessage changes
@@ -446,7 +447,8 @@ export function ChatPanel({ problemSlug, currentCode, testResults, onClose, init
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={{
-                        code({ node, inline, className, children, ...props }: any) {
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        code({ node: _node, inline, className, children, ...props }: any) {
                           const match = /language-(\w+)/.exec(className || '')
                           const codeString = String(children).replace(/\n$/, '')
                           return !inline && match ? (
@@ -583,7 +585,8 @@ function MessageBubble({ message }: { message: ChatMessageSchema }) {
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
-                code({ node, inline, className, children, ...props }: any) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        code({ node: _node, inline, className, children, ...props }: any) {
                   const match = /language-(\w+)/.exec(className || '')
                   const codeString = String(children).replace(/\n$/, '')
                   return !inline && match ? (

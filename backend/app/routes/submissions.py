@@ -5,11 +5,10 @@ import uuid
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
 
 from app.db.connection import get_db
+from app.db.tables import Problem, Submission
 from app.middleware.auth import get_current_user
-from app.db.tables import Submission, Problem
 from app.schemas.progress import SubmissionSchema
 
 router = APIRouter(prefix="/api/submissions", tags=["submissions"])

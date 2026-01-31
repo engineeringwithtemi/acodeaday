@@ -2,10 +2,7 @@
 
 import json
 
-import pytest
-
 from app.services.execution_validator import parse_execution_results
-
 
 # ── parse_execution_results ──
 

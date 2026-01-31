@@ -3,18 +3,15 @@
 import asyncio
 import os
 import uuid
+from collections.abc import AsyncGenerator, Generator
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
-from typing import AsyncGenerator, Generator
 
 import pytest
-from alembic import command
-from alembic.config import Config
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
-
 from supabase import acreate_client, create_client
 
 from app.config.settings import settings
@@ -30,7 +27,6 @@ from app.db.tables import (
     UserProgress,
 )
 from app.main import app
-
 
 # Use separate test database (port 54325) to avoid destroying dev/prod data
 # Set TEST_DATABASE_URL env var to override, or use default test container
@@ -89,7 +85,7 @@ async def test_engine(setup_database):
 
 
 @pytest.fixture(scope="function")
-async def test_db(test_engine) -> AsyncGenerator[AsyncSession, None]:
+async def test_db(test_engine) -> AsyncGenerator[AsyncSession]:
     """Create test database session."""
     async_session = sessionmaker(
         test_engine, class_=AsyncSession, expire_on_commit=False
@@ -100,7 +96,7 @@ async def test_db(test_engine) -> AsyncGenerator[AsyncSession, None]:
 
 
 @pytest.fixture(scope="function")
-async def client(test_db: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+async def client(test_db: AsyncSession) -> AsyncGenerator[AsyncClient]:
     """Create test client with database override."""
 
     async def override_get_db():

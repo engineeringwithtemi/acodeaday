@@ -125,7 +125,6 @@ LEETCODE_MAPPING = {
     "Time Based Key-Value Store": 981,
     "Find the Duplicate Number": 287,
     "Copy List with Random Pointer": 138,
-    "Add Two Numbers": 2,
     "Palindrome Partitioning": 131,
     "N-Queens": 51,
     "Max Area of Island": 695,

@@ -6,7 +6,6 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-
 # =============================================================================
 # Agent Output Schemas (structured LLM output types)
 # =============================================================================

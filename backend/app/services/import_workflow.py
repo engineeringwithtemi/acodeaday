@@ -10,7 +10,6 @@ from datetime import UTC, datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config.logging import get_logger
 from app.db.connection import AsyncSessionLocal

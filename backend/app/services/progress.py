@@ -5,7 +5,6 @@ from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.config.logging import get_logger
 from app.db.tables import Problem, Submission, UserProgress

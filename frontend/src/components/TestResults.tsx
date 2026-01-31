@@ -101,7 +101,7 @@ export function TestResults({
               </span>
             </div>
             <span className="font-mono text-sm text-gray-300">
-              {(results.summary as any).passed}/{(results.summary as any).total} tests passed
+              {(results.summary as { passed: number; total: number }).passed}/{(results.summary as { passed: number; total: number }).total} tests passed
             </span>
           </div>
 
@@ -169,7 +169,7 @@ interface TestCaseResultProps {
 function TestCaseResult({ result, functionSignature }: TestCaseResultProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null)
 
-  const formatValue = (value: any): string => {
+  const formatValue = (value: unknown): string => {
     return JSON.stringify(value)
   }
 

@@ -1,7 +1,7 @@
 """LLM service using LiteLLM for model-agnostic AI integration."""
 
-import os
 import datetime
+import os
 from collections.abc import AsyncGenerator
 
 from litellm import acompletion, token_counter
@@ -187,7 +187,7 @@ async def stream_chat_completion(
     messages: list[LLMMessage],
     model: str | None = None,
     mode: str = "socratic",
-) -> AsyncGenerator[LLMStreamChunk, None]:
+) -> AsyncGenerator[LLMStreamChunk]:
     """
     Stream chat completion from LLM.
 
@@ -273,7 +273,7 @@ async def generate_session_title(first_message: str) -> str:
     # Use gemini-flash if available, otherwise first available model
     available = get_available_models()
     if not available:
-        return f"Chat {datetime.now().strftime('%H:%M')}"
+        return f"Chat {datetime.datetime.now().strftime('%H:%M')}"
 
     model = "gemini/gemini-1.5-flash" if "gemini/gemini-1.5-flash" in available else available[0]
 
@@ -307,5 +307,4 @@ async def generate_session_title(first_message: str) -> str:
 
     except Exception as e:
         logger.warning("title_generation_failed", error=str(e))
-        from datetime import datetime
-        return f"Chat {datetime.now().strftime('%H:%M')}"
+        return f"Chat {datetime.datetime.now().strftime('%H:%M')}"

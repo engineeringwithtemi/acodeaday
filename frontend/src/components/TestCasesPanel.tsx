@@ -10,7 +10,7 @@ interface CustomTestCase {
 
 interface TestCasesPanelProps {
   testCases: TestCaseSchema[]
-  onCustomTestCasesChange?: (customInputs: any[][]) => void
+  onCustomTestCasesChange?: (customInputs: unknown[][]) => void
 }
 
 export function TestCasesPanel({ testCases, onCustomTestCasesChange }: TestCasesPanelProps) {
@@ -23,6 +23,7 @@ export function TestCasesPanel({ testCases, onCustomTestCasesChange }: TestCases
 
   const addCustomTestCase = () => {
     const newCase: CustomTestCase = {
+      // eslint-disable-next-line react-hooks/purity -- Date.now() is in an event handler, not during render
       id: `custom-${Date.now()}`,
       input: '[]',
       isCustom: true,
@@ -136,7 +137,7 @@ export function TestCasesPanel({ testCases, onCustomTestCasesChange }: TestCases
 }
 
 function TestCaseDisplay({ testCase }: { testCase: TestCaseSchema }) {
-  const formatValue = (value: any): string => {
+  const formatValue = (value: unknown): string => {
     return JSON.stringify(value)
   }
 
@@ -166,7 +167,7 @@ function CustomTestCaseEditor({ value, onChange }: { value: string; onChange: (v
     try {
       JSON.parse(newValue)
       setError(null)
-    } catch (e) {
+    } catch {
       setError('Invalid JSON format')
     }
   }

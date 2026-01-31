@@ -6,7 +6,7 @@ Auth middleware is mocked to return a fake user.
 
 import asyncio
 import os
-from typing import AsyncGenerator, Generator
+from collections.abc import AsyncGenerator, Generator
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -50,7 +50,7 @@ async def test_engine():
 
 
 @pytest.fixture(scope="function")
-async def test_db(test_engine) -> AsyncGenerator[AsyncSession, None]:
+async def test_db(test_engine) -> AsyncGenerator[AsyncSession]:
     session_factory = async_sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
     async with session_factory() as session:
         yield session
@@ -93,7 +93,7 @@ async def patch_async_session_local(test_engine):
 
 
 @pytest.fixture(scope="function")
-async def client(test_db: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+async def client(test_db: AsyncSession) -> AsyncGenerator[AsyncClient]:
     """Test client with mocked auth and DB."""
 
     async def override_get_db():
@@ -113,7 +113,7 @@ async def client(test_db: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 
 
 @pytest.fixture(scope="function")
-async def unauthed_client(test_db: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+async def unauthed_client(test_db: AsyncSession) -> AsyncGenerator[AsyncClient]:
     """Test client WITHOUT auth override — for testing 401 responses."""
 
     async def override_get_db():

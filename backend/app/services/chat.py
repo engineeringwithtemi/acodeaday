@@ -1,7 +1,7 @@
 """Chat service for managing chat sessions and messages."""
 
 import uuid
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,7 +9,7 @@ from sqlalchemy.orm import selectinload
 
 from app.config.logging import get_logger
 from app.db.tables import ChatMessage, ChatMode, ChatSession, MessageRole, Problem
-from app.schemas.chat import LLMMessage, LLMStreamChunk
+from app.schemas.chat import LLMMessage
 from app.services.llm import build_context_message, generate_session_title, stream_chat_completion
 
 logger = get_logger(__name__)
@@ -257,7 +257,7 @@ async def process_message_and_stream(
     user_message: str,
     current_code: str | None = None,
     test_results: dict | None = None,
-) -> AsyncGenerator[dict, None]:
+) -> AsyncGenerator[dict]:
     """
     Process user message and stream AI response.
 
@@ -287,7 +287,7 @@ async def process_message_and_stream(
             return
 
         # Save user message FIRST (before streaming)
-        user_msg = await add_message(
+        await add_message(
             db=db,
             session_id=session_id,
             role=MessageRole.USER,

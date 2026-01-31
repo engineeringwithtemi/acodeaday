@@ -7,7 +7,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.tables import ImportJob, ImportJobProblem, ImportJobStatus, Problem, Difficulty
+from app.db.tables import Difficulty, ImportJob, ImportJobProblem, ImportJobStatus, Problem
 
 
 @pytest.fixture

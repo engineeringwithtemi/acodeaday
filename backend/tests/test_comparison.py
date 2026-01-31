@@ -6,7 +6,8 @@ These tests define the behavior of the compare() function.
 """
 
 import pytest
-from app.services.comparison import compare, ComparisonStrategy
+
+from app.services.comparison import ComparisonStrategy, compare
 
 
 class TestExactComparison:

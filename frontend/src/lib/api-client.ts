@@ -13,7 +13,7 @@ export class ApiError extends Error {
     message: string,
     public status: number,
     public statusText: string,
-    public data?: any
+    public data?: unknown
   ) {
     super(message)
     this.name = 'ApiError'
@@ -86,7 +86,7 @@ export async function apiRequest<T>(
         }
         // Retry the original request with refreshed token
         return await apiRequest<T>(endpoint, options, true)
-      } catch (refreshError) {
+      } catch {
         await supabase.auth.signOut()
         throw new ApiError('Session expired', 401, 'Unauthorized')
       }
@@ -94,6 +94,7 @@ export async function apiRequest<T>(
 
     // Handle non-2xx responses
     if (!response.ok) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- errorData shape is unknown from server
       let errorData: any
       try {
         errorData = await response.json()
@@ -142,7 +143,7 @@ export function apiGet<T>(endpoint: string, options?: RequestInit): Promise<T> {
  */
 export function apiPost<T>(
   endpoint: string,
-  data?: any,
+  data?: unknown,
   options?: RequestInit
 ): Promise<T> {
   return apiRequest<T>(endpoint, {
@@ -157,7 +158,7 @@ export function apiPost<T>(
  */
 export function apiPut<T>(
   endpoint: string,
-  data?: any,
+  data?: unknown,
   options?: RequestInit
 ): Promise<T> {
   return apiRequest<T>(endpoint, {
@@ -172,7 +173,7 @@ export function apiPut<T>(
  */
 export function apiPatch<T>(
   endpoint: string,
-  data?: any,
+  data?: unknown,
   options?: RequestInit
 ): Promise<T> {
   return apiRequest<T>(endpoint, {

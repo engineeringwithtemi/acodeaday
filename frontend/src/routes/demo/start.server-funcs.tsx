@@ -56,11 +56,13 @@ function Home() {
 
   const [todo, setTodo] = useState('')
 
+  /* eslint-disable react-hooks/immutability, react-hooks/exhaustive-deps -- demo template code */
   const submitTodo = useCallback(async () => {
     todos = await addTodo({ data: todo })
     setTodo('')
     router.invalidate()
   }, [addTodo, todo])
+  /* eslint-enable react-hooks/immutability, react-hooks/exhaustive-deps */
 
   return (
     <div
