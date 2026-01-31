@@ -1,5 +1,6 @@
 title: Daily Temperatures
 sequence_number: 79
+leetcode_no: 739
 difficulty: medium
 pattern:
   - stack

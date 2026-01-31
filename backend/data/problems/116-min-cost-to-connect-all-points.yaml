@@ -1,5 +1,6 @@
 title: Min Cost to Connect All Points
 sequence_number: 116
+leetcode_no: 1584
 difficulty: medium
 pattern:
   - graph

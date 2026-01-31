@@ -1,5 +1,6 @@
 title: Counting Bits
 sequence_number: 13
+leetcode_no: 338
 difficulty: easy
 pattern:
   - bit-manipulation

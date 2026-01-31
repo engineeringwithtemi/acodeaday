@@ -1,5 +1,6 @@
 title: Redundant Connection
 sequence_number: 114
+leetcode_no: 684
 difficulty: medium
 pattern:
   - graph

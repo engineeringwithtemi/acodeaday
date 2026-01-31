@@ -1,5 +1,6 @@
 title: Count Good Nodes in Binary Tree
 sequence_number: 96
+leetcode_no: 1448
 difficulty: medium
 pattern:
   - trees

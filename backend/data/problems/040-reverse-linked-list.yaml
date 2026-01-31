@@ -1,5 +1,6 @@
 title: Reverse Linked List
 sequence_number: 40
+leetcode_no: 206
 difficulty: easy
 pattern:
   - linked-list

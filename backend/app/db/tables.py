@@ -77,6 +77,9 @@ class Problem(Base):
     # Used to find "next unsolved problem": SELECT * WHERE sequence_number = (min unsolved)
     sequence_number: Mapped[int] = mapped_column(Integer, unique=True, nullable=False)
 
+    # LeetCode problem number (optional, for mapping to leetcode.com/problems/)
+    leetcode_no: Mapped[int | None] = mapped_column(Integer, unique=True, nullable=True)
+
     # Constraints as ARRAY of strings (not JSONB)
     constraints: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False)
 

@@ -1,5 +1,6 @@
 title: Min Cost Climbing Stairs
 sequence_number: 147
+leetcode_no: 746
 difficulty: easy
 pattern:
   - dynamic-programming

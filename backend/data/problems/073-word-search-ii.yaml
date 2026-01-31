@@ -1,5 +1,6 @@
 title: Word Search II
 sequence_number: 73
+leetcode_no: 212
 difficulty: hard
 pattern:
   - trie

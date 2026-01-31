@@ -1,5 +1,6 @@
 title: Course Schedule II
 sequence_number: 113
+leetcode_no: 210
 difficulty: medium
 pattern:
   - graph

@@ -1,5 +1,6 @@
 title: Hand of Straights
 sequence_number: 132
+leetcode_no: 846
 difficulty: medium
 pattern:
   - greedy

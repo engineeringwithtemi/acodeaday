@@ -1,5 +1,6 @@
 title: Last Stone Weight
 sequence_number: 98
+leetcode_no: 1046
 difficulty: easy
 pattern:
   - heap

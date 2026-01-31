@@ -1,5 +1,6 @@
 title: Distinct Subsequences
 sequence_number: 123
+leetcode_no: 115
 difficulty: hard
 pattern:
   - dynamic-programming

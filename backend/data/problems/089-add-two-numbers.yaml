@@ -1,5 +1,6 @@
 title: Add Two Numbers
 sequence_number: 89
+leetcode_no: 2
 difficulty: medium
 pattern:
   - linked-list

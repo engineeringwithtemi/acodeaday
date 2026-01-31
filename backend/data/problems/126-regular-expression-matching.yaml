@@ -1,5 +1,6 @@
 title: Regular Expression Matching
 sequence_number: 126
+leetcode_no: 10
 difficulty: hard
 pattern:
   - dynamic-programming

@@ -1,5 +1,6 @@
 title: Subtree of Another Tree
 sequence_number: 66
+leetcode_no: 572
 difficulty: easy
 pattern:
   - tree

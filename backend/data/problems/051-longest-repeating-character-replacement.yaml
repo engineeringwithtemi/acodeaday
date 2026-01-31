@@ -1,5 +1,6 @@
 title: Longest Repeating Character Replacement
 sequence_number: 51
+leetcode_no: 424
 difficulty: medium
 pattern:
   - string

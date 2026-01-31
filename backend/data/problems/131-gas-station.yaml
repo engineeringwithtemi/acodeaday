@@ -1,5 +1,6 @@
 title: Gas Station
 sequence_number: 131
+leetcode_no: 134
 difficulty: medium
 pattern:
   - greedy

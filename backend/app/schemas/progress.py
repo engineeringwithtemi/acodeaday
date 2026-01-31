@@ -31,6 +31,7 @@ class ProblemProgressSchema(BaseModel):
     difficulty: Difficulty
     pattern: list[str]
     sequence_number: int
+    leetcode_no: int | None = None
 
     # User progress
     times_solved: int = 0
@@ -68,6 +69,7 @@ class ProblemBasicSchema(BaseModel):
     difficulty: Difficulty
     pattern: list[str]
     sequence_number: int
+    leetcode_no: int | None = None
 
     model_config = {"from_attributes": True}
 

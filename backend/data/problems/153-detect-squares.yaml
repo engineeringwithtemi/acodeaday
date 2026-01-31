@@ -1,5 +1,6 @@
 title: Detect Squares
 sequence_number: 153
+leetcode_no: 2013
 difficulty: medium
 pattern:
   - hash-map

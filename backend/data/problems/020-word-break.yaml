@@ -1,5 +1,6 @@
 title: Word Break
 sequence_number: 20
+leetcode_no: 139
 difficulty: medium
 pattern:
   - dynamic-programming

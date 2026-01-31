@@ -1,5 +1,6 @@
 title: N-Queens
 sequence_number: 109
+leetcode_no: 51
 difficulty: hard
 comparison_strategy: unordered_array  
 pattern:

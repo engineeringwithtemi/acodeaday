@@ -1,5 +1,6 @@
 title: Cheapest Flights Within K Stops
 sequence_number: 119
+leetcode_no: 787
 difficulty: medium
 pattern:
   - graph

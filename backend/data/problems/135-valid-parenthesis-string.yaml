@@ -1,5 +1,6 @@
 title: Valid Parenthesis String
 sequence_number: 135
+leetcode_no: 678
 difficulty: medium
 pattern:
   - greedy

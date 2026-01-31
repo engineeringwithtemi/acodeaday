@@ -1,5 +1,6 @@
 title: Invert Binary Tree
 sequence_number: 62
+leetcode_no: 226
 difficulty: easy
 pattern:
   - tree

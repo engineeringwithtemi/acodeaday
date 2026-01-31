@@ -1,5 +1,6 @@
 title: Combination Sum
 sequence_number: 103
+leetcode_no: 39
 difficulty: medium
 comparison_strategy: unordered_array  
 pattern:

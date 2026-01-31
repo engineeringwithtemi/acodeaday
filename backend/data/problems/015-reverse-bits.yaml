@@ -1,5 +1,6 @@
 title: Reverse Bits
 sequence_number: 15
+leetcode_no: 190
 difficulty: easy
 pattern:
   - bit-manipulation

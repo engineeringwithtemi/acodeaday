@@ -1,5 +1,6 @@
 title: Pow(x, n)
 sequence_number: 149
+leetcode_no: 50
 difficulty: medium
 pattern:
   - math

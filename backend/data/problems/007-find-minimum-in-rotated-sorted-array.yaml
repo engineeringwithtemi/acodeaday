@@ -1,5 +1,6 @@
 title: Find Minimum in Rotated Sorted Array
 sequence_number: 7
+leetcode_no: 153
 difficulty: medium
 pattern:
   - binary-search

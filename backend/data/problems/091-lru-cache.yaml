@@ -1,5 +1,6 @@
 title: LRU Cache
 sequence_number: 91
+leetcode_no: 146
 difficulty: medium
 pattern:
   - linked-list

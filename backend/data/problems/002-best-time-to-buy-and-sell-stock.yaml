@@ -1,5 +1,6 @@
 title: Best Time to Buy and Sell Stock
 sequence_number: 2
+leetcode_no: 121
 difficulty: easy
 pattern:
   - sliding-window
