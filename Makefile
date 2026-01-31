@@ -32,7 +32,7 @@ format-backend: ## Format backend with ruff
 typecheck-backend: ## Type-check backend with ty
 	cd backend && uv run ty check
 
-test-backend: ## Run backend tests (non-DB)
+test-backend: ## Run backend unit tests (no DB required)
 	cd backend && uv run pytest tests/test_comparison.py -v
 
 test-backend-all: ## Run all backend tests including DB-dependent

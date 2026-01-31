@@ -1,6 +1,7 @@
 """API routes for AI-powered problem import."""
 
 import asyncio
+import uuid as uuid_mod
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
@@ -39,7 +40,7 @@ async def start_import(
         select(ImportJob).where(
             ImportJob.user_id == user_id,
             ImportJob.prompt == request.prompt,
-            ImportJob.status.in_(["queued", "processing"]),
+            ImportJob.status.in_([ImportJobStatus.QUEUED, ImportJobStatus.PROCESSING]),
         )
     )
     existing = active.scalar_one_or_none()
@@ -50,7 +51,7 @@ async def start_import(
     active_count_result = await db.execute(
         select(ImportJob).where(
             ImportJob.user_id == user_id,
-            ImportJob.status.in_(["queued", "processing"]),
+            ImportJob.status.in_([ImportJobStatus.QUEUED, ImportJobStatus.PROCESSING]),
         )
     )
     active_jobs = active_count_result.scalars().all()
@@ -104,8 +105,6 @@ async def get_import(
     db: AsyncSession = Depends(get_db),
 ):
     """Get import job status with linked problems."""
-    import uuid as uuid_mod
-
     try:
         job_uuid = uuid_mod.UUID(import_id)
     except ValueError:
@@ -127,7 +126,7 @@ async def get_import(
     return ImportJobDetailResponse(
         id=job.id,
         prompt=job.prompt,
-        status=job.status.value if hasattr(job.status, "value") else str(job.status),
+        status=job.status.value,
         message=job.message,
         progress=job.progress,
         total=job.total,
@@ -136,7 +135,7 @@ async def get_import(
                 id=p.id,
                 title=p.title,
                 slug=p.slug,
-                difficulty=p.difficulty.value if hasattr(p.difficulty, "value") else str(p.difficulty),
+                difficulty=p.difficulty.value,
                 pattern=p.pattern,
             )
             for p in problems
@@ -154,8 +153,6 @@ async def cancel_import(
 ):
     """Cancel an in-progress import. Cancellation is cooperative — the workflow
     checks for cancellation at the top of each problem iteration."""
-    import uuid as uuid_mod
-
     try:
         job_uuid = uuid_mod.UUID(import_id)
     except ValueError:
