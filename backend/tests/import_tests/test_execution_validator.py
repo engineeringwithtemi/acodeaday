@@ -13,10 +13,24 @@ from app.services.execution_validator import parse_execution_results
 def test_parse_all_passed():
     """Test parsing results where all tests pass."""
     judge0_result = {
-        "stdout": json.dumps([
-            {"test_number": 1, "output": [0, 1], "expected": [0, 1], "input": [[2, 7], 9], "error": None},
-            {"test_number": 2, "output": [1, 2], "expected": [1, 2], "input": [[3, 2, 4], 6], "error": None},
-        ]),
+        "stdout": json.dumps(
+            [
+                {
+                    "test_number": 1,
+                    "output": [0, 1],
+                    "expected": [0, 1],
+                    "input": [[2, 7], 9],
+                    "error": None,
+                },
+                {
+                    "test_number": 2,
+                    "output": [1, 2],
+                    "expected": [1, 2],
+                    "input": [[3, 2, 4], 6],
+                    "error": None,
+                },
+            ]
+        ),
         "stderr": "",
         "status": {"id": 3, "description": "Accepted"},
         "time": "0.05",
@@ -36,10 +50,24 @@ def test_parse_all_passed():
 def test_parse_some_failed():
     """Test parsing results where some tests fail."""
     judge0_result = {
-        "stdout": json.dumps([
-            {"test_number": 1, "output": [0, 1], "expected": [0, 1], "input": [[2, 7], 9], "error": None},
-            {"test_number": 2, "output": [0, 0], "expected": [1, 2], "input": [[3, 2, 4], 6], "error": None},
-        ]),
+        "stdout": json.dumps(
+            [
+                {
+                    "test_number": 1,
+                    "output": [0, 1],
+                    "expected": [0, 1],
+                    "input": [[2, 7], 9],
+                    "error": None,
+                },
+                {
+                    "test_number": 2,
+                    "output": [0, 0],
+                    "expected": [1, 2],
+                    "input": [[3, 2, 4], 6],
+                    "error": None,
+                },
+            ]
+        ),
         "stderr": "",
         "status": {"id": 3, "description": "Accepted"},
     }
@@ -114,9 +142,17 @@ def test_parse_empty_stdout():
 def test_parse_with_unordered_array():
     """Test parsing with unordered_array comparison strategy."""
     judge0_result = {
-        "stdout": json.dumps([
-            {"test_number": 1, "output": [1, 0], "expected": [0, 1], "input": [[2, 7], 9], "error": None},
-        ]),
+        "stdout": json.dumps(
+            [
+                {
+                    "test_number": 1,
+                    "output": [1, 0],
+                    "expected": [0, 1],
+                    "input": [[2, 7], 9],
+                    "error": None,
+                },
+            ]
+        ),
         "stderr": "",
         "status": {"id": 3, "description": "Accepted"},
     }
@@ -133,9 +169,17 @@ def test_parse_with_unordered_array():
 def test_parse_with_error_in_test():
     """Test parsing results that have errors in individual tests."""
     judge0_result = {
-        "stdout": json.dumps([
-            {"test_number": 1, "output": None, "expected": [0, 1], "input": [[2, 7], 9], "error": "ZeroDivisionError"},
-        ]),
+        "stdout": json.dumps(
+            [
+                {
+                    "test_number": 1,
+                    "output": None,
+                    "expected": [0, 1],
+                    "input": [[2, 7], 9],
+                    "error": "ZeroDivisionError",
+                },
+            ]
+        ),
         "stderr": "",
         "status": {"id": 3, "description": "Accepted"},
     }

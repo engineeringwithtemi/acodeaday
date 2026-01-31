@@ -123,9 +123,7 @@ async def test_start_import_unauthorized(unauthed_client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_start_import_invalid_prompt(
-    client: AsyncClient, auth_headers: dict
-):
+async def test_start_import_invalid_prompt(client: AsyncClient, auth_headers: dict):
     """Test import with too-short prompt fails validation."""
     response = await client.post(
         "/api/imports/",
@@ -234,9 +232,7 @@ async def test_get_import_detail(
     """Test getting import detail includes linked problems."""
     job, problems = import_job_with_problems
 
-    response = await client.get(
-        f"/api/imports/{job.id}", headers=auth_headers
-    )
+    response = await client.get(f"/api/imports/{job.id}", headers=auth_headers)
 
     assert response.status_code == 200
     data = response.json()
@@ -248,25 +244,17 @@ async def test_get_import_detail(
 
 
 @pytest.mark.asyncio
-async def test_get_import_not_found(
-    client: AsyncClient, auth_headers: dict
-):
+async def test_get_import_not_found(client: AsyncClient, auth_headers: dict):
     """Test getting non-existent import returns 404."""
     fake_id = str(uuid.uuid4())
-    response = await client.get(
-        f"/api/imports/{fake_id}", headers=auth_headers
-    )
+    response = await client.get(f"/api/imports/{fake_id}", headers=auth_headers)
     assert response.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_get_import_invalid_id(
-    client: AsyncClient, auth_headers: dict
-):
+async def test_get_import_invalid_id(client: AsyncClient, auth_headers: dict):
     """Test getting import with invalid UUID returns 400."""
-    response = await client.get(
-        "/api/imports/not-a-uuid", headers=auth_headers
-    )
+    response = await client.get("/api/imports/not-a-uuid", headers=auth_headers)
     assert response.status_code == 400
 
 
@@ -280,9 +268,7 @@ async def test_cancel_import(
     processing_job: ImportJob,
 ):
     """Test cancelling an in-progress import."""
-    response = await client.post(
-        f"/api/imports/{processing_job.id}/cancel", headers=auth_headers
-    )
+    response = await client.post(f"/api/imports/{processing_job.id}/cancel", headers=auth_headers)
 
     assert response.status_code == 200
     data = response.json()
@@ -296,19 +282,13 @@ async def test_cancel_completed_import(
     import_job: ImportJob,
 ):
     """Test cancelling an already-completed import returns 400."""
-    response = await client.post(
-        f"/api/imports/{import_job.id}/cancel", headers=auth_headers
-    )
+    response = await client.post(f"/api/imports/{import_job.id}/cancel", headers=auth_headers)
     assert response.status_code == 400
 
 
 @pytest.mark.asyncio
-async def test_cancel_import_not_found(
-    client: AsyncClient, auth_headers: dict
-):
+async def test_cancel_import_not_found(client: AsyncClient, auth_headers: dict):
     """Test cancelling non-existent import returns 404."""
     fake_id = str(uuid.uuid4())
-    response = await client.post(
-        f"/api/imports/{fake_id}/cancel", headers=auth_headers
-    )
+    response = await client.post(f"/api/imports/{fake_id}/cancel", headers=auth_headers)
     assert response.status_code == 404

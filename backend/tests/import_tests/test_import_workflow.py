@@ -140,9 +140,7 @@ async def test_is_cancelled_false(workflow_job: ImportJob):
 
 
 @pytest.mark.asyncio
-async def test_is_cancelled_true(
-    test_db: AsyncSession, test_user_id: str
-):
+async def test_is_cancelled_true(test_db: AsyncSession, test_user_id: str):
     """Test _is_cancelled returns True for cancelled job."""
     job = ImportJob(
         user_id=test_user_id,
@@ -175,9 +173,7 @@ async def test_persist_problem_success(
     assert slug == "two-sum"
 
     # Verify problem in DB
-    result = await test_db.execute(
-        select(Problem).where(Problem.slug == "two-sum")
-    )
+    result = await test_db.execute(select(Problem).where(Problem.slug == "two-sum"))
     db_problem = result.scalar_one()
     assert db_problem.title == "Two Sum"
     assert db_problem.leetcode_no == 1
@@ -185,26 +181,20 @@ async def test_persist_problem_success(
 
     # Verify language config
     lang_result = await test_db.execute(
-        select(ProblemLanguage).where(
-            ProblemLanguage.problem_id == db_problem.id
-        )
+        select(ProblemLanguage).where(ProblemLanguage.problem_id == db_problem.id)
     )
     langs = lang_result.scalars().all()
     assert len(langs) == 1
     assert langs[0].language == Language.PYTHON
 
     # Verify test cases
-    tc_result = await test_db.execute(
-        select(TestCase).where(TestCase.problem_id == db_problem.id)
-    )
+    tc_result = await test_db.execute(select(TestCase).where(TestCase.problem_id == db_problem.id))
     tcs = tc_result.scalars().all()
     assert len(tcs) == 2
 
     # Verify import job link
     link_result = await test_db.execute(
-        select(ImportJobProblem).where(
-            ImportJobProblem.import_job_id == workflow_job.id
-        )
+        select(ImportJobProblem).where(ImportJobProblem.import_job_id == workflow_job.id)
     )
     links = link_result.scalars().all()
     assert len(links) == 1
@@ -244,9 +234,7 @@ async def test_persist_problem_duplicate_slug(
 
 
 @pytest.mark.asyncio
-async def test_recover_stuck_jobs(
-    test_db: AsyncSession, test_user_id: str
-):
+async def test_recover_stuck_jobs(test_db: AsyncSession, test_user_id: str):
     """Test startup recovery marks stuck jobs as failed."""
     # Create stuck jobs
     queued_job = ImportJob(

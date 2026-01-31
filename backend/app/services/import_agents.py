@@ -19,6 +19,7 @@ from app.schemas.import_schemas import (
 
 # ─── 1. INTENT PARSER ─────────────────────────────────────────────────────────
 
+
 @lru_cache(maxsize=1)
 def get_intent_parser_agent() -> Agent:
     return Agent(
@@ -46,6 +47,7 @@ For pattern names, use kebab-case: "sliding-window", "two-pointers", "binary-sea
 
 
 # ─── 2. PROBLEM GENERATOR ─────────────────────────────────────────────────────
+
 
 @lru_cache(maxsize=1)
 def get_problem_generator_agent() -> Agent:
@@ -85,6 +87,7 @@ IMPORTANT: Generate problems DIFFERENT from the excluded list provided in the pr
 
 # ─── 3. PROBLEM VERIFIER ──────────────────────────────────────────────────────
 
+
 @lru_cache(maxsize=1)
 def get_problem_verifier_agent() -> Agent:
     return Agent(
@@ -112,6 +115,7 @@ Set valid=true only if ALL checks pass. List specific issues in the issues array
 
 
 # ─── 4. TEST CASE GENERATOR ───────────────────────────────────────────────────
+
 
 @lru_cache(maxsize=1)
 def get_test_case_generator_agent() -> Agent:
