@@ -113,9 +113,9 @@ async def test_start_import(
 
 
 @pytest.mark.asyncio
-async def test_start_import_unauthorized(client: AsyncClient):
+async def test_start_import_unauthorized(unauthed_client: AsyncClient):
     """Test starting import without auth returns 401."""
-    response = await client.post(
+    response = await unauthed_client.post(
         "/api/imports/",
         json={"prompt": "Add Two Sum"},
     )
@@ -216,9 +216,9 @@ async def test_list_imports(
 
 
 @pytest.mark.asyncio
-async def test_list_imports_unauthorized(client: AsyncClient):
+async def test_list_imports_unauthorized(unauthed_client: AsyncClient):
     """Test listing imports without auth returns 401."""
-    response = await client.get("/api/imports/")
+    response = await unauthed_client.get("/api/imports/")
     assert response.status_code == 401
 
 
