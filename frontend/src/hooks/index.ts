@@ -20,3 +20,4 @@ export {
   useDeleteSession,
   useStreamChat,
 } from './useChat'
+export { useDebouncedDiagram } from './useDebouncedDiagram'

@@ -11,6 +11,7 @@ import { SubmissionsPanel } from '@/components/SubmissionsPanel'
 import { SubmissionResultPanel } from '@/components/SubmissionResultPanel'
 import { ChatPanel } from '@/components/ChatPanel'
 import { SolutionsPanel } from '@/components/SolutionsPanel'
+import { DiagramPanel } from '@/components/DiagramPanel'
 import { LanguageSelector } from '@/components/LanguageSelector'
 import Editor from '@monaco-editor/react'
 import { useQueryClient } from '@tanstack/react-query'
@@ -35,7 +36,7 @@ function ProblemSolver() {
   const [language, setLanguage] = useState<Language>('python')
   const [testResults, setTestResults] = useState<RunCodeResponse | SubmitCodeResponse | null>(null)
   const [isRunning, setIsRunning] = useState(false)
-  const [leftPaneTab, setLeftPaneTab] = useState<'description' | 'submissions' | 'solutions'>('description')
+  const [leftPaneTab, setLeftPaneTab] = useState<'description' | 'submissions' | 'solutions' | 'diagram'>('description')
   const [bottomPaneTab, setBottomPaneTab] = useState<'testcase' | 'result'>('testcase')
   const [customInputs, setCustomInputs] = useState<any[][]>([])
   const [showSubmissionResult, setShowSubmissionResult] = useState(false)
@@ -351,6 +352,16 @@ ${solutionCode}
               >
                 Solutions
               </button>
+              <button
+                onClick={() => setLeftPaneTab('diagram')}
+                className={`px-4 py-2 text-sm font-semibold ${
+                  leftPaneTab === 'diagram'
+                    ? 'text-cyan-400 border-b-2 border-cyan-400'
+                    : 'text-gray-400 hover:text-gray-300'
+                }`}
+              >
+                Diagram
+              </button>
             </div>
 
             {/* Tab Content */}
@@ -362,12 +373,14 @@ ${solutionCode}
                   problemId={problem.id}
                   onSubmissionClick={handleSubmissionClick}
                 />
-              ) : (
+              ) : leftPaneTab === 'solutions' ? (
                 <SolutionsPanel
                   languages={problem.languages || []}
                   onLoadToEditor={handleLoadSolutionToEditor}
                   onAskAI={handleAskAIAboutSolution}
                 />
+              ) : (
+                <DiagramPanel code={code} language={language} />
               )}
             </div>
           </div>

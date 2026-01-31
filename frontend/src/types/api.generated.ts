@@ -232,6 +232,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/patterns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Patterns
+         * @description Get all problems grouped by their primary pattern.
+         *
+         *     Returns problems organized by pattern with user progress,
+         *     allowing users to focus on specific concepts.
+         */
+        get: operations["get_patterns_api_patterns_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/submissions/{problem_id}": {
         parameters: {
             query?: never;
@@ -692,6 +715,53 @@ export interface components {
             is_default: boolean;
         };
         /**
+         * PatternGroupSchema
+         * @description A group of problems sharing the same primary pattern.
+         */
+        PatternGroupSchema: {
+            /**
+             * Pattern
+             * @description The pattern name (e.g., 'dynamic-programming')
+             */
+            pattern: string;
+            /**
+             * Problems
+             * @description Problems with this primary pattern
+             */
+            problems: components["schemas"]["ProblemWithProgressSchema"][];
+            /**
+             * Total Count
+             * @description Total problems in this pattern
+             */
+            total_count: number;
+            /**
+             * Solved Count
+             * @description Problems solved at least once
+             */
+            solved_count: number;
+            /**
+             * Mastered Count
+             * @description Problems mastered in this pattern
+             */
+            mastered_count: number;
+        };
+        /**
+         * PatternsResponse
+         * @description Response with all problems grouped by their primary pattern.
+         */
+        PatternsResponse: {
+            /**
+             * Patterns
+             * @description Problems grouped by primary pattern, sorted by pattern name
+             */
+            patterns: components["schemas"]["PatternGroupSchema"][];
+            /**
+             * Total Patterns
+             * @description Total unique patterns
+             */
+            total_patterns: number;
+        };
+        /**
          * ProblemBasicSchema
          * @description Basic problem info for progress list.
          */
@@ -710,6 +780,8 @@ export interface components {
             pattern: string[];
             /** Sequence Number */
             sequence_number: number;
+            /** Leetcode No */
+            leetcode_no?: number | null;
         };
         /**
          * ProblemDetailSchema
@@ -734,6 +806,8 @@ export interface components {
             pattern: string[];
             /** Sequence Number */
             sequence_number: number;
+            /** Leetcode No */
+            leetcode_no?: number | null;
             /** Constraints */
             constraints: string[];
             /** Examples */
@@ -806,6 +880,8 @@ export interface components {
             pattern: string[];
             /** Sequence Number */
             sequence_number: number;
+            /** Leetcode No */
+            leetcode_no?: number | null;
             /**
              * Times Solved
              * @default 0
@@ -840,6 +916,8 @@ export interface components {
             pattern: string[];
             /** Sequence Number */
             sequence_number: number;
+            /** Leetcode No */
+            leetcode_no?: number | null;
         };
         /**
          * ProblemWithProgressSchema
@@ -861,7 +939,7 @@ export interface components {
             problems: components["schemas"]["ProblemWithProgressSchema"][];
             /**
              * Total Problems
-             * @description Total problems in dataset (75)
+             * @description Total problems in dataset
              */
             total_problems: number;
             /**
@@ -1648,6 +1726,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_patterns_api_patterns_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PatternsResponse"];
                 };
             };
         };
