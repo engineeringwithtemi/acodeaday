@@ -36,8 +36,8 @@ test-backend: ## Run backend unit tests (no DB required)
 	cd backend && uv run pytest tests/test_comparison.py -v
 
 test-backend-all: ## Run all backend tests including DB-dependent
-	cd backend && TEST_DATABASE_URL="postgresql+asyncpg://postgres:postgres@localhost:5432/acodeaday_test" \
-		DATABASE_URL="postgresql+asyncpg://postgres:postgres@localhost:5432/acodeaday_test" \
+	cd backend && TEST_DATABASE_URL="postgresql+asyncpg://postgres:postgres@localhost:54325/acodeaday_test" \
+		DATABASE_URL="postgresql+asyncpg://postgres:postgres@localhost:54325/acodeaday_test" \
 		uv run pytest tests/ -v --ignore=tests/test_routes_problems.py \
 		--ignore=tests/test_routes_execution.py \
 		--ignore=tests/test_routes_progress.py \

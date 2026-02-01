@@ -5,8 +5,10 @@ verify → generate test cases → validate with Judge0 → persist to DB.
 Updates import_jobs table for user-facing progress tracking.
 """
 
+import asyncio
+import random
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -40,6 +42,8 @@ logger = get_logger(__name__)
 
 MAX_RETRIES = 3
 MAX_PROBLEMS_PER_IMPORT = 20
+LLM_TIMEOUT_SECONDS = 120
+JUDGE0_TIMEOUT_SECONDS = 60
 
 
 # =============================================================================
@@ -188,6 +192,7 @@ async def _persist_problem(
                     leetcode_no=problem.leetcode_no,
                     attempt=attempt + 1,
                 )
+                await asyncio.sleep(random.uniform(0.01, 0.1))
                 continue
 
     return None
@@ -211,7 +216,10 @@ async def import_problems_workflow(import_job_id: str, prompt: str) -> None:
         # ── Phase 1: Parse intent ──
         await _update_job(job_id, status="processing", message="Analyzing your request...")
 
-        result = await get_intent_parser_agent().run(prompt)
+        result = await asyncio.wait_for(
+            get_intent_parser_agent().run(prompt),
+            timeout=LLM_TIMEOUT_SECONDS,
+        )
         plan = result.output
 
         logger.info("import_intent_parsed", intent=plan.intent, count=plan.count)
@@ -286,41 +294,58 @@ async def import_problems_workflow(import_job_id: str, prompt: str) -> None:
                 try:
                     # 3a. Generate (or refine)
                     if previous_problem and issues:
-                        gen_result = await get_problem_generator_agent().run(
-                            f"Fix these issues with the problem below: {issues}\n\n"
-                            f"Original problem:\n{previous_problem.model_dump_json(indent=2)}\n\n"
-                            f"Preserve what's correct. Only fix what's broken.\n"
-                            f"Excluded slugs: {all_exclude_slugs}\n"
-                            f"Excluded leetcode_nos: {all_exclude_nos}"
+                        gen_result = await asyncio.wait_for(
+                            get_problem_generator_agent().run(
+                                f"Fix these issues with the problem below: {issues}\n\n"
+                                f"Original problem:\n{previous_problem.model_dump_json(indent=2)}\n\n"
+                                f"Preserve what's correct. Only fix what's broken.\n"
+                                f"Excluded slugs: {all_exclude_slugs}\n"
+                                f"Excluded leetcode_nos: {all_exclude_nos}"
+                            ),
+                            timeout=LLM_TIMEOUT_SECONDS,
                         )
                     elif plan.intent == "specific":
-                        gen_result = await get_problem_generator_agent().run(
-                            f"Generate LeetCode problem #{plan.leetcode_number} "
-                            f"('{plan.problem_name or ''}') with full details. "
-                            f"The leetcode_no must be {plan.leetcode_number}."
+                        gen_result = await asyncio.wait_for(
+                            get_problem_generator_agent().run(
+                                f"Generate LeetCode problem #{plan.leetcode_number} "
+                                f"('{plan.problem_name or ''}') with full details. "
+                                f"The leetcode_no must be {plan.leetcode_number}."
+                            ),
+                            timeout=LLM_TIMEOUT_SECONDS,
                         )
                     else:
                         difficulty_str = f"{plan.difficulty} " if plan.difficulty else ""
-                        gen_result = await get_problem_generator_agent().run(
-                            f"Generate a {difficulty_str}{plan.pattern or ''} coding problem "
-                            f"from LeetCode. It must be a REAL LeetCode problem with the "
-                            f"correct leetcode_no.\n"
-                            f"Do NOT use these LeetCode numbers: {all_exclude_nos}\n"
-                            f"Do NOT generate problems with these slugs: {all_exclude_slugs}"
+                        gen_result = await asyncio.wait_for(
+                            get_problem_generator_agent().run(
+                                f"Generate a {difficulty_str}{plan.pattern or ''} coding problem "
+                                f"from LeetCode. It must be a REAL LeetCode problem with the "
+                                f"correct leetcode_no.\n"
+                                f"Do NOT use these LeetCode numbers: {all_exclude_nos}\n"
+                                f"Do NOT generate problems with these slugs: {all_exclude_slugs}"
+                            ),
+                            timeout=LLM_TIMEOUT_SECONDS,
                         )
 
                     problem = gen_result.output
 
                     # Reject unsupported comparison strategies
                     if problem.comparison_strategy in ("in_place_only", "in_place_with_length"):
+                        logger.warning(
+                            "unsupported_comparison_strategy_overridden",
+                            title=problem.title,
+                            strategy=problem.comparison_strategy,
+                        )
                         problem.comparison_strategy = None
 
                     # 3b. Verify
                     await _update_job(
                         job_id, message=f"Verifying: {problem.title}", progress=i
                     )
-                    ver_result = await get_problem_verifier_agent().run(
-                        f"Verify this problem:\n{problem.model_dump_json(indent=2)}"
+                    ver_result = await asyncio.wait_for(
+                        get_problem_verifier_agent().run(
+                            f"Verify this problem:\n{problem.model_dump_json(indent=2)}"
+                        ),
+                        timeout=LLM_TIMEOUT_SECONDS,
                     )
                     verification = ver_result.output
 
@@ -341,8 +366,11 @@ async def import_problems_workflow(import_job_id: str, prompt: str) -> None:
                         message=f"Generating test cases for {problem.title}",
                         progress=i,
                     )
-                    tc_result = await get_test_case_generator_agent().run(
-                        f"Generate test cases for:\n{problem.model_dump_json(indent=2)}"
+                    tc_result = await asyncio.wait_for(
+                        get_test_case_generator_agent().run(
+                            f"Generate test cases for:\n{problem.model_dump_json(indent=2)}"
+                        ),
+                        timeout=LLM_TIMEOUT_SECONDS,
                     )
                     test_cases = tc_result.output.test_cases
 
@@ -354,11 +382,14 @@ async def import_problems_workflow(import_job_id: str, prompt: str) -> None:
                             message=f"Validating solution for {problem.title}",
                             progress=i,
                         )
-                        execution = await validate_solution_with_judge0(
-                            reference_solution=python_lang.reference_solution,
-                            function_name=python_lang.function_signature.get("name", ""),
-                            test_cases=[tc.model_dump() for tc in test_cases],
-                            comparison_strategy=problem.comparison_strategy,
+                        execution = await asyncio.wait_for(
+                            validate_solution_with_judge0(
+                                reference_solution=python_lang.reference_solution,
+                                function_name=python_lang.function_signature.get("name", ""),
+                                test_cases=[tc.model_dump() for tc in test_cases],
+                                comparison_strategy=problem.comparison_strategy,
+                            ),
+                            timeout=JUDGE0_TIMEOUT_SECONDS,
                         )
                         if not execution["all_passed"]:
                             previous_problem = problem
@@ -441,20 +472,29 @@ async def import_problems_workflow(import_job_id: str, prompt: str) -> None:
 # =============================================================================
 
 
+RECOVERY_STALENESS_MINUTES = 5
+
+
 async def recover_stuck_import_jobs() -> None:
     """
     Mark import jobs stuck in 'processing' as failed on app startup.
 
     Called from the FastAPI lifespan to handle cases where the process
     crashed or was restarted while an import was in progress.
+
+    Only marks jobs as failed if updated_at is older than RECOVERY_STALENESS_MINUTES
+    to avoid incorrectly marking recently-created jobs during fast restarts.
     """
+    cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=RECOVERY_STALENESS_MINUTES)
+
     async with AsyncSessionLocal() as db:
         result = await db.execute(
             select(ImportJob).where(
                 ImportJob.status.in_([
                     ImportJobStatus.QUEUED,
                     ImportJobStatus.PROCESSING,
-                ])
+                ]),
+                ImportJob.updated_at < cutoff,
             )
         )
         stuck_jobs = result.scalars().all()

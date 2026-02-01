@@ -108,7 +108,14 @@ You verify the quality and correctness of coding problems. Check ALL of the foll
     the problem explicitly allows any order)
 
 Be strict. Flag anything that would confuse a solver or cause incorrect test results.
-Set valid=true only if ALL checks pass. List specific issues in the issues array.
+
+CRITICAL RULES for your output:
+- Set valid=true if ALL checks pass with no problems found.
+- Set valid=false ONLY if you found actual errors or problems.
+- The "issues" array must ONLY contain actual problems/errors you found.
+- Do NOT list passing checks or positive observations in the "issues" array.
+- If everything is correct, return valid=true with an EMPTY issues array.
+- The "suggestions" array is for optional improvements that are NOT blockers.
 """,
     )
 

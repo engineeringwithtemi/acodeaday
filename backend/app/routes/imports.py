@@ -25,6 +25,11 @@ router = APIRouter(prefix="/api/imports", tags=["imports"])
 
 MAX_CONCURRENT_JOBS = 3
 
+# Store references to background tasks to prevent garbage collection.
+# Python docs: "Save a reference to the result of [create_task], to avoid
+# a task disappearing mid-execution."
+_background_tasks: set[asyncio.Task] = set()  # type: ignore[type-arg]
+
 
 @router.post("/", response_model=ImportJobResponse)
 async def start_import(
@@ -73,11 +78,13 @@ async def start_import(
     await db.commit()
     await db.refresh(job)
 
-    # Start background task
-    asyncio.create_task(
+    # Start background task (stored in _background_tasks to prevent GC)
+    task = asyncio.create_task(
         import_problems_workflow(str(job.id), request.prompt),
         name=f"import-{job.id}",
     )
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
 
     logger.info("import_started", job_id=str(job.id), prompt=request.prompt)
     return ImportJobResponse.model_validate(job)

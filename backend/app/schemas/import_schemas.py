@@ -74,9 +74,18 @@ class GeneratedTestCases(BaseModel):
 class VerificationResult(BaseModel):
     """Output from problem verifier agent."""
 
-    valid: bool
-    issues: list[str] = Field(default_factory=list)
-    suggestions: list[str] = Field(default_factory=list)
+    valid: bool = Field(
+        description="true if ALL checks pass with no problems found, false otherwise"
+    )
+    issues: list[str] = Field(
+        default_factory=list,
+        description="List ONLY problems/errors found. Leave EMPTY if all checks pass. "
+        "Do NOT list passing checks or positive observations.",
+    )
+    suggestions: list[str] = Field(
+        default_factory=list,
+        description="Optional improvement suggestions (not blockers)",
+    )
 
 
 # =============================================================================

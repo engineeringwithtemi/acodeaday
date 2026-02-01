@@ -20,10 +20,11 @@ from app.main import app
 from app.middleware.auth import get_current_user
 from app.services import import_workflow as workflow_module
 
-# Use local PostgreSQL (no Docker/Supabase required)
+# Use separate test database (port 54325) to avoid destroying dev/prod data.
+# Set TEST_DATABASE_URL env var to override.
 TEST_DB_URL = os.getenv(
     "TEST_DATABASE_URL",
-    "postgresql+asyncpg://postgres:postgres@localhost:5432/acodeaday_test",
+    "postgresql+asyncpg://postgres:postgres@localhost:54325/acodeaday_test",
 )
 
 FAKE_USER_ID = "test-user-00000000-0000-0000-0000-000000000001"
