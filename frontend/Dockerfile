@@ -3,10 +3,11 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
+# Copy package files and postinstall script
 COPY package*.json ./
+COPY scripts ./scripts
 
-# Install dependencies
+# Install dependencies (postinstall needs scripts/copy-wasm.cjs)
 RUN npm ci
 
 # Copy source code
