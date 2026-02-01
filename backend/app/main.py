@@ -9,7 +9,7 @@ from supabase import acreate_client
 from app.config.logging import configure_logging, get_logger
 from app.config.settings import settings
 from app.db.connection import engine
-from app.routes import chat, code, execution, imports, problems, progress, submissions
+from app.routes import chat, code, diagram, execution, imports, problems, progress, submissions
 from app.services.import_workflow import recover_stuck_import_jobs
 
 configure_logging()
@@ -106,6 +106,7 @@ app.include_router(submissions.router)
 app.include_router(code.router)
 app.include_router(chat.router)
 app.include_router(imports.router)
+app.include_router(diagram.router)
 
 
 @app.get("/")

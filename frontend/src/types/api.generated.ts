@@ -540,6 +540,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/diagram/pseudocode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pseudocode Diagram
+         * @description Generate a pseudocode flowchart diagram from user code.
+         *
+         *     Uses an LLM to translate code into structured pseudocode nodes and edges.
+         *     No caching — regenerated each time.
+         */
+        post: operations["pseudocode_diagram_api_diagram_pseudocode_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/": {
         parameters: {
             query?: never;
@@ -711,6 +734,45 @@ export interface components {
              * @description Optional session title
              */
             title?: string | null;
+        };
+        /**
+         * DiagramEdge
+         * @description An edge connecting two nodes in the flowchart.
+         */
+        DiagramEdge: {
+            /**
+             * From
+             * @description Source node ID
+             */
+            from: string;
+            /**
+             * To
+             * @description Target node ID
+             */
+            to: string;
+            /**
+             * Label
+             * @description Optional edge label (e.g. Yes, No, done)
+             */
+            label?: string | null;
+        };
+        /**
+         * DiagramNode
+         * @description A node in the flowchart diagram.
+         */
+        DiagramNode: {
+            /**
+             * Id
+             * @description Unique node identifier (e.g. n0, n1)
+             */
+            id: string;
+            /**
+             * Label
+             * @description Human-readable pseudocode label
+             */
+            label: string;
+            /** @description Node shape: rect=statement, diamond=condition, stadium=start/end, subroutine=function, circle=connector */
+            shape: components["schemas"]["NodeShape"];
         };
         /**
          * Difficulty
@@ -886,6 +948,14 @@ export interface components {
             /** Is Default */
             is_default: boolean;
         };
+        /**
+         * NodeShape
+         * @description Constrained set of renderable node shapes.
+         *
+         *     The LLM can ONLY pick from these values — anything else fails Pydantic validation.
+         * @enum {string}
+         */
+        NodeShape: "rect" | "diamond" | "stadium" | "subroutine" | "circle";
         /**
          * PatternGroupSchema
          * @description A group of problems sharing the same primary pattern.
@@ -1124,6 +1194,33 @@ export interface components {
              * @description Problems mastered (solved 2x)
              */
             mastered_problems: number;
+        };
+        /**
+         * PseudocodeDiagramRequest
+         * @description Request to generate a pseudocode flowchart diagram.
+         */
+        PseudocodeDiagramRequest: {
+            /**
+             * Code
+             * @description User's code to translate to pseudocode
+             */
+            code: string;
+            /**
+             * Language
+             * @description Programming language
+             * @enum {string}
+             */
+            language: "python" | "javascript";
+        };
+        /**
+         * PseudocodeDiagramResponse
+         * @description Response containing the pseudocode flowchart data.
+         */
+        PseudocodeDiagramResponse: {
+            /** Nodes */
+            nodes: components["schemas"]["DiagramNode"][];
+            /** Edges */
+            edges: components["schemas"]["DiagramEdge"][];
         };
         /**
          * RatingRequest
@@ -2370,6 +2467,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pseudocode_diagram_api_diagram_pseudocode_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PseudocodeDiagramRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PseudocodeDiagramResponse"];
                 };
             };
             /** @description Validation Error */

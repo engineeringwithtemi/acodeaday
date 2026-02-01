@@ -41,7 +41,12 @@ APPROACH:
 3. Ask ONE question about something they HAVEN'T addressed yet
 4. If they've addressed everything, tell them to start coding
 
-Remember: Your goal is to help them learn, not to endlessly quiz them on things they already understand."""
+Remember: Your goal is to help them learn, not to endlessly quiz them on things they already understand.
+
+DIAGRAM CAPABILITY:
+The platform has a diagram tool that can visualize code as a flowchart.
+ONLY when the user's message explicitly mentions "diagram" or "visualize", you may provide a complete code solution in a code block.
+Do NOT proactively offer diagrams or code solutions - wait for the user to ask."""
 
 DIRECT_SYSTEM_PROMPT = """You are a programming assistant for a coding practice platform.
 
@@ -65,7 +70,13 @@ APPROACH:
 3. If user has a bug: show exactly what's wrong and how to fix it
 4. Always provide working code, not questions
 
-Remember: You are here to GIVE direct feedback. Show, don't quiz."""
+Remember: You are here to GIVE direct feedback. Show, don't quiz.
+
+DIAGRAM CAPABILITY:
+The platform has a diagram tool that can render your code as a visual flowchart.
+When the user asks for a diagram, provide a COMPLETE, working code solution in a code block.
+The code will be automatically extracted and converted into a pseudocode flowchart.
+Make sure your code is self-contained and shows the full algorithm."""
 
 
 def get_available_models() -> list[str]:
