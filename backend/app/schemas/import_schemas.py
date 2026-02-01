@@ -1,7 +1,13 @@
-"""Pydantic schemas for the AI-powered problem import feature."""
+"""Pydantic schemas for the AI-powered problem import feature.
+
+All agent output schemas are designed for OpenAI strict-mode compatibility:
+- No bare `dict` types (must use explicit models with typed fields)
+- No `Any` types (must use explicit unions so every schema node has a `type` key)
+- No `dict[str, Model]` (generates `$ref` in `additionalProperties` which OpenAI rejects)
+"""
 
 from datetime import datetime
-from typing import Any, Literal
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -22,14 +28,41 @@ class ImportPlan(BaseModel):
     difficulty: str | None = None
 
 
+class FunctionParam(BaseModel):
+    """A single function parameter with name and type annotation."""
+
+    name: str
+    type: str
+
+
+class FunctionSignature(BaseModel):
+    """Function signature metadata for a coding problem."""
+
+    name: str
+    params: list[FunctionParam]
+    return_type: str
+
+
 class GeneratedProblemLanguage(BaseModel):
     """Language-specific code for a generated problem."""
 
     starter_code: str
     reference_solution: str
-    function_signature: dict = Field(
-        description='{"name": "funcName", "params": [{"name": "x", "type": "int"}], "return_type": "int"}'
-    )
+    function_signature: FunctionSignature
+
+
+class GeneratedProblemLanguages(BaseModel):
+    """Language implementations. Python is required."""
+
+    python: GeneratedProblemLanguage
+    javascript: GeneratedProblemLanguage | None = None
+
+    def available(self) -> list[tuple[str, GeneratedProblemLanguage]]:
+        """Return (language_key, data) pairs for non-None languages."""
+        result: list[tuple[str, GeneratedProblemLanguage]] = [("python", self.python)]
+        if self.javascript:
+            result.append(("javascript", self.javascript))
+        return result
 
 
 class GeneratedProblemExample(BaseModel):
@@ -49,7 +82,7 @@ class GeneratedProblem(BaseModel):
     description: str
     constraints: list[str]
     examples: list[GeneratedProblemExample]
-    languages: dict[str, GeneratedProblemLanguage]
+    languages: GeneratedProblemLanguages
     leetcode_no: int = Field(description="The real LeetCode problem number")
     comparison_strategy: str | None = Field(
         default=None,
@@ -57,11 +90,17 @@ class GeneratedProblem(BaseModel):
     )
 
 
+# Test case value types — explicit unions for OpenAI strict-mode compatibility.
+# Covers all practical LeetCode I/O types: primitives, 1D arrays, and 2D arrays.
+_Atom = int | float | str | bool | None
+_TestValue = _Atom | list[_Atom | list[_Atom]]
+
+
 class GeneratedTestCase(BaseModel):
     """A single test case with function arguments and expected output."""
 
-    input: list[Any] = Field(description="Function arguments as array")
-    expected: Any = Field(description="Expected return value")
+    input: list[_TestValue] = Field(description="Function arguments as array")
+    expected: _TestValue = Field(description="Expected return value")
 
 
 class GeneratedTestCases(BaseModel):
@@ -72,20 +111,82 @@ class GeneratedTestCases(BaseModel):
 
 
 class VerificationResult(BaseModel):
-    """Output from problem verifier agent."""
+    """Output from problem verifier agent.
 
-    valid: bool = Field(
-        description="true if ALL checks pass with no problems found, false otherwise"
+    Uses structured boolean fields per check instead of free-form issues list.
+    This prevents models from confusing positive observations with errors.
+    Validity is computed from the boolean fields, not trusted from the LLM.
+    """
+
+    title_correct: bool = Field(
+        description="true if the title matches a real LeetCode problem"
     )
-    issues: list[str] = Field(
-        default_factory=list,
-        description="List ONLY problems/errors found. Leave EMPTY if all checks pass. "
-        "Do NOT list passing checks or positive observations.",
+    leetcode_no_correct: bool = Field(
+        description="true if leetcode_no is the correct number for this problem title"
     )
-    suggestions: list[str] = Field(
-        default_factory=list,
-        description="Optional improvement suggestions (not blockers)",
+    description_correct: bool = Field(
+        description="true if description is clear and matches the real LeetCode problem"
     )
+    solution_correct: bool = Field(
+        description="true if the reference solution is correct and would pass on LeetCode"
+    )
+    signature_matches: bool = Field(
+        description="true if function_signature matches the solution's method name and parameters"
+    )
+    starter_code_correct: bool = Field(
+        description="true if starter code has the correct method signature with pass body"
+    )
+    constraints_correct: bool = Field(
+        description="true if constraints are realistic and match the actual problem"
+    )
+    examples_correct: bool = Field(
+        description="true if all examples have correct input/output pairs"
+    )
+    difficulty_correct: bool = Field(
+        description="true if difficulty matches the actual LeetCode difficulty"
+    )
+    comparison_strategy_correct: bool = Field(
+        description="true if comparison_strategy is appropriate for this problem"
+    )
+    error_details: str = Field(
+        default="",
+        description="If any check is false, explain what is wrong. Empty string if all pass.",
+    )
+
+    def is_valid(self) -> bool:
+        """Compute validity from individual check fields."""
+        return all([
+            self.title_correct,
+            self.leetcode_no_correct,
+            self.description_correct,
+            self.solution_correct,
+            self.signature_matches,
+            self.starter_code_correct,
+            self.constraints_correct,
+            self.examples_correct,
+            self.difficulty_correct,
+            self.comparison_strategy_correct,
+        ])
+
+    def failed_checks_summary(self) -> str:
+        """Build a summary of failed checks for refinement prompts."""
+        check_names = {
+            "title": self.title_correct,
+            "leetcode_no": self.leetcode_no_correct,
+            "description": self.description_correct,
+            "solution": self.solution_correct,
+            "signature": self.signature_matches,
+            "starter_code": self.starter_code_correct,
+            "constraints": self.constraints_correct,
+            "examples": self.examples_correct,
+            "difficulty": self.difficulty_correct,
+            "comparison_strategy": self.comparison_strategy_correct,
+        }
+        failed = [name for name, passed in check_names.items() if not passed]
+        summary = f"Failed checks: {', '.join(failed)}"
+        if self.error_details:
+            summary += f". Details: {self.error_details}"
+        return summary
 
 
 # =============================================================================

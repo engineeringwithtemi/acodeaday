@@ -4,9 +4,12 @@ import pytest
 from pydantic import ValidationError
 
 from app.schemas.import_schemas import (
+    FunctionParam,
+    FunctionSignature,
     GeneratedProblem,
     GeneratedProblemExample,
     GeneratedProblemLanguage,
+    GeneratedProblemLanguages,
     GeneratedTestCase,
     GeneratedTestCases,
     ImportPlan,
@@ -47,6 +50,24 @@ def test_import_plan_invalid_intent():
         ImportPlan(intent="invalid")
 
 
+# ── FunctionSignature ──
+
+
+def test_function_signature():
+    """Test creating a function signature with typed params."""
+    sig = FunctionSignature(
+        name="twoSum",
+        params=[
+            FunctionParam(name="nums", type="List[int]"),
+            FunctionParam(name="target", type="int"),
+        ],
+        return_type="List[int]",
+    )
+    assert sig.name == "twoSum"
+    assert len(sig.params) == 2
+    assert sig.params[0].name == "nums"
+
+
 # ── GeneratedProblem ──
 
 
@@ -64,18 +85,45 @@ def test_generated_problem_valid():
                 output="[0,1]",
             )
         ],
-        languages={
-            "python": GeneratedProblemLanguage(
+        languages=GeneratedProblemLanguages(
+            python=GeneratedProblemLanguage(
                 starter_code="pass",
                 reference_solution="return [0,1]",
-                function_signature={"name": "twoSum", "params": [], "return_type": "list"},
-            )
-        },
+                function_signature=FunctionSignature(
+                    name="twoSum",
+                    params=[],
+                    return_type="list",
+                ),
+            ),
+        ),
         leetcode_no=1,
     )
     assert problem.title == "Two Sum"
     assert problem.leetcode_no == 1
     assert problem.comparison_strategy is None
+    assert problem.languages.python.function_signature.name == "twoSum"
+
+
+def test_generated_problem_languages_available():
+    """Test the languages.available() helper."""
+    lang = GeneratedProblemLanguage(
+        starter_code="pass",
+        reference_solution="return 1",
+        function_signature=FunctionSignature(
+            name="f", params=[], return_type="int"
+        ),
+    )
+    # Python only
+    langs = GeneratedProblemLanguages(python=lang)
+    available = langs.available()
+    assert len(available) == 1
+    assert available[0][0] == "python"
+
+    # Python + JavaScript
+    langs_both = GeneratedProblemLanguages(python=lang, javascript=lang)
+    available_both = langs_both.available()
+    assert len(available_both) == 2
+    assert available_both[1][0] == "javascript"
 
 
 def test_generated_problem_invalid_difficulty():
@@ -88,7 +136,15 @@ def test_generated_problem_invalid_difficulty():
             description="test",
             constraints=[],
             examples=[],
-            languages={},
+            languages=GeneratedProblemLanguages(
+                python=GeneratedProblemLanguage(
+                    starter_code="pass",
+                    reference_solution="pass",
+                    function_signature=FunctionSignature(
+                        name="f", params=[], return_type="int"
+                    ),
+                )
+            ),
             leetcode_no=1,
         )
 
@@ -103,7 +159,15 @@ def test_generated_problem_requires_leetcode_no():
             description="test",
             constraints=[],
             examples=[],
-            languages={},
+            languages=GeneratedProblemLanguages(
+                python=GeneratedProblemLanguage(
+                    starter_code="pass",
+                    reference_solution="pass",
+                    function_signature=FunctionSignature(
+                        name="f", params=[], return_type="int"
+                    ),
+                )
+            ),
         )
 
 
@@ -111,10 +175,17 @@ def test_generated_problem_requires_leetcode_no():
 
 
 def test_generated_test_case():
-    """Test creating a test case."""
+    """Test creating a test case with explicit value types."""
     tc = GeneratedTestCase(input=[[2, 7, 11, 15], 9], expected=[0, 1])
     assert tc.input == [[2, 7, 11, 15], 9]
     assert tc.expected == [0, 1]
+
+
+def test_generated_test_case_primitives():
+    """Test test case with various primitive types."""
+    tc = GeneratedTestCase(input=["hello", 42, True, None], expected="world")
+    assert tc.input == ["hello", 42, True, None]
+    assert tc.expected == "world"
 
 
 def test_generated_test_cases_collection():
@@ -132,22 +203,63 @@ def test_generated_test_cases_collection():
 # ── VerificationResult ──
 
 
-def test_verification_result_valid():
-    """Test valid verification result."""
-    result = VerificationResult(valid=True)
-    assert result.valid is True
-    assert result.issues == []
-
-
-def test_verification_result_with_issues():
-    """Test verification result with issues."""
+def test_verification_result_all_pass():
+    """Test verification result when all checks pass."""
     result = VerificationResult(
-        valid=False,
-        issues=["Wrong difficulty", "Missing constraint"],
-        suggestions=["Change to medium"],
+        title_correct=True,
+        leetcode_no_correct=True,
+        description_correct=True,
+        solution_correct=True,
+        signature_matches=True,
+        starter_code_correct=True,
+        constraints_correct=True,
+        examples_correct=True,
+        difficulty_correct=True,
+        comparison_strategy_correct=True,
     )
-    assert not result.valid
-    assert len(result.issues) == 2
+    assert result.is_valid() is True
+    assert result.error_details == ""
+
+
+def test_verification_result_with_failures():
+    """Test verification result with failed checks."""
+    result = VerificationResult(
+        title_correct=True,
+        leetcode_no_correct=False,
+        description_correct=True,
+        solution_correct=True,
+        signature_matches=True,
+        starter_code_correct=True,
+        constraints_correct=True,
+        examples_correct=False,
+        difficulty_correct=True,
+        comparison_strategy_correct=True,
+        error_details="leetcode_no should be 58 not 59. Example 2 output is wrong.",
+    )
+    assert result.is_valid() is False
+    summary = result.failed_checks_summary()
+    assert "leetcode_no" in summary
+    assert "examples" in summary
+    assert "leetcode_no should be 58" in summary
+
+
+def test_verification_result_is_valid_derived():
+    """Test that is_valid() is derived from boolean fields, not an LLM field."""
+    # Even if the model were to hallucinate, is_valid() checks actual fields
+    result = VerificationResult(
+        title_correct=True,
+        leetcode_no_correct=True,
+        description_correct=True,
+        solution_correct=False,  # One failure
+        signature_matches=True,
+        starter_code_correct=True,
+        constraints_correct=True,
+        examples_correct=True,
+        difficulty_correct=True,
+        comparison_strategy_correct=True,
+    )
+    assert result.is_valid() is False
+    assert "solution" in result.failed_checks_summary()
 
 
 # ── ImportRequest ──

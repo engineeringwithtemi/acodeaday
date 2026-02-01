@@ -1,6 +1,7 @@
 """Tests for the import workflow orchestrator."""
 
 import uuid
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import select
@@ -17,9 +18,12 @@ from app.db.tables import (
     TestCase,
 )
 from app.schemas.import_schemas import (
+    FunctionParam,
+    FunctionSignature,
     GeneratedProblem,
     GeneratedProblemExample,
     GeneratedProblemLanguage,
+    GeneratedProblemLanguages,
     GeneratedTestCase,
 )
 from app.services.import_workflow import (
@@ -65,20 +69,20 @@ def _make_generated_problem(
                 explanation="nums[0] + nums[1] = 2 + 7 = 9",
             )
         ],
-        languages={
-            "python": GeneratedProblemLanguage(
+        languages=GeneratedProblemLanguages(
+            python=GeneratedProblemLanguage(
                 starter_code="class Solution:\n    def twoSum(self, nums, target):\n        pass",
                 reference_solution="class Solution:\n    def twoSum(self, nums, target):\n        lookup = {}\n        for i, n in enumerate(nums):\n            if target - n in lookup:\n                return [lookup[target-n], i]\n            lookup[n] = i",
-                function_signature={
-                    "name": "twoSum",
-                    "params": [
-                        {"name": "nums", "type": "List[int]"},
-                        {"name": "target", "type": "int"},
+                function_signature=FunctionSignature(
+                    name="twoSum",
+                    params=[
+                        FunctionParam(name="nums", type="List[int]"),
+                        FunctionParam(name="target", type="int"),
                     ],
-                    "return_type": "List[int]",
-                },
+                    return_type="List[int]",
+                ),
             )
-        },
+        ),
         leetcode_no=leetcode_no,
         comparison_strategy=None,
     )
@@ -185,6 +189,9 @@ async def test_persist_problem_success(
     langs = lang_result.scalars().all()
     assert len(langs) == 1
     assert langs[0].language == Language.PYTHON
+    # Verify function_signature stored as dict (from model_dump())
+    assert langs[0].function_signature["name"] == "twoSum"
+    assert len(langs[0].function_signature["params"]) == 2
 
     # Verify test cases
     tc_result = await test_db.execute(select(TestCase).where(TestCase.problem_id == db_problem.id))
@@ -234,17 +241,25 @@ async def test_persist_problem_duplicate_slug(
 
 @pytest.mark.asyncio
 async def test_recover_stuck_jobs(test_db: AsyncSession, test_user_id: str):
-    """Test startup recovery marks stuck jobs as failed."""
-    # Create stuck jobs
+    """Test startup recovery marks stuck jobs as failed.
+
+    Jobs must be older than RECOVERY_STALENESS_MINUTES to be recovered,
+    so we set updated_at to 10 minutes ago.
+    """
+    old_time = datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=10)
+
+    # Create stuck jobs with old timestamps
     queued_job = ImportJob(
         user_id=test_user_id,
         prompt="Stuck queued",
         status=ImportJobStatus.QUEUED,
+        updated_at=old_time,
     )
     processing_job = ImportJob(
         user_id=test_user_id,
         prompt="Stuck processing",
         status=ImportJobStatus.PROCESSING,
+        updated_at=old_time,
     )
     completed_job = ImportJob(
         user_id=test_user_id,
@@ -270,3 +285,22 @@ async def test_recover_stuck_jobs(test_db: AsyncSession, test_user_id: str):
 
     # Completed job should NOT be touched
     assert completed_job.status == ImportJobStatus.COMPLETED
+
+
+@pytest.mark.asyncio
+async def test_recover_skips_recent_jobs(test_db: AsyncSession, test_user_id: str):
+    """Test that recovery does NOT mark recently-created jobs as failed."""
+    # Create a job with default updated_at (now) — should NOT be recovered
+    recent_job = ImportJob(
+        user_id=test_user_id,
+        prompt="Just started",
+        status=ImportJobStatus.PROCESSING,
+    )
+    test_db.add(recent_job)
+    await test_db.commit()
+
+    await recover_stuck_import_jobs()
+
+    await test_db.refresh(recent_job)
+    # Should still be processing — not old enough to recover
+    assert recent_job.status == ImportJobStatus.PROCESSING

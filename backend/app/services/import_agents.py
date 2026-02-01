@@ -70,10 +70,12 @@ Requirements:
   problem says "return in any order" or output order is explicitly undefined.
   NEVER use "in_place_only" or "in_place_with_length".
 
-Language-specific requirements (Python only for now):
+Language-specific requirements:
+- languages.python is REQUIRED. languages.javascript is optional.
 - starter_code: class Solution with the correct method signature and `pass` body
 - reference_solution: Complete, correct, efficient Python solution inside class Solution
-- function_signature: JSON with name, params (array of {name, type}), and return_type
+- function_signature: Object with name (string), params (array of objects with name and
+  type fields), and return_type (string)
 
 The solution MUST use the `class Solution` pattern:
     class Solution:
@@ -93,29 +95,28 @@ def get_problem_verifier_agent() -> Agent:
         settings.import_problem_verifier_model or settings.import_agent_model,
         output_type=VerificationResult,
         system_prompt="""\
-You verify the quality and correctness of coding problems. Check ALL of the following:
+You verify the quality and correctness of coding problems.
 
-1. The title matches a real LeetCode problem
-2. The leetcode_no is correct for the given title
-3. The description is clear, unambiguous, and matches the real LeetCode problem
-4. The reference solution is correct and would pass on LeetCode
-5. The function signature matches the solution's method name and parameters
-6. The starter code has the correct method signature with `pass` as the body
-7. Constraints are realistic and match the actual LeetCode problem
-8. Examples are correct — the output matches what the reference solution would return
-9. The difficulty matches the actual LeetCode difficulty
-10. comparison_strategy is appropriate (null for exact, "unordered_array" only if
-    the problem explicitly allows any order)
+For each check below, set the corresponding boolean field to true if it passes,
+or false if you found an actual error:
 
-Be strict. Flag anything that would confuse a solver or cause incorrect test results.
+1. title_correct: Does the title match a real LeetCode problem?
+2. leetcode_no_correct: Is the leetcode_no the correct number for this title?
+3. description_correct: Is the description clear, unambiguous, and matches the real problem?
+4. solution_correct: Is the reference solution correct and would it pass on LeetCode?
+5. signature_matches: Does function_signature match the solution's method name and parameters?
+6. starter_code_correct: Does the starter code have the correct method signature with `pass` body?
+7. constraints_correct: Are constraints realistic and match the actual LeetCode problem?
+8. examples_correct: Are the examples correct — does the output match what the solution returns?
+9. difficulty_correct: Does the difficulty match the actual LeetCode difficulty?
+10. comparison_strategy_correct: Is comparison_strategy appropriate? (null for exact match,
+    "unordered_array" only if the problem explicitly allows any order)
 
-CRITICAL RULES for your output:
-- Set valid=true if ALL checks pass with no problems found.
-- Set valid=false ONLY if you found actual errors or problems.
-- The "issues" array must ONLY contain actual problems/errors you found.
-- Do NOT list passing checks or positive observations in the "issues" array.
-- If everything is correct, return valid=true with an EMPTY issues array.
-- The "suggestions" array is for optional improvements that are NOT blockers.
+RULES:
+- Set a check to true if that aspect is correct. Set to false ONLY if you found an error.
+- If you are unsure about a check, set it to true (assume correct unless proven wrong).
+- In error_details, explain ONLY what is wrong for checks you set to false.
+- If all checks pass, error_details must be an empty string.
 """,
     )
 
@@ -141,9 +142,10 @@ For each problem, generate 10-15 test cases covering:
 
 Format:
 - input: Array of function arguments in the order the function expects them.
+  Each element is a primitive (int, float, string, bool, null) or an array of primitives.
   Example: for twoSum(nums, target), input would be [[2,7,11,15], 9]
 - expected: The return value the correct solution would produce.
-  Example: [0,1]
+  Can be a primitive or an array. Example: [0,1]
 
 IMPORTANT: Mentally trace through the reference solution for EVERY test case to verify
 each expected value is correct. An incorrect expected value will cause correct user

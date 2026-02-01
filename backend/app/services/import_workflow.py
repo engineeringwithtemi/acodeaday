@@ -145,14 +145,14 @@ async def _persist_problem(
                 await db.flush()
 
                 # Language configs
-                for lang_key, lang_data in problem.languages.items():
+                for lang_key, lang_data in problem.languages.available():
                     db.add(
                         ProblemLanguage(
                             problem_id=db_problem.id,
                             language=Language(lang_key),
                             starter_code=lang_data.starter_code,
                             reference_solution=lang_data.reference_solution,
-                            function_signature=lang_data.function_signature,
+                            function_signature=lang_data.function_signature.model_dump(),
                         )
                     )
 
@@ -349,13 +349,13 @@ async def import_problems_workflow(import_job_id: str, prompt: str) -> None:
                     )
                     verification = ver_result.output
 
-                    if not verification.valid:
+                    if not verification.is_valid():
                         previous_problem = problem
-                        issues = verification.issues
+                        issues = [verification.failed_checks_summary()]
                         logger.info(
                             "verification_failed",
                             title=problem.title,
-                            issues=verification.issues,
+                            issues=issues,
                             attempt=attempt + 1,
                         )
                         continue
@@ -375,7 +375,7 @@ async def import_problems_workflow(import_job_id: str, prompt: str) -> None:
                     test_cases = tc_result.output.test_cases
 
                     # 3d. Validate with Judge0
-                    python_lang = problem.languages.get("python")
+                    python_lang = problem.languages.python
                     if python_lang:
                         await _update_job(
                             job_id,
@@ -385,7 +385,7 @@ async def import_problems_workflow(import_job_id: str, prompt: str) -> None:
                         execution = await asyncio.wait_for(
                             validate_solution_with_judge0(
                                 reference_solution=python_lang.reference_solution,
-                                function_name=python_lang.function_signature.get("name", ""),
+                                function_name=python_lang.function_signature.name,
                                 test_cases=[tc.model_dump() for tc in test_cases],
                                 comparison_strategy=problem.comparison_strategy,
                             ),
