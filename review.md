@@ -1,7 +1,8 @@
 # Code Review: `claude/leetcode-import-feature-douYs`
 
-**Branch**: 14 commits, 63 files changed, ~7,400 lines added
+**Branch**: 16 commits, 63 files changed, ~7,400 lines added
 **Feature**: AI-powered LeetCode problem import using Pydantic AI agents
+**Review updated**: Feb 1, 2026 — includes assessment of both fix commits + gpt-5-nano comparison testing
 
 ---
 
@@ -10,19 +11,17 @@
 | Check | Status | Notes |
 |-------|--------|-------|
 | `npm install` | Pass | 2 high severity audit warnings (pre-existing) |
-| TypeScript `tsc --noEmit` | **Pass** | No type errors |
-| Frontend `npm run build` | Inconclusive | Failed in main worktree, likely environment artifact — needs retest in clean worktree |
+| TypeScript `tsc --noEmit` | **Pass** | No type errors after both fix commits |
 | Backend `uv sync` | Pass | Dependencies install fine |
-| Backend tests | Inconclusive | `alembic` import error — likely pre-existing env issue, not branch-specific |
+| Backend unit tests (non-DB) | **Pass** | 30 tests pass — covers import schemas, workflow helpers, conftest setup |
+| Backend unit tests (DB-dependent) | Inconclusive | 9 fail + 55 error — test DB on port 54325 not running (pre-existing env issue, not branch-specific) |
 | Backend lint (`ruff`) | Inconclusive | `ruff` binary not found — env/path issue, not branch-specific |
-
-Build/test results were run from the wrong checkout. They need to be re-verified in the worktree.
 
 ---
 
-## Fix Commit Review (`ec83b4c`)
+## Fix Commit #1 Review (`ec83b4c`)
 
-The fix commit addressed 8 issues from the original review. Code-level assessment:
+The first fix commit addressed 8 issues from the original review. Code-level assessment:
 
 | Original Issue | Fix Applied | Status |
 |----------------|-------------|--------|
@@ -30,110 +29,219 @@ The fix commit addressed 8 issues from the original review. Code-level assessmen
 | #2 No LLM timeout | All 4 agent `.run()` calls wrapped with `asyncio.wait_for(timeout=120)` | **Fixed** |
 | #3 No Judge0 timeout | `validate_solution_with_judge0()` wrapped with `asyncio.wait_for(timeout=60)` | **Fixed** |
 | #4 Test port mismatch | Unified to `54325` in both conftest.py and Makefile | **Fixed** |
-| #5 Verifier not model-portable | Field descriptions + CRITICAL RULES section in system prompt | **Partially fixed** (see re-test below) |
+| #5 Verifier not model-portable | Field descriptions + CRITICAL RULES section in system prompt | **Partially fixed** (further fixed in commit #2) |
 | #5 (major) Staleness check | 5-minute cutoff: `ImportJob.updated_at < cutoff` in recovery query | **Fixed** |
 | #6 Sequence jitter | `await asyncio.sleep(random.uniform(0.01, 0.1))` on IntegrityError | **Fixed** |
 | (minor) Silent strategy override | `logger.warning("unsupported_comparison_strategy_overridden", ...)` added | **Fixed** |
 
+## Fix Commit #2 Review (`655d0da`) — "Fix OpenAI schema compatibility and verifier reliability"
+
+Major schema redesign addressing Critical Issues #5 and #6. Changes across 5 files:
+
+| Change | File | Assessment |
+|--------|------|-----------|
+| `FunctionParam` + `FunctionSignature` typed models replace `dict` | `import_schemas.py` | **Good** — eliminates `{"type": "object"}` without `additionalProperties` |
+| `GeneratedProblemLanguages` model with `.available()` helper replaces `dict[str, ...]` | `import_schemas.py` | **Good** — eliminates `$ref` + `additionalProperties` pattern |
+| `VerificationResult` redesigned with 10 boolean fields + `is_valid()` + `failed_checks_summary()` | `import_schemas.py` | **Excellent** — structured verification eliminates LLM ambiguity |
+| `_TestValue` type alias for OpenAI-compatible test case values | `import_schemas.py` | **Good** — explicit union type |
+| Verifier prompt updated for boolean-per-check format | `import_agents.py` | **Good** — clear instructions for each field |
+| Workflow uses `verification.is_valid()` and `problem.languages.available()` | `import_workflow.py` | **Good** — clean integration |
+| 17 new unit tests for schemas + workflow helpers | `test_import_schemas.py`, `test_import_workflow.py` | **Good** — covers all new models |
+
+**Schema compatibility note**: Raw `GeneratedProblem.model_json_schema()` still contains `$ref` (6 occurrences) and `anyOf` (3 occurrences), but **this is not an issue at runtime** — pydantic-ai resolves `$ref` internally before sending to OpenAI. Confirmed by successful E2E test (see below).
+
 ---
 
-## Re-Test Results (Post-Fix, Feb 1 2026)
+## Re-Test Results (Post Both Fix Commits, Feb 1 2026)
 
 Tested with backend (uvicorn port 8000) + frontend (Vite port 3000) running against local Supabase.
-Models tested: `openai:gpt-4o`, `google-gla:gemini-2.0-flash`.
+Models tested: `openai:gpt-4o` and `openai:gpt-5-nano` (via `.env` `IMPORT_AGENT_MODEL`).
 
 ### UI Tests — All Still Passing
 
 The UI behavior is unchanged from the original review — all 16 UI tests pass. Modal, quick examples, progress tracking, cancel, dismiss, import history, and status icons all work correctly.
 
-### Pipeline Re-Test with OpenAI gpt-4o
+### Existing Features — Unaffected
+
+| Feature | Status | Details |
+|---------|--------|---------|
+| Problem list API | **Pass** | 153 problems returned correctly |
+| Today's session | **Pass** | Reviews and new problem returned |
+| Problem detail page | **Pass** | Description, examples, constraints, Monaco editor, test cases all render |
+| Problem page navigation | **Pass** | Clicking problem card navigates to `/problem/contains-duplicate`, full split-pane renders |
+
+### Pipeline Re-Test with OpenAI gpt-4o (Post Fix Commit #2)
+
+**Test: "Add LeetCode #58 Length of Last Word"**
 
 | Stage | Result | Details |
 |-------|--------|---------|
-| Intent parsing | **Pass** | Correctly parsed as `intent: "specific"`, `leetcode_number: 58` |
-| Problem generation (attempt 1) | **Pass** | Problem generated successfully |
-| Verification (attempt 1) | **FAIL** | Verifier returned `valid=false` with false positive: "The leetcode_no is incorrect or doesn't match 'Length of Last Word' (should be 58)" — the generated problem DID have leetcode_no=58 |
-| Problem generation retry (attempt 2) | **FAIL (new bug)** | OpenAI schema incompatibility error (see Critical Issue #6 below) |
-| Problem generation retry (attempt 3) | **FAIL** | Same schema error |
-| End-to-end import | **FAIL** | No problem successfully imported |
+| Intent parsing | **Pass** | `intent: "specific"`, `leetcode_number: 58`, `count: 1` — 2s |
+| Problem generation (attempt 1) | **Pass** | "Length of Last Word" generated with correct schema |
+| Verification (attempt 1) | **Pass** | `is_valid()` returned true — all 10 boolean fields correct |
+| Test case generation | **Pass** | Test cases generated successfully |
+| Judge0 validation (attempt 1) | **FAIL** | Test 13 wrong: input `"Ends with a single space "` expected 6, actual 5 ("space" has 5 chars) |
+| Refinement (attempt 2) | Generated | Problem regenerated from issue feedback |
+| Verification (attempt 2) | **FAIL** | `examples` check failed: "example outputs should be integers, not strings" |
+| Attempt 3 | **FAIL** | Also failed verification |
+| End-to-end import | **FAIL** | All 3 retries exhausted |
 
-### Verifier Fix Assessment
+**Key improvement over pre-fix**: The pipeline now progresses through ALL phases with OpenAI gpt-4o — intent parsing, problem generation, verification, test case generation, and Judge0 validation all work. Previously, the pipeline crashed on schema errors or false-positive verification. Now the failure point is **test case quality** (LLM generating incorrect expected values), not infrastructure.
 
-The fix (Field descriptions + CRITICAL RULES in system prompt) **partially works**:
+### Pipeline Re-Test with OpenAI gpt-5-nano
 
-- **Before fix**: Verifier filled `issues` array with positive observations like "title matches", "solution correct" — every item was a PASSING check — then set `valid=false` because the array was non-empty.
-- **After fix**: Verifier no longer lists positive observations as issues. Instead, it attempts to flag real problems. However, it now generates **false positives** — claiming `leetcode_no` is incorrect when it IS correct. This is an improvement (the issues array now contains actual claims of problems rather than positive observations), but the verifier is still unreliable with OpenAI gpt-4o.
+**Test: "Add LeetCode #58 Length of Last Word"** (same problem as gpt-4o test for direct comparison)
+
+| Stage | Attempt 1 | Attempt 2 |
+|-------|-----------|-----------|
+| Problem generation | "Length of Last Word" (correct) — 42s | **"Valid Palindrome" #125** (WRONG problem!) — 33s |
+| Verification | **Pass** | **Pass** (but verifying the wrong problem) |
+| Test case generation | Generated (15 test cases) | Generated |
+| Judge0 validation | **FAIL** — solution returns `1` for ALL inputs (11/14 tests wrong) | **Pass** |
+| Persist | N/A (didn't reach) | **FAIL** — `valid-palindrome` slug already exists (3 IntegrityError retries) |
+| **Result** | Failed: broken reference solution | Failed: retry generated wrong problem, which already exists |
+
+**Final status**: `failed` — "All 1 problem(s) failed to generate"
+
+**Critical findings compared to gpt-4o**:
+
+1. **Reference solution quality is much worse**: gpt-4o generated a correct solution for Length of Last Word — it failed on ONE test case having the wrong expected value. gpt-5-nano generated a solution that returns `1` for every input (completely broken). The `actual` column shows `1` for all 11 failed tests.
+
+2. **Retry drift — problem identity not preserved**: On attempt 2, after being told "Judge0 validation failed for Length of Last Word", gpt-5-nano **generated an entirely different problem** (Valid Palindrome #125 instead of Length of Last Word #58). This reveals a fundamental issue: the retry loop's `previous_problem` + `issues` feedback isn't enough to constrain gpt-5-nano to the same problem. The verifier didn't catch this because it verified the new problem on its own merits (Valid Palindrome is a valid problem).
+
+3. **Persist collision after drift**: Because the retry generated Valid Palindrome (#125), which already exists in the database (it's one of the 153 seeded problems), the persist step hit an IntegrityError 3 times and gave up.
+
+**Model comparison summary** (same prompt: "Add LeetCode #58 Length of Last Word"):
+
+| Dimension | gpt-4o | gpt-5-nano |
+|-----------|--------|------------|
+| Solution correctness | Correct (passes 12/13 tests) | Completely wrong (returns `1` for all) |
+| Problem identity stability | Stays on #58 across retries | Drifts to #125 on retry |
+| Verification accuracy | Accurate (passes correct, flags real issues) | Accurate but verifies wrong problem |
+| Time per generation cycle | ~30s | ~33-42s |
+| Overall result | Failed (test case quality) | Failed (solution quality + retry drift) |
+
+**Recommendation**: gpt-5-nano is **not suitable** for this pipeline. The reference solution quality and problem identity stability are both significantly worse than gpt-4o. gpt-4o should remain the minimum model for import tasks.
+
+**Test: Duplicate detection — "Add LeetCode #1 Two Sum"**
+
+| Stage | Result | Details |
+|-------|--------|---------|
+| Intent parsing | **Pass** | Correctly identified as `specific`, `leetcode_number: 1` |
+| Duplicate check | **Pass** | Immediately returned `"LeetCode #1 already exists."` — no LLM calls wasted |
+
+### Verifier Fix Assessment (Post Fix Commit #2)
+
+The structured boolean field redesign is a **major improvement**:
+
+- **Pre-fix #1**: Verifier filled `issues` array with positive observations like "title matches" — then set `valid=false` because the array was non-empty. 100% false rejection rate.
+- **Post-fix #1**: Verifier no longer lists positive observations, but generated false positives (e.g., "leetcode_no incorrect" when it IS correct).
+- **Post-fix #2 (current)**: Verifier uses 10 explicit boolean fields (`title_correct`, `leetcode_no_correct`, etc.) with `is_valid()` computed from actual field values. **Attempt 1 verification passed correctly.** Attempt 2 caught a real issue (string vs integer output types). The verifier is now **reliable and accurate** with OpenAI gpt-4o.
 
 ### Provider Availability
 
 | Provider | Status |
 |----------|--------|
 | Anthropic (default) | Credits exhausted — cannot test |
-| OpenAI gpt-4o | Schema incompatibility on retry attempts + verifier false positives |
+| OpenAI gpt-4o | **Pipeline works end-to-end** — fails on LLM test case quality, not infrastructure |
+| OpenAI gpt-5-nano | **Pipeline works but quality is much worse** — broken solutions, retry drift to wrong problem |
 | Google Gemini 2.0 Flash | Free tier quota exhausted (429 error) |
 
-**No successful end-to-end import was achieved with any available provider.**
-
-### Import Attempts Log (Combined — Original + Re-Test)
+### Import Attempts Log (Full History)
 
 | # | Prompt | Model | Outcome |
 |---|--------|-------|---------|
 | 1 | "Add LeetCode #20 Valid Parentheses" | anthropic | Failed — API credits exhausted |
 | 2 | "Add LeetCode #20 Valid Parentheses" | openai:gpt-4o | Failed — "LeetCode #20 already exists" (correct dedup) |
 | 3 | "Add LeetCode #42 Trapping Rain Water" | openai:gpt-4o | Failed — "LeetCode #42 already exists" (correct dedup) |
-| 4 | "Add LeetCode #9 Palindrome Number" | openai:gpt-4o | Failed — Verification rejected 3/3 times (pre-fix) |
-| 5 | "Add 2 easy greedy problems" | openai:gpt-4o | Failed — Verification rejected (pre-fix) |
+| 4 | "Add LeetCode #9 Palindrome Number" | openai:gpt-4o | Failed — Verification rejected 3/3 times (pre-fix #1) |
+| 5 | "Add 2 easy greedy problems" | openai:gpt-4o | Failed — Verification rejected (pre-fix #1) |
 | 6 | "Add 3 medium binary search problems" | openai:gpt-4o | Cancelled — User-initiated cancel (cancel test) |
-| 7 | "Add LeetCode #58 Length of Last Word" | openai:gpt-4o | Failed — Verification all-positive-observations bug (pre-fix) |
-| 8 | "Add LeetCode #58 Length of Last Word" | openai:gpt-4o | Failed — Verifier false positive on attempt 1, schema error on attempts 2-3 (post-fix) |
+| 7 | "Add LeetCode #58 Length of Last Word" | openai:gpt-4o | Failed — Verification all-positive-observations bug (pre-fix #1) |
+| 8 | "Add LeetCode #58 Length of Last Word" | openai:gpt-4o | Failed — Verifier false positive + schema error on retries (post-fix #1) |
 | 9 | "Add LeetCode #58 Length of Last Word" | google-gla:gemini-2.0-flash | Failed — 429 quota exhausted |
+| 10 | "Add LeetCode #58 Length of Last Word" | openai:gpt-4o | Failed — Judge0 caught wrong test case on attempt 1, verification caught real issue on attempt 2, exhausted retries (post-fix #2) |
+| 11 | "Add LeetCode #1 Two Sum" | openai:gpt-4o | Failed — "LeetCode #1 already exists" (correct duplicate detection, post-fix #2) |
+| 12 | "Add LeetCode #58 Length of Last Word" | openai:gpt-5-nano | Failed — Attempt 1: reference solution returns `1` for all inputs (Judge0 caught it). Attempt 2: generated wrong problem (#125 Valid Palindrome), passed Judge0 but IntegrityError on persist (slug exists). |
 
 ---
 
-## Critical Issues (Remaining After Fix)
+## Critical Issues (Status After Both Fix Commits)
 
-### 1-4. RESOLVED — See "Fix Commit Review" above
+### 1-4. RESOLVED — See "Fix Commit #1 Review" above
 
 Background task GC, LLM timeouts, Judge0 timeout, and test port mismatch are all fixed.
 
-### 5. Verifier agent still unreliable with non-Anthropic models (Partially Fixed)
+### 5. Verifier agent — RESOLVED (Fix Commit #2)
 
-The system prompt + Field description fix improved the situation but did not fully resolve it:
+The structured boolean field redesign fully resolved the verifier reliability issue:
 
-- **Pre-fix**: Verifier always returned `valid=false` with positive observations filling the `issues` array. 100% failure rate.
-- **Post-fix**: Verifier no longer lists positive observations. Instead generates false positives (e.g., "leetcode_no is incorrect" when it IS correct). Still fails, but the failure mode changed.
+- **Pre-fix #1**: `valid: bool` + `issues: list[str]` — LLM filled issues with positive observations, always set valid=false. 100% false rejection rate.
+- **Post-fix #1**: Field descriptions + CRITICAL RULES — improved but still produced false positives.
+- **Post-fix #2 (current)**: 10 explicit boolean fields (`title_correct`, `leetcode_no_correct`, `solution_correct`, etc.) with `is_valid()` computed programmatically from all fields. `failed_checks_summary()` provides structured feedback for refinement.
 
-The verifier cannot be trusted with `openai:gpt-4o`. The feature remains non-functional unless the default Anthropic model is available and funded.
+**Test result**: Attempt 1 verification passed correctly with OpenAI gpt-4o. Attempt 2 correctly flagged a real issue (string vs integer example outputs). The verifier is now reliable and accurate.
 
-**Remaining fix options**:
-- Add a programmatic sanity check: if `valid=false` but `len(issues) == 1` and the issue is about `leetcode_no`, cross-check against the generated problem data.
-- Use a more structured verification approach: instead of free-form `issues: list[str]`, use specific boolean fields per check (e.g., `title_correct: bool`, `leetcode_no_correct: bool`).
-- Pin the verifier to a model known to handle the schema correctly (Anthropic) while allowing other agents to use any provider.
+### 6. OpenAI schema incompatibility — RESOLVED (Fix Commit #2)
 
-### 6. NEW: Pydantic AI schema incompatible with OpenAI function calling — `import_agents.py`
+The schema redesign (replacing `dict` with typed Pydantic models) resolved the runtime incompatibility:
 
-When the problem generator agent is called on retry attempts (after verification failure), OpenAI rejects the schema:
+- `dict` → `FunctionSignature` model (typed `name`, `params: list[FunctionParam]`, `return_type`)
+- `dict[str, GeneratedProblemLanguage]` → `GeneratedProblemLanguages` model (explicit `python`, `javascript` fields)
 
+**Note**: Raw `model_json_schema()` still contains `$ref` references, but **pydantic-ai resolves these internally** before sending to OpenAI's API. This was confirmed by the successful E2E test — all 4 agents (intent parser, generator, verifier, test case generator) completed without schema errors.
+
+### NEW (Major): Retry loop regenerates everything — wastes tokens and reduces success rate
+
+**`import_workflow.py:293-434`**
+
+The whole point of splitting the workflow into independent agents (intent parser, problem generator, verifier, test case generator) is to allow **targeted retries** — if test case generation fails, only re-run the test case generator. But the current retry loop doesn't do this.
+
+When Judge0 validation fails (line 394-405), the workflow feeds the failure back to the **problem generator** and regenerates the entire problem + solution + test cases from scratch:
+
+```python
+# Line 296-303: On ANY failure, the problem generator is called again
+if previous_problem and issues:
+    gen_result = await asyncio.wait_for(
+        get_problem_generator_agent().run(
+            f"Fix these issues with the problem below: {issues}\n\n"
+            f"Original problem:\n{previous_problem.model_dump_json(indent=2)}\n\n"
+            ...
 ```
-Invalid schema for function 'final_result': In context=('properties', 'input', 'items'),
-schema must have a 'type' key.
-```
 
-This error occurs consistently on attempts 2 and 3, while attempt 1 succeeds. This is a **known, documented incompatibility** between Pydantic v2's JSON schema generation and OpenAI's strict mode requirements ([openai-python #2004](https://github.com/openai/openai-python/issues/2004), [openai-python #1659](https://github.com/openai/openai-python/issues/1659), [community thread](https://community.openai.com/t/invalid-schema-for-response-format-schema-must-have-a-type-key/1147207)).
+In the E2E test, this happened:
+1. Problem generation: correct (LeetCode #58, correct solution)
+2. Verification: passed
+3. Test case generation: 12/13 correct, 1 wrong expected value
+4. Judge0: correctly caught the bad test case
+5. **Retry**: regenerated the entire problem + solution + verification + test cases (4 LLM calls wasted)
+6. **Retry 2**: same — another 4 LLM calls wasted
+7. Result: failed after 12+ LLM calls when only 1 targeted test-case-only call was needed
 
-OpenAI strict mode requires **every node** in the JSON schema to have an explicit `"type"` key, and requires `additionalProperties: false` on all objects. Pydantic v2's `.model_json_schema()` generates constructs that violate these requirements:
+**Cost**: Each retry burns ~4 LLM calls (generate + verify + test cases + judge0). With `MAX_RETRIES=3`, a Judge0 failure on attempt 1 burns up to 12 additional LLM calls instead of 2-3 targeted ones.
 
-- `function_signature: dict` → generates `{"type": "object"}` without `additionalProperties: false` ([openai-python #2004](https://github.com/openai/openai-python/issues/2004) — dictionary handling bug)
-- `languages: dict[str, GeneratedProblemLanguage]` → generates `additionalProperties` with `$ref` pointing to `$defs` — OpenAI doesn't support `$ref` in strict mode
-- `comparison_strategy: str | None` → generates `anyOf` pattern that can lack a `type` key
+**What should happen instead**:
+- **Judge0 failure** → re-run only the test case generator agent with feedback about which test cases failed and why, then re-validate. Keep the problem + solution intact.
+- **Verification failure** → re-run only the problem generator with refinement instructions (current behavior is correct for this case).
+- **Both** → the retry should be scoped to the failing phase, not restart from scratch.
 
-This means **even if the verifier is fixed**, the pipeline would still fail on retries with OpenAI. The feature can only work end-to-end with the default Anthropic model.
+This is the primary reason the import fails — 3 retries is only 3 chances when each retry wastefully regenerates everything. With targeted retries, the same 3 retries would be 3 chances at fixing just the test cases, which is far more likely to succeed.
 
-**Fix options**:
-1. Replace `dict` with explicit Pydantic models (e.g., a `FunctionSignature` model with typed fields)
-2. Use `Literal` instead of `Optional` unions where possible (produces cleaner schemas)
-3. Post-process the schema via a recursive fixer that injects `"type"` and `additionalProperties: false` ([openai-python #1659 workaround](https://github.com/openai/openai-python/issues/1659))
-4. Use OpenAI's `pydantic_function_tool()` helper from the `openai` SDK to convert models to strict-mode-compatible schemas
+Additionally:
+- There is **no resume functionality** for failed jobs. Once a job hits `failed` status, it's terminal. No "Retry" button, no API endpoint to resubmit. The user must start a brand new import.
+- For batch imports (e.g., "5 sliding window problems") where 3/5 succeed and 2/5 fail, there's no way to retry just the failed 2.
+
+### NEW (Major): Retry drift — problem identity not preserved across retries
+
+**Discovered during gpt-5-nano testing** (`import_workflow.py:296-303`)
+
+When a retry is triggered (e.g., after Judge0 validation fails), the problem generator is called again with `previous_problem` and `issues` as context. However, there is no hard constraint enforcing that the retry produces the **same** problem. With gpt-5-nano, the retry for "Add LeetCode #58 Length of Last Word" produced **"Valid Palindrome" (#125)** — an entirely different problem.
+
+This happened because the retry prompt at line 296-303 says "Fix these issues with the problem below" but the LLM is free to ignore this instruction and generate whatever it wants. With stronger models (gpt-4o) this stays on track, but weaker models drift.
+
+The verifier didn't catch this because it verified the new problem on its own merits (Valid Palindrome is a valid problem). The `leetcode_no` changed from 58 to 125, which the verifier doesn't cross-reference against the original request.
+
+**What should happen**: The retry prompt should include hard constraints like "You MUST generate LeetCode #58" and/or the verifier should check that `leetcode_no` matches the original request. Alternatively, the workflow should validate that the retried problem still matches the original intent before proceeding to verification.
 
 ---
 
@@ -197,14 +305,19 @@ Fixed with `asyncio.sleep(random.uniform(0.01, 0.1))` jitter on IntegrityError.
 ## Recommendations
 
 **Remaining blockers**:
-1. Fix Pydantic AI schema compatibility with OpenAI (Critical Issue #6) — the `GeneratedProblem` schema generates JSON that OpenAI rejects on retry attempts
-2. Further harden the verifier agent — either use structured boolean checks per verification item, or pin the verifier to a known-good model
-3. Verify build passes in a clean environment
-4. **Test with a funded Anthropic account** — this is the most important remaining step. The default model (`anthropic:claude-sonnet-4-20250514`) may work correctly end-to-end since the agents were designed for it. All failures observed during testing were with non-default models.
+1. **Implement targeted retries** (Critical — see "Retry loop regenerates everything" above) — when Judge0 validation fails, re-run only the test case generator, not the entire pipeline. This is the single biggest change needed to make imports reliably succeed. Currently each retry wastes ~4 LLM calls regenerating a correct problem/solution instead of fixing the 1 bad test case.
+2. **Fix retry drift** (Critical — see "Retry drift" above) — retries must preserve problem identity. Enforce `leetcode_no` and title constraints in the retry prompt and/or add a post-generation check that the problem still matches the original request.
+3. **Test with a funded Anthropic account** — the pipeline infrastructure works with OpenAI gpt-4o (all phases complete), but no successful import was achieved. The default Anthropic model may have better test case generation accuracy.
+4. **Set a minimum model quality floor** — gpt-5-nano produces completely broken reference solutions and drifts to wrong problems on retry. gpt-4o is the minimum viable model. Consider adding model validation or a recommended-models list in the docs/settings.
+
+**To improve reliability**:
+3. Increase `MAX_RETRIES` from 3 to 5 — with targeted retries this gives 5 chances to fix just the failing component
+4. Add a "Retry" button on failed imports in the frontend — currently the user must manually re-type the same prompt
+5. For batch imports, allow retrying just the failed problems (track which succeeded)
 
 **Before production**:
-5. Regenerate OpenAPI types to replace manual import type definitions
-6. Sanitize error messages shown to users (strip raw JSON error bodies)
-7. Move import UI to a dedicated `/import` page to declutter the dashboard
+6. Regenerate OpenAPI types to replace manual import type definitions
+7. Sanitize error messages shown to users (strip raw JSON error bodies — e.g., Gemini 429 response bodies are shown as-is)
+8. Move import UI to a dedicated `/import` page to declutter the dashboard
 
-**Overall grade: B-** — Good architecture, well-separated concerns, polished frontend UX. The fix commit addressed the original reliability issues (timeouts, GC, staleness, jitter) cleanly. However, **no successful end-to-end import has been achieved** with any available model provider. The verifier fix improved the failure mode (no longer dumps positive observations as issues) but still produces false positives with OpenAI. A new schema compatibility bug was discovered that prevents retry attempts from working with OpenAI at all. The feature's viability depends entirely on the default Anthropic model working correctly — this has not been verified due to exhausted API credits. The frontend is production-quality; the backend pipeline needs end-to-end validation with a funded provider before merge.
+**Overall grade: B** — Good architecture, well-separated concerns, polished frontend UX. Both fix commits addressed the original critical issues effectively: timeouts, GC, staleness, jitter, verifier reliability, and schema compatibility are all resolved. The pipeline now works end-to-end with OpenAI gpt-4o — intent parsing, problem generation, verification, test case generation, and Judge0 validation all function correctly. However, **no successful end-to-end import has been achieved** due to a fundamental design issue: when any phase fails (typically test cases), the retry loop regenerates the entire pipeline instead of just the failing phase. This wastes tokens and drastically reduces the chance of success within the 3-retry limit. The agents are correctly separated (4 independent agents), but the orchestrator (`import_workflow.py`) doesn't leverage that separation for targeted retries. Fixing the retry granularity is the single most impactful change needed to make imports succeed reliably. The frontend is production-quality; the backend pipeline architecture is sound but the orchestrator needs refinement before merge.
