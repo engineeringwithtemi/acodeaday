@@ -119,14 +119,21 @@ Invalid schema for function 'final_result': In context=('properties', 'input', '
 schema must have a 'type' key.
 ```
 
-This error occurs consistently on attempts 2 and 3, while attempt 1 succeeds. The `GeneratedProblem` Pydantic model generates a JSON schema that OpenAI's strict function calling API intermittently rejects. Potential causes:
-- `function_signature: dict` generates `{"type": "object"}` without `additionalProperties` properly typed
-- `languages: dict[str, GeneratedProblemLanguage]` uses `additionalProperties` with `$ref`
-- `comparison_strategy: str | None` uses `anyOf` pattern
+This error occurs consistently on attempts 2 and 3, while attempt 1 succeeds. This is a **known, documented incompatibility** between Pydantic v2's JSON schema generation and OpenAI's strict mode requirements ([openai-python #2004](https://github.com/openai/openai-python/issues/2004), [openai-python #1659](https://github.com/openai/openai-python/issues/1659), [community thread](https://community.openai.com/t/invalid-schema-for-response-format-schema-must-have-a-type-key/1147207)).
+
+OpenAI strict mode requires **every node** in the JSON schema to have an explicit `"type"` key, and requires `additionalProperties: false` on all objects. Pydantic v2's `.model_json_schema()` generates constructs that violate these requirements:
+
+- `function_signature: dict` → generates `{"type": "object"}` without `additionalProperties: false` ([openai-python #2004](https://github.com/openai/openai-python/issues/2004) — dictionary handling bug)
+- `languages: dict[str, GeneratedProblemLanguage]` → generates `additionalProperties` with `$ref` pointing to `$defs` — OpenAI doesn't support `$ref` in strict mode
+- `comparison_strategy: str | None` → generates `anyOf` pattern that can lack a `type` key
 
 This means **even if the verifier is fixed**, the pipeline would still fail on retries with OpenAI. The feature can only work end-to-end with the default Anthropic model.
 
-**Fix**: Replace `dict` with more explicit types in `GeneratedProblemLanguage.function_signature` (e.g., a dedicated Pydantic model), or use `model_config = ConfigDict(json_schema_extra=...)` to produce OpenAI-compatible schemas.
+**Fix options**:
+1. Replace `dict` with explicit Pydantic models (e.g., a `FunctionSignature` model with typed fields)
+2. Use `Literal` instead of `Optional` unions where possible (produces cleaner schemas)
+3. Post-process the schema via a recursive fixer that injects `"type"` and `additionalProperties: false` ([openai-python #1659 workaround](https://github.com/openai/openai-python/issues/1659))
+4. Use OpenAI's `pydantic_function_tool()` helper from the `openai` SDK to convert models to strict-mode-compatible schemas
 
 ---
 
