@@ -20,6 +20,61 @@ Build/test results were run from the wrong checkout. They need to be re-verified
 
 ---
 
+## Manual Testing Results (Playwriter Browser Automation)
+
+Tested with backend (uvicorn port 8000) + frontend (Vite port 3000) running against local Supabase.
+LLM model: `openai:gpt-4o` (Anthropic credits exhausted during testing).
+
+### UI Tests — All Passing
+
+| Test | Result | Details |
+|------|--------|---------|
+| Import modal opens | **Pass** | "Import Problems" button on dashboard opens modal with textarea, quick examples, Cancel/Import buttons |
+| Quick example buttons | **Pass** | All 4 buttons ("Add Two Sum", "5 sliding window", "3 easy DP", "LeetCode #146") populate textarea, char counter updates to correct count |
+| Import button enable/disable | **Pass** | Disabled when textarea empty, enabled when text entered |
+| Modal close (Cancel) | **Pass** | Cancel button closes modal, returns to dashboard |
+| Modal close (X button) | **Pass** | X button in top-right closes modal |
+| Character counter | **Pass** | Shows `N/500`, updates on every keystroke |
+| Active import tracker | **Pass** | Appears on dashboard with spinner, "Importing..." status, progress bar, and Cancel button |
+| Real-time status updates | **Pass** | Status transitions through "Analyzing your request..." → "Generating problem N of M..." → "Verifying: Title" with 2s polling |
+| Progress bar | **Pass** | Updates `N / M problems` counter during batch imports |
+| Cancel functionality | **Pass** | Cancel button during active import transitions status to "Cancelled", replaces Cancel with Dismiss button |
+| Cooperative cancellation | **Pass** | Backend logs confirm `import_cancelled` event, workflow stops at next loop boundary |
+| Dismiss button | **Pass** | Clears the active/terminal tracker from the dashboard |
+| Import history display | **Pass** | "Recent Imports" section shows all past jobs with correct status icons, prompt text, status messages, relative timestamps ("1m ago"), and progress counts (e.g., "0/3", "1/2") |
+| Duplicate detection | **Pass** | LeetCode #20 and #42 immediately caught with "already exists" message — no wasted LLM calls |
+| Error display | **Pass** | API errors (Anthropic credit exhaustion) shown in history with truncated error messages |
+| Status icon differentiation | **Pass** | Different icons for failed (red), cancelled (grey), and in-progress (spinner) states |
+
+### Pipeline Tests
+
+| Stage | Result | Details |
+|-------|--------|---------|
+| Intent parsing (specific) | **Pass** | "Add LeetCode #58 Length of Last Word" → correctly parsed as `intent: "specific"`, `leetcode_number: 58` |
+| Intent parsing (pattern) | **Pass** | "Add 2 easy greedy problems" → correctly parsed as `intent: "pattern"`, `count: 2`, `difficulty: "easy"`, `pattern: "greedy"` |
+| Intent parsing (batch) | **Pass** | "Add 3 medium binary search problems" → `count: 3`, `difficulty: "medium"`, `pattern: "binary-search"` |
+| Duplicate check | **Pass** | Existing leetcode numbers checked before generation starts |
+| Problem generation | **Pass** | Problems generated with correct titles, leetcode numbers, difficulty, solutions, starter code |
+| Verification | **FAIL (bug)** | Verifier always returns `valid=false` with OpenAI gpt-4o — see Critical Issue #5 below |
+| Test case generation | Not reached | Blocked by verification failures |
+| Judge0 validation | Not reached | Blocked by verification failures |
+| DB insertion | Not reached | Blocked by verification failures |
+| End-to-end import | **FAIL** | No problem successfully imported due to verification bug |
+
+### Import Attempts Log
+
+| # | Prompt | Outcome |
+|---|--------|---------|
+| 1 | "Add LeetCode #20 Valid Parentheses" | Failed — Anthropic API credits exhausted |
+| 2 | "Add LeetCode #20 Valid Parentheses" | Failed — "LeetCode #20 already exists" (correct dedup) |
+| 3 | "Add LeetCode #42 Trapping Rain Water" | Failed — "LeetCode #42 already exists" (correct dedup) |
+| 4 | "Add LeetCode #9 Palindrome Number" | Failed — Verification rejected 3/3 times (boolean capitalization nitpick) |
+| 5 | "Add 2 easy greedy problems" | Failed — "Assign Cookies" failed verification 3/3 times (constraint inconsistencies) |
+| 6 | "Add 3 medium binary search problems" | Cancelled — User-initiated cancel during generation (cancel test) |
+| 7 | "Add LeetCode #58 Length of Last Word" | Failed — Verification returned `valid=false` with zero actual issues (see bug below) |
+
+---
+
 ## Critical Issues (Must Fix Before Merge)
 
 ### 1. Background task GC risk — `routes/imports.py:77-80`
@@ -48,6 +103,25 @@ All Pydantic AI agent `.run()` calls have no timeout. If the LLM provider hangs,
 
 **Fix**: Unify the default port across both conftest files and the Makefile.
 
+### 5. Verifier agent not model-portable — `import_agents.py:90-113`, `import_schemas.py:74-79`
+
+The verification agent consistently returns `valid=false` when using OpenAI's `gpt-4o` model, even when every check passes. This was confirmed across multiple imports during manual testing:
+
+**LeetCode #58 "Length of Last Word" — all 3 attempts returned `valid=false`:**
+
+- **Attempt 1** (8 items in `issues`): All positive — "title matches", "description accurate", "solution correct", "constraints match". Zero actual problems. `valid=false`.
+- **Attempt 2** (10 items in `issues`): Explicitly lists all 10 verification checks as passing — "correct", "matches", "appropriate" for every one. `valid=false`.
+- **Attempt 3** (1 item in `issues`): Literally `"No issues with problem statement, solution and starter code."` `valid=false`.
+
+**Root cause**: The `VerificationResult` schema defines `issues: list[str]`. The verifier system prompt says "List specific issues in the issues array." OpenAI's gpt-4o interprets `issues` as "all observations" rather than "only problems found", fills it with positive findings, and sets `valid=false` because the array is non-empty. This means **no import can ever succeed** with OpenAI as the model provider.
+
+The same pattern was observed for LeetCode #162 "Find Peak Element" during a cancelled batch import — the verifier listed all checks as passing but still returned `valid=false`.
+
+**Fix** (any of these):
+- Add a field description: `issues: list[str] = Field(default_factory=list, description="List ONLY problems found. Leave empty if all checks pass.")`
+- Strengthen the system prompt: "The issues array must ONLY contain problems. Do NOT list passing checks. If everything is correct, return valid=true with an empty issues array."
+- Add a programmatic fallback in the workflow: if `valid=false` but all items in `issues` are positive observations (no negatives), override to `valid=true`.
+
 ---
 
 ## Major Issues
@@ -73,6 +147,7 @@ The retry loop (3 attempts) catches `IntegrityError` but doesn't add backoff. Si
 - **Silent comparison_strategy override** (`import_workflow.py:314-316`): Unsupported strategies are silently set to `None` with no log message. Should add a `logger.warning()`.
 - **Manual import type definitions** (`api.ts:101-145`): Import types are manually defined with a "until backend regenerates OpenAPI schema" comment. Expected for a feature branch, but should be generated before merging to main.
 - **Modal accessibility** (`ImportModal.tsx`): No `role="dialog"`, no ESC key handler, no focus trap. Standard gaps for a small project, but worth noting.
+- **Import UI clutters the dashboard**: The "Recent Imports" section (up to 6+ entries) and the active import tracker banner dominate the dashboard, which should be focused on answering "What do I practice today?" Import management (form, progress tracking, history) is a separate user intent from daily practice. **Recommendation**: Move imports to a dedicated `/import` page. The dashboard's "Import Problems" button should navigate to `/import` instead of opening a modal. The dashboard should only show a small notification if an import is actively running (e.g., a link/badge saying "1 import in progress" that navigates to `/import`). This keeps the dashboard clean and practice-focused.
 - **Stale pyiceberg warning filter** (`pyproject.toml:34`): `filterwarnings` suppresses `DeprecationWarning` from `pyiceberg` which is not a dependency.
 - **Makefile skips import tests** (`Makefile:41-44`): `test-backend-all` has `--ignore` flags for route test files but doesn't explicitly include or exclude `tests/import_tests/`. The import tests should be covered by the default `tests/` path, but the `--ignore` pattern should be reviewed.
 
@@ -92,14 +167,17 @@ The retry loop (3 attempts) catches `IntegrityError` but doesn't add backoff. Si
 ## What's Good
 
 - **Clean architecture**: Routes -> Workflow -> Agents -> Validator — well-separated concerns
-- **Cooperative cancellation**: Users can cancel in-progress imports via status check at each loop iteration
+- **Cooperative cancellation**: Users can cancel in-progress imports via status check at each loop iteration. Confirmed working during manual testing — cancel triggers immediately, workflow stops at next boundary, status transitions correctly to "Cancelled".
 - **Pydantic schemas**: Strong validation at API boundaries with `GeneratedProblem`, `ImportPlan`, etc.
 - **TypeScript passes**: No type errors despite significant frontend additions
 - **Test structure**: Dedicated `import_tests/` directory with isolated fixtures and mocked auth
-- **Progress tracking**: Real-time progress bar, status icons, linked problems, and import history
-- **Structured logging**: Uses `structlog` throughout with contextual info
+- **Progress tracking**: Real-time progress bar, status icons, linked problems, and import history. All confirmed working via browser testing — status updates arrive via 2-second polling, progress bar increments correctly during batch imports.
+- **Structured logging**: Uses `structlog` throughout with contextual info. Logs were invaluable for diagnosing the verifier bug — each verification failure is logged with the full issues list and attempt count.
 - **Error handling**: Top-level try/catch in workflow with status updates on failure
-- **Correct frontend error handling**: Modal stays open on error, mutation state drives error display
+- **Correct frontend error handling**: Modal stays open on error, mutation state drives error display. Confirmed — the modal closes only on successful submission, errors are displayed inline.
+- **Duplicate detection**: Fast-path rejection of existing LeetCode numbers before any LLM calls. Saves cost and provides instant user feedback.
+- **Import history UX**: The "Recent Imports" section on the dashboard provides complete visibility into all past import attempts with status icons, prompts, error messages, timestamps, and progress counts. Well-designed at-a-glance overview.
+- **Active import tracker**: Non-intrusive banner at top of dashboard shows real-time import progress without blocking other page interactions. Dismiss button for terminal states keeps the UI clean.
 
 ---
 
@@ -110,11 +188,13 @@ The retry loop (3 attempts) catches `IntegrityError` but doesn't add backoff. Si
 2. Add timeouts to all LLM agent and Judge0 calls
 3. Unify test database port across conftest files and Makefile
 4. Verify build passes in a clean environment
+5. Fix verifier agent model portability — the feature is non-functional with OpenAI models
 
 **Before production**:
-5. Add staleness check to startup recovery
-6. Add jitter to sequence number retry loop
-7. Regenerate OpenAPI types to replace manual import type definitions
-8. Add a `logger.warning()` for comparison_strategy overrides
+6. Add staleness check to startup recovery
+7. Add jitter to sequence number retry loop
+8. Regenerate OpenAPI types to replace manual import type definitions
+9. Add a `logger.warning()` for comparison_strategy overrides
+10. Test with the intended Anthropic model to confirm end-to-end flow works
 
-**Overall grade: B+** — Good architecture, separation of concerns, and correct frontend patterns. The main risks are reliability (no timeouts on external calls, GC-able background tasks) and test infrastructure consistency.
+**Overall grade: B** — Good architecture, well-separated concerns, polished frontend UX (progress tracking, cancel, import history all work correctly). The main risks are: (1) the verification agent is fundamentally broken with non-Anthropic models, meaning the feature cannot function unless the default model is available; (2) reliability gaps (no timeouts on external calls, GC-able background tasks); and (3) test infrastructure inconsistency. The frontend is production-quality; the backend pipeline needs the verification fix before it can successfully import any problem.

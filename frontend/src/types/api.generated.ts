@@ -232,6 +232,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/patterns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Patterns
+         * @description Get all problems grouped by their primary pattern.
+         *
+         *     Returns problems organized by pattern with user progress,
+         *     allowing users to focus on specific concepts.
+         */
+        get: operations["get_patterns_api_patterns_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/submissions/{problem_id}": {
         parameters: {
             query?: never;
@@ -452,6 +475,71 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/imports/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Imports
+         * @description List all import jobs for the current user.
+         */
+        get: operations["list_imports_api_imports__get"];
+        put?: never;
+        /**
+         * Start Import
+         * @description Start a problem import workflow.
+         */
+        post: operations["start_import_api_imports__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/imports/{import_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Import
+         * @description Get import job status with linked problems.
+         */
+        get: operations["get_import_api_imports__import_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/imports/{import_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel Import
+         * @description Cancel an in-progress import. Cancellation is cooperative — the workflow
+         *     checks for cancellation at the top of each problem iteration.
+         */
+        post: operations["cancel_import_api_imports__import_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/": {
         parameters: {
             query?: never;
@@ -636,6 +724,113 @@ export interface components {
             detail?: components["schemas"]["ValidationError"][];
         };
         /**
+         * ImportJobDetailResponse
+         * @description Full import job detail with linked problems.
+         */
+        ImportJobDetailResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Prompt */
+            prompt: string;
+            /** Status */
+            status: string;
+            /** Message */
+            message: string | null;
+            /** Progress */
+            progress: number | null;
+            /** Total */
+            total: number | null;
+            /** Problems */
+            problems: components["schemas"]["ImportedProblemResponse"][];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Completed At */
+            completed_at: string | null;
+        };
+        /**
+         * ImportJobResponse
+         * @description Response after creating an import job.
+         */
+        ImportJobResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Prompt */
+            prompt: string;
+            /** Status */
+            status: string;
+            /** Message */
+            message: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * ImportJobSummaryResponse
+         * @description Summary for import job list view.
+         */
+        ImportJobSummaryResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Prompt */
+            prompt: string;
+            /** Status */
+            status: string;
+            /** Message */
+            message: string | null;
+            /** Progress */
+            progress: number | null;
+            /** Total */
+            total: number | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Completed At */
+            completed_at: string | null;
+        };
+        /**
+         * ImportRequest
+         * @description Request body for starting an import.
+         */
+        ImportRequest: {
+            /** Prompt */
+            prompt: string;
+        };
+        /**
+         * ImportedProblemResponse
+         * @description A problem linked to an import job — clickable to /problem/:slug.
+         */
+        ImportedProblemResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Title */
+            title: string;
+            /** Slug */
+            slug: string;
+            /** Difficulty */
+            difficulty: string;
+            /** Pattern */
+            pattern: string[];
+        };
+        /**
          * Language
          * @description Supported programming languages.
          * @enum {string}
@@ -692,6 +887,53 @@ export interface components {
             is_default: boolean;
         };
         /**
+         * PatternGroupSchema
+         * @description A group of problems sharing the same primary pattern.
+         */
+        PatternGroupSchema: {
+            /**
+             * Pattern
+             * @description The pattern name (e.g., 'dynamic-programming')
+             */
+            pattern: string;
+            /**
+             * Problems
+             * @description Problems with this primary pattern
+             */
+            problems: components["schemas"]["ProblemWithProgressSchema"][];
+            /**
+             * Total Count
+             * @description Total problems in this pattern
+             */
+            total_count: number;
+            /**
+             * Solved Count
+             * @description Problems solved at least once
+             */
+            solved_count: number;
+            /**
+             * Mastered Count
+             * @description Problems mastered in this pattern
+             */
+            mastered_count: number;
+        };
+        /**
+         * PatternsResponse
+         * @description Response with all problems grouped by their primary pattern.
+         */
+        PatternsResponse: {
+            /**
+             * Patterns
+             * @description Problems grouped by primary pattern, sorted by pattern name
+             */
+            patterns: components["schemas"]["PatternGroupSchema"][];
+            /**
+             * Total Patterns
+             * @description Total unique patterns
+             */
+            total_patterns: number;
+        };
+        /**
          * ProblemBasicSchema
          * @description Basic problem info for progress list.
          */
@@ -710,6 +952,8 @@ export interface components {
             pattern: string[];
             /** Sequence Number */
             sequence_number: number;
+            /** Leetcode No */
+            leetcode_no?: number | null;
         };
         /**
          * ProblemDetailSchema
@@ -734,6 +978,8 @@ export interface components {
             pattern: string[];
             /** Sequence Number */
             sequence_number: number;
+            /** Leetcode No */
+            leetcode_no?: number | null;
             /** Constraints */
             constraints: string[];
             /** Examples */
@@ -806,6 +1052,8 @@ export interface components {
             pattern: string[];
             /** Sequence Number */
             sequence_number: number;
+            /** Leetcode No */
+            leetcode_no?: number | null;
             /**
              * Times Solved
              * @default 0
@@ -840,6 +1088,8 @@ export interface components {
             pattern: string[];
             /** Sequence Number */
             sequence_number: number;
+            /** Leetcode No */
+            leetcode_no?: number | null;
         };
         /**
          * ProblemWithProgressSchema
@@ -861,7 +1111,7 @@ export interface components {
             problems: components["schemas"]["ProblemWithProgressSchema"][];
             /**
              * Total Problems
-             * @description Total problems in dataset (75)
+             * @description Total problems in dataset
              */
             total_problems: number;
             /**
@@ -1652,6 +1902,26 @@ export interface operations {
             };
         };
     };
+    get_patterns_api_patterns_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PatternsResponse"];
+                };
+            };
+        };
+    };
     get_submissions_api_submissions__problem_id__get: {
         parameters: {
             query?: never;
@@ -1977,6 +2247,121 @@ export interface operations {
                 "application/json": components["schemas"]["SendMessageRequest"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_imports_api_imports__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportJobSummaryResponse"][];
+                };
+            };
+        };
+    };
+    start_import_api_imports__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportJobResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_import_api_imports__import_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                import_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportJobDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_import_api_imports__import_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                import_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
