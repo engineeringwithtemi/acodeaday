@@ -12,6 +12,7 @@ import {
   Check,
   Pencil,
   RefreshCw,
+  GitBranch,
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -36,6 +37,7 @@ interface ChatPanelProps {
   initialMessage?: string | null
   initialSessionTitle?: string | null
   onInitialMessageSent?: () => void
+  onDiagramRequest?: (code: string) => void
 }
 
 const LAST_MODEL_KEY = 'acodeaday_last_model'
@@ -56,12 +58,30 @@ function saveLastModel(model: string): void {
   }
 }
 
-export function ChatPanel({ problemSlug, currentCode, testResults, onClose, initialMessage, initialSessionTitle, onInitialMessageSent }: ChatPanelProps) {
+const DIAGRAM_REQUEST_MSG = 'Show me a complete code solution for this problem. I want to visualize it as a diagram.'
+
+function isDiagramMessage(content: string): boolean {
+  return content === DIAGRAM_REQUEST_MSG
+}
+
+function extractCodeFromMarkdown(markdown: string): string | null {
+  const codeBlockRegex = /```\w*\s*\n([\s\S]*?)```/g
+  const matches = [...markdown.matchAll(codeBlockRegex)]
+  if (matches.length === 0) return null
+  // Return the longest code block (most likely the full solution)
+  return matches.reduce((a, b) =>
+    (a[1].length > b[1].length ? a : b)
+  )[1].trim()
+}
+
+export function ChatPanel({ problemSlug, currentCode, testResults, onClose, initialMessage, initialSessionTitle, onInitialMessageSent, onDiagramRequest }: ChatPanelProps) {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
   const [inputValue, setInputValue] = useState('')
   const [showSessionDropdown, setShowSessionDropdown] = useState(false)
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null)
   const [editingTitle, setEditingTitle] = useState('')
+  const [diagramLoading, setDiagramLoading] = useState(false)
+  const [diagramError, setDiagramError] = useState<string | null>(null)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -258,6 +278,32 @@ export function ChatPanel({ problemSlug, currentCode, testResults, onClose, init
     }
   }
 
+  const handleShowDiagram = async () => {
+    if (!activeSessionId || isStreaming || diagramLoading) return
+
+    setDiagramLoading(true)
+    setDiagramError(null)
+
+    try {
+      const responseText = await sendMessage(
+        DIAGRAM_REQUEST_MSG,
+        currentCode,
+        testResults
+      )
+
+      const code = extractCodeFromMarkdown(responseText || '')
+      if (code) {
+        onDiagramRequest?.(code)
+      } else {
+        setDiagramError('No code found in AI response')
+      }
+    } catch {
+      setDiagramError('Failed to generate diagram')
+    } finally {
+      setDiagramLoading(false)
+    }
+  }
+
   return (
     <div className="h-full flex flex-col bg-gray-800 border-l border-gray-700">
       {/* Header */}
@@ -416,17 +462,33 @@ export function ChatPanel({ problemSlug, currentCode, testResults, onClose, init
           </div>
         ) : (
           <>
-            {activeSession.messages.map((message) => (
-              <MessageBubble key={message.id} message={message} />
-            ))}
-            {/* Pending user message - shown immediately after sending */}
-            {pendingMessage && (
+            {activeSession.messages.map((message, idx) => {
+              // Hide diagram request (user) and its AI response
+              if (message.role === 'user' && isDiagramMessage(message.content)) {
+                return (
+                  <div key={message.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-800/50 border border-gray-700/50">
+                    <GitBranch className="w-4 h-4 text-cyan-400 shrink-0" />
+                    <span className="text-xs text-gray-400">Diagram generated — see Diagram tab (Pseudocode view)</span>
+                  </div>
+                )
+              }
+              // Skip the AI response that follows a diagram request (already handled above)
+              if (message.role === 'assistant' && idx > 0) {
+                const prevMsg = activeSession.messages[idx - 1]
+                if (prevMsg.role === 'user' && isDiagramMessage(prevMsg.content)) {
+                  return null
+                }
+              }
+              return <MessageBubble key={message.id} message={message} />
+            })}
+            {/* Pending user message - shown immediately after sending (hidden during diagram generation) */}
+            {pendingMessage && !diagramLoading && (
               <div className="bg-cyan-600/20 border-l-2 border-cyan-500 rounded-r-lg px-4 py-3">
                 <div className="text-sm text-gray-100">{pendingMessage}</div>
               </div>
             )}
-            {/* Thinking indicator - shown while waiting for first chunk */}
-            {isStreaming && !streamingContent && (
+            {/* Thinking indicator - shown while waiting for first chunk (hidden during diagram generation) */}
+            {isStreaming && !streamingContent && !diagramLoading && (
               <div className="bg-gray-900 border-l-2 border-gray-600 rounded-r-lg px-4 py-3">
                 <div className="flex items-center gap-3 text-gray-400">
                   <div className="flex gap-1">
@@ -438,8 +500,8 @@ export function ChatPanel({ problemSlug, currentCode, testResults, onClose, init
                 </div>
               </div>
             )}
-            {/* Streaming content - shown when chunks arrive */}
-            {streamingContent && (
+            {/* Streaming content - shown when chunks arrive (hidden during diagram generation) */}
+            {streamingContent && !diagramLoading && (
               <div className="bg-gray-900 border-l-2 border-gray-600 rounded-r-lg px-4 py-4">
                 <div className="text-gray-300">
                   <div className="prose prose-invert prose-sm max-w-none prose-p:text-base prose-p:leading-relaxed prose-p:my-3 prose-headings:text-gray-100 prose-strong:text-gray-100 prose-li:text-base prose-li:leading-relaxed">
@@ -506,6 +568,21 @@ export function ChatPanel({ problemSlug, currentCode, testResults, onClose, init
 
       {/* Input area */}
       <div className="p-4 border-t border-gray-700">
+        {/* Action buttons row */}
+        <div className="flex items-center gap-2 mb-2">
+          <button
+            onClick={handleShowDiagram}
+            disabled={!activeSessionId || isStreaming || diagramLoading}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <GitBranch className="w-3.5 h-3.5" />
+            {diagramLoading ? 'Generating...' : 'Show Diagram'}
+          </button>
+          {diagramError && (
+            <span className="text-xs text-red-400">{diagramError}</span>
+          )}
+        </div>
+
         <div className="flex gap-2">
           <textarea
             ref={inputRef}

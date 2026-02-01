@@ -10,6 +10,9 @@ import path from 'path'
 const config = defineConfig({
   // Look for .env files in the parent directory (project root)
   envDir: path.resolve(__dirname, '..'),
+  optimizeDeps: {
+    exclude: ['web-tree-sitter'],
+  },
   plugins: [
     devtools(),
     nitro(),
