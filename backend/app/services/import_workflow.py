@@ -40,7 +40,8 @@ from app.services.seeder import title_to_slug
 
 logger = get_logger(__name__)
 
-MAX_RETRIES = 3
+MAX_RETRIES = 5
+MAX_TC_RETRIES = 3
 MAX_PROBLEMS_PER_IMPORT = 20
 LLM_TIMEOUT_SECONDS = 120
 JUDGE0_TIMEOUT_SECONDS = 60
@@ -285,20 +286,33 @@ async def import_problems_workflow(import_job_id: str, prompt: str) -> None:
             all_exclude_slugs = exclude_slugs[:]
             all_exclude_nos = exclude_leetcode_nos + batch_leetcode_nos
 
-            # ── Retry loop with refinement ──
+            # ── Retry loop with targeted retries ──
+            #
+            # Outer loop: retries problem generation + verification.
+            # Inner loop: retries ONLY test case generation + Judge0.
+            # This avoids wastefully regenerating a correct problem/solution
+            # when only the test cases need fixing.
             previous_problem: GeneratedProblem | None = None
-            issues: list[str] = []
+            refinement_issues: list[str] = []
             problem_succeeded = False
 
             for attempt in range(MAX_RETRIES):
                 try:
-                    # 3a. Generate (or refine)
-                    if previous_problem and issues:
+                    # 3a. Generate (or refine from verification failure)
+                    if previous_problem and refinement_issues:
+                        # Build refinement prompt with identity constraints
+                        identity_constraint = ""
+                        if plan.intent == "specific" and plan.leetcode_number:
+                            identity_constraint = (
+                                f"\nCRITICAL: You MUST keep this as LeetCode #{plan.leetcode_number}. "
+                                f"Do NOT change the problem identity.\n"
+                            )
                         gen_result = await asyncio.wait_for(
                             get_problem_generator_agent().run(
-                                f"Fix these issues with the problem below: {issues}\n\n"
+                                f"Fix these issues with the problem below: {refinement_issues}\n\n"
                                 f"Original problem:\n{previous_problem.model_dump_json(indent=2)}\n\n"
                                 f"Preserve what's correct. Only fix what's broken.\n"
+                                f"{identity_constraint}"
                                 f"Excluded slugs: {all_exclude_slugs}\n"
                                 f"Excluded leetcode_nos: {all_exclude_nos}"
                             ),
@@ -328,6 +342,23 @@ async def import_problems_workflow(import_job_id: str, prompt: str) -> None:
 
                     problem = gen_result.output
 
+                    # Retry drift guard: reject if a specific import drifted
+                    if plan.intent == "specific" and plan.leetcode_number:
+                        if problem.leetcode_no != plan.leetcode_number:
+                            logger.warning(
+                                "retry_drift_detected",
+                                expected=plan.leetcode_number,
+                                actual=problem.leetcode_no,
+                                actual_title=problem.title,
+                                attempt=attempt + 1,
+                            )
+                            previous_problem = problem
+                            refinement_issues = [
+                                f"WRONG PROBLEM: You generated #{problem.leetcode_no} "
+                                f"({problem.title}) but MUST generate #{plan.leetcode_number}."
+                            ]
+                            continue
+
                     # Reject unsupported comparison strategies
                     if problem.comparison_strategy in ("in_place_only", "in_place_with_length"):
                         logger.warning(
@@ -351,58 +382,99 @@ async def import_problems_workflow(import_job_id: str, prompt: str) -> None:
 
                     if not verification.is_valid():
                         previous_problem = problem
-                        issues = [verification.failed_checks_summary()]
+                        refinement_issues = [verification.failed_checks_summary()]
                         logger.info(
                             "verification_failed",
                             title=problem.title,
-                            issues=issues,
+                            issues=refinement_issues,
                             attempt=attempt + 1,
                         )
                         continue
 
-                    # 3c. Generate test cases
-                    await _update_job(
-                        job_id,
-                        message=f"Generating test cases for {problem.title}",
-                        progress=i,
-                    )
-                    tc_result = await asyncio.wait_for(
-                        get_test_case_generator_agent().run(
-                            f"Generate test cases for:\n{problem.model_dump_json(indent=2)}"
-                        ),
-                        timeout=LLM_TIMEOUT_SECONDS,
-                    )
-                    test_cases = tc_result.output.test_cases
-
-                    # 3d. Validate with Judge0
+                    # 3c+3d. Generate test cases + validate with Judge0.
+                    # Inner retry loop: if Judge0 fails, only regenerate test cases.
                     python_lang = problem.languages.python
-                    if python_lang:
+                    tc_validated = False
+                    test_cases = None
+                    tc_feedback: str | None = None
+
+                    for tc_attempt in range(MAX_TC_RETRIES):
+                        # Generate test cases (with feedback if retrying)
                         await _update_job(
                             job_id,
-                            message=f"Validating solution for {problem.title}",
+                            message=f"Generating test cases for {problem.title}"
+                            + (f" (retry {tc_attempt})" if tc_attempt > 0 else ""),
                             progress=i,
                         )
-                        execution = await asyncio.wait_for(
-                            validate_solution_with_judge0(
-                                reference_solution=python_lang.reference_solution,
-                                function_name=python_lang.function_signature.name,
-                                test_cases=[tc.model_dump() for tc in test_cases],
-                                comparison_strategy=problem.comparison_strategy,
-                            ),
-                            timeout=JUDGE0_TIMEOUT_SECONDS,
-                        )
-                        if not execution["all_passed"]:
-                            previous_problem = problem
-                            issues = [
-                                f"Judge0 validation failed: {execution['failures']}"
-                            ]
-                            logger.warning(
-                                "judge0_validation_failed",
-                                title=problem.title,
-                                failures=execution["failures"],
-                                attempt=attempt + 1,
+                        if tc_attempt == 0:
+                            tc_prompt = (
+                                f"Generate test cases for:\n"
+                                f"{problem.model_dump_json(indent=2)}"
                             )
-                            continue
+                        else:
+                            tc_prompt = (
+                                f"Generate test cases for:\n"
+                                f"{problem.model_dump_json(indent=2)}\n\n"
+                                f"IMPORTANT: The previous test cases had errors when run "
+                                f"against the reference solution:\n{tc_feedback}\n\n"
+                                f"Fix the incorrect expected values. Make sure every expected "
+                                f"value matches what the reference solution actually returns."
+                            )
+
+                        tc_result = await asyncio.wait_for(
+                            get_test_case_generator_agent().run(tc_prompt),
+                            timeout=LLM_TIMEOUT_SECONDS,
+                        )
+                        test_cases = tc_result.output.test_cases
+
+                        # Validate with Judge0
+                        if python_lang:
+                            await _update_job(
+                                job_id,
+                                message=f"Validating solution for {problem.title}"
+                                + (f" (retry {tc_attempt})" if tc_attempt > 0 else ""),
+                                progress=i,
+                            )
+                            execution = await asyncio.wait_for(
+                                validate_solution_with_judge0(
+                                    reference_solution=python_lang.reference_solution,
+                                    function_name=python_lang.function_signature.name,
+                                    test_cases=[tc.model_dump() for tc in test_cases],
+                                    comparison_strategy=problem.comparison_strategy,
+                                ),
+                                timeout=JUDGE0_TIMEOUT_SECONDS,
+                            )
+                            if execution["all_passed"]:
+                                tc_validated = True
+                                break
+                            else:
+                                tc_feedback = str(execution["failures"])
+                                logger.warning(
+                                    "judge0_validation_failed",
+                                    title=problem.title,
+                                    failures=execution["failures"],
+                                    tc_attempt=tc_attempt + 1,
+                                    outer_attempt=attempt + 1,
+                                )
+                        else:
+                            # No Python lang to validate — accept as-is
+                            tc_validated = True
+                            break
+
+                    if not tc_validated:
+                        # Exhausted test case retries — fall back to outer retry
+                        # which regenerates the problem + solution
+                        previous_problem = problem
+                        refinement_issues = [
+                            "Test case generation failed after multiple attempts. "
+                            "The reference solution may be incorrect."
+                        ]
+                        logger.warning(
+                            "tc_retries_exhausted",
+                            title=problem.title,
+                            attempt=attempt + 1,
+                        )
+                        continue
 
                     # 3e. Persist
                     await _update_job(
@@ -420,7 +492,7 @@ async def import_problems_workflow(import_job_id: str, prompt: str) -> None:
                         # IntegrityError on all retries — skip this problem
                         all_exclude_nos.append(problem.leetcode_no)
                         previous_problem = None
-                        issues = []
+                        refinement_issues = []
                         continue
 
                 except Exception as e:
@@ -430,7 +502,7 @@ async def import_problems_workflow(import_job_id: str, prompt: str) -> None:
                         error=str(e),
                     )
                     previous_problem = None
-                    issues = []
+                    refinement_issues = []
                     continue
 
             if not problem_succeeded:
