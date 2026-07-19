@@ -23,11 +23,18 @@
    supabase start
    ```
 
-   Copy the `DB URL` from the output and update `.env`:
+   Copy the keys from `supabase status` output and update `.env`:
    ```bash
    # Change postgresql:// to postgresql+asyncpg://
    DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:54322/postgres
+   SUPABASE_URL=http://127.0.0.1:54321
+   SUPABASE_KEY=sb_publishable_<your publishable key>
+   SUPABASE_SERVICE_ROLE_KEY=sb_secret_<your secret key>
+   VITE_SUPABASE_URL=http://127.0.0.1:54321
+   VITE_SUPABASE_KEY=sb_publishable_<your publishable key>
    ```
+
+   > **Note:** Supabase CLI v2 uses `sb_publishable_*` / `sb_secret_*` key format (not the old JWT format).
 
 2. **Start Judge0 (Code execution engine)**
    ```bash
@@ -53,7 +60,7 @@
    uv run alembic upgrade head
 
    # Seed problems (150+ coding problems)
-   uv run python scripts/seed_problems.py
+   uv run python scripts/seed_problems.py seed
 
    # Start backend server
    uv run uvicorn app.main:app --reload
@@ -70,7 +77,7 @@
    - Frontend: http://localhost:5173
    - Backend API: http://localhost:8000
    - API Docs: http://localhost:8000/docs
-   - Default login: `admin@acodeaday.local` / `changeme123`
+   - Default login: `admin@acodeaday.vercel.app` / `changeME123` (set via `AUTH_USER_EMAIL` / `AUTH_PASSWORD` in `.env`)
 
 ---
 
@@ -205,9 +212,10 @@ Copy `.env.example` to `.env` and configure:
 |----------|-------------|---------|
 | `DATABASE_URL` | PostgreSQL connection (asyncpg) | `postgresql+asyncpg://...` |
 | `SUPABASE_URL` | Supabase project URL | `http://localhost:54321` |
-| `SUPABASE_KEY` | Supabase anon/public key | - |
-| `DEFAULT_USER_EMAIL` | Default user email | `admin@acodeaday.local` |
-| `DEFAULT_USER_PASSWORD` | Default user password | `changeme123` |
+| `SUPABASE_KEY` | Supabase publishable key (`sb_publishable_*`) | - |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase secret key (`sb_secret_*`) | - |
+| `AUTH_USER_EMAIL` | Default user email (created on startup) | `admin@acodeaday.vercel.app` |
+| `AUTH_PASSWORD` | Default user password | `changeME123` |
 | `JUDGE0_URL` | Judge0 API endpoint | `http://localhost:2358` |
 | `LLM_SUPPORTED_MODELS` | Comma-separated LLM models | `gemini/gemini-2.5-flash` |
 | `ENVIRONMENT` | Environment (development/production) | `development` |
